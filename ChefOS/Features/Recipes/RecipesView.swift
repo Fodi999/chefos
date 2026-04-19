@@ -12,6 +12,7 @@ struct RecipesView: View {
     @EnvironmentObject var planViewModel: PlanViewModel
     @EnvironmentObject var regionService: RegionService
     @EnvironmentObject var usageService: UsageService
+    @EnvironmentObject var l10n: LocalizationService
     @State private var appeared = false
     @State private var mealPickerRecipe: Recipe? = nil
 
@@ -46,7 +47,7 @@ struct RecipesView: View {
                                     .font(.title3)
                                     .foregroundStyle(.green)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Cooked!")
+                                    Text(l10n.t("recipes.cooked"))
                                         .font(.subheadline.weight(.bold))
                                     Text(viewModel.lastCookedTitle)
                                         .font(.caption)
@@ -65,7 +66,7 @@ struct RecipesView: View {
                                 }
                                 .padding(.leading, 44)
                             }
-                            Text("Stock updated")
+                            Text(l10n.t("recipes.stockUpdated"))
                                 .font(.caption2)
                                 .foregroundStyle(.green.opacity(0.7))
                                 .padding(.leading, 44)
@@ -85,8 +86,8 @@ struct RecipesView: View {
                     .padding(.top, 8)
                 }
             }
-            .searchable(text: $viewModel.searchText, prompt: viewModel.showStock ? "Search stock" : "Search recipes")
-            .navigationTitle("Recipes")
+            .searchable(text: $viewModel.searchText, prompt: viewModel.showStock ? l10n.t("recipes.searchStock") : l10n.t("recipes.search"))
+            .navigationTitle(l10n.t("recipes.title"))
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
             .navigationDestination(for: UUID.self) { id in
                 if let recipe = viewModel.recipes.first(where: { $0.id == id }) {
@@ -110,7 +111,7 @@ struct RecipesView: View {
 
     private var modeToggle: some View {
         HStack(spacing: 0) {
-            ForEach(["Stock", "Cook"], id: \.self) { mode in
+            ForEach([("Stock", l10n.t("recipes.stock")), ("Cook", l10n.t("recipes.cook"))], id: \.0) { mode, label in
                 let isActive = (mode == "Stock" && viewModel.showStock) || (mode == "Cook" && !viewModel.showStock)
                 Button {
                     withAnimation(.snappy(duration: 0.35)) {
@@ -120,7 +121,7 @@ struct RecipesView: View {
                     HStack(spacing: 6) {
                         Image(systemName: mode == "Stock" ? "shippingbox.fill" : "frying.pan.fill")
                             .font(.caption)
-                        Text(mode)
+                        Text(label)
                             .font(.subheadline.weight(.semibold))
                     }
                     .foregroundStyle(isActive ? .white : .white.opacity(0.4))
@@ -191,11 +192,11 @@ struct RecipesView: View {
 
     private var stockSummary: some View {
         HStack(spacing: 0) {
-            stockMetric(value: String(format: "%.0f %@", viewModel.totalStockValue, regionService.currency), label: "Total", color: .green, icon: "banknote.fill")
+            stockMetric(value: String(format: "%.0f %@", viewModel.totalStockValue, regionService.currency), label: l10n.t("recipes.total"), color: .green, icon: "banknote.fill")
             Divider().frame(height: 36).overlay(Color.white.opacity(0.06))
-            stockMetric(value: "\(viewModel.stockItems.count)", label: "Items", color: .cyan, icon: "shippingbox.fill")
+            stockMetric(value: "\(viewModel.stockItems.count)", label: l10n.t("recipes.items"), color: .cyan, icon: "shippingbox.fill")
             Divider().frame(height: 36).overlay(Color.white.opacity(0.06))
-            stockMetric(value: "\(viewModel.expiringCount)", label: "Expiring", color: viewModel.expiringCount > 0 ? .red : .secondary, icon: "exclamationmark.triangle.fill")
+            stockMetric(value: "\(viewModel.expiringCount)", label: l10n.t("recipes.expiring"), color: viewModel.expiringCount > 0 ? .red : .secondary, icon: "exclamationmark.triangle.fill")
         }
         .padding(.vertical, 16)
         .glassCard(cornerRadius: 18)
@@ -250,10 +251,10 @@ struct RecipesView: View {
             Image(systemName: "shippingbox")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary.opacity(0.5))
-            Text("No items found")
+            Text(l10n.t("recipes.noItems"))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
-            Text("Scan a receipt in Chat to add items")
+            Text(l10n.t("recipes.scanReceipt"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -270,7 +271,7 @@ struct RecipesView: View {
                 Image(systemName: "brain.head.profile.fill")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.purple)
-                Text("Strategy for today")
+                Text(l10n.t("recipes.strategy"))
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.purple)
                 Spacer()
@@ -311,7 +312,7 @@ struct RecipesView: View {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles")
                     .foregroundStyle(.orange)
-                Text("Based on your stock")
+                Text(l10n.t("recipes.basedOnStock"))
                     .font(.subheadline.weight(.bold))
                 Spacer()
             }
@@ -322,10 +323,10 @@ struct RecipesView: View {
 
             if viewModel.cookFilter == .all {
                 if !viewModel.canCookRecipes.isEmpty {
-                    cookSection(title: "Can cook now", icon: "checkmark.circle.fill", color: .green, recipes: viewModel.canCookRecipes, canCook: true)
+                    cookSection(title: l10n.t("recipes.canCookNow"), icon: "checkmark.circle.fill", color: .green, recipes: viewModel.canCookRecipes, canCook: true)
                 }
                 if !viewModel.missingRecipes.isEmpty {
-                    cookSection(title: "Missing ingredients", icon: "exclamationmark.triangle.fill", color: .orange, recipes: viewModel.missingRecipes, canCook: false)
+                    cookSection(title: l10n.t("recipes.missingIngredients"), icon: "exclamationmark.triangle.fill", color: .orange, recipes: viewModel.missingRecipes, canCook: false)
                 }
             } else {
                 ForEach(Array(viewModel.filteredRecipes.enumerated()), id: \.element.id) { index, recipe in
@@ -342,7 +343,7 @@ struct RecipesView: View {
                     Image(systemName: "frying.pan")
                         .font(.largeTitle)
                         .foregroundStyle(.secondary.opacity(0.5))
-                    Text("No recipes found")
+                    Text(l10n.t("recipes.noRecipes"))
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
@@ -414,6 +415,7 @@ struct RecipesView: View {
 struct StockItemRow: View {
     let item: StockItem
     let currency: String
+    @EnvironmentObject var l10n: LocalizationService
 
     var body: some View {
         HStack(spacing: 14) {
@@ -454,7 +456,7 @@ struct StockItemRow: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.green)
                 if let exp = item.expiresIn {
-                    Text(exp <= 1 ? "expires today" : "\(exp)d left")
+                    Text(exp <= 1 ? l10n.t("recipes.expirestoday") : "\(exp)\(l10n.t("recipes.daysLeft"))")
                         .font(.caption2)
                         .foregroundStyle(exp <= 3 ? .red : .secondary)
                 }
@@ -494,6 +496,7 @@ struct CookRecipeRow: View {
     var onAddToPlan: (() -> Void)? = nil
     var currency: String = "$"
     @State private var expanded = false
+    @EnvironmentObject var l10n: LocalizationService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -521,7 +524,7 @@ struct CookRecipeRow: View {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.caption2)
                                     .foregroundStyle(.green)
-                                Text("can cook now")
+                                Text(l10n.t("recipes.canCook"))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.green)
                             }
@@ -531,7 +534,7 @@ struct CookRecipeRow: View {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
-                                Text("missing \(missing.count)")
+                                Text("\(l10n.t("recipes.missing")) \(missing.count)")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.orange)
                             }
@@ -557,7 +560,7 @@ struct CookRecipeRow: View {
                             Image(systemName: "banknote.fill")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                            Text("\(String(format: "%.2f %@", recipe.costPerServing, currency)) / portion")
+                            Text("\(String(format: "%.2f %@", recipe.costPerServing, currency)) \(l10n.t("recipes.portion"))")
                                 .font(.caption2.weight(.medium))
                                 .foregroundStyle(.secondary)
                         }
@@ -597,7 +600,7 @@ struct CookRecipeRow: View {
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Text(expanded ? "Hide ingredients" : "Show ingredients")
+                            Text(expanded ? l10n.t("recipes.hideIngredients") : l10n.t("recipes.showIngredients"))
                                 .font(.caption2.weight(.bold))
                                 .foregroundStyle(.secondary)
                             Image(systemName: expanded ? "chevron.up" : "chevron.down")
@@ -638,7 +641,7 @@ struct CookRecipeRow: View {
                         HStack(spacing: 5) {
                             Image(systemName: "flame.fill")
                                 .font(.caption2)
-                            Text("Cook")
+                            Text(l10n.t("recipes.cookBtn"))
                                 .font(.caption.weight(.bold))
                         }
                         .foregroundStyle(.white)
@@ -659,12 +662,12 @@ struct CookRecipeRow: View {
                             if planViewModel?.plannedSlot(for: recipe) != nil {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.caption2)
-                                Text("Added")
+                                Text(l10n.t("recipes.added"))
                                     .font(.caption.weight(.bold))
                             } else {
                                 Image(systemName: "calendar.badge.plus")
                                     .font(.caption2)
-                                Text("Add to plan")
+                                Text(l10n.t("recipes.addToPlan"))
                                     .font(.caption.weight(.bold))
                             }
                         }
@@ -683,7 +686,7 @@ struct CookRecipeRow: View {
                         HStack(spacing: 5) {
                             Image(systemName: "cart.badge.plus")
                                 .font(.caption2)
-                            Text("Add to shopping list")
+                            Text(l10n.t("recipes.addShopping"))
                                 .font(.caption.weight(.bold))
                         }
                         .foregroundStyle(.orange)
@@ -722,6 +725,7 @@ struct RecipeDetailView: View {
     var planViewModel: PlanViewModel?
     var currency: String = "$"
     @State private var showMealPicker = false
+    @EnvironmentObject var l10n: LocalizationService
 
     private var missing: [String] {
         viewModel.missingIngredients(for: recipe)
@@ -755,7 +759,7 @@ struct RecipeDetailView: View {
                             Label("\(recipe.protein)g", systemImage: "bolt.fill")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.cyan)
-                            Label("\(recipe.servings) srv", systemImage: "person.2.fill")
+                            Label("\(recipe.servings) \(l10n.t("recipes.servings"))", systemImage: "person.2.fill")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.purple)
                         }
@@ -766,7 +770,7 @@ struct RecipeDetailView: View {
                                 Text(String(format: "%.2f %@", recipe.estimatedCost, currency))
                                     .font(.headline.weight(.bold))
                                     .foregroundStyle(.green)
-                                Text("total")
+                                Text(l10n.t("recipes.totalCost"))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -775,7 +779,7 @@ struct RecipeDetailView: View {
                                 Text(String(format: "%.2f %@", recipe.costPerServing, currency))
                                     .font(.headline.weight(.bold))
                                     .foregroundStyle(.green)
-                                Text("/ portion")
+                                Text(l10n.t("recipes.portion"))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -785,7 +789,7 @@ struct RecipeDetailView: View {
                                 Text("\(pct)%")
                                     .font(.headline.weight(.bold))
                                     .foregroundStyle(pct <= 15 ? .green : pct <= 30 ? .orange : .red)
-                                Text("of budget")
+                                Text(l10n.t("recipes.ofBudget"))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
@@ -796,7 +800,7 @@ struct RecipeDetailView: View {
 
                         HStack(spacing: 6) {
                             Image(systemName: canCookNow ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            Text(canCookNow ? "All ingredients in stock" : "Missing \(missing.count) ingredient\(missing.count == 1 ? "" : "s")")
+                            Text(canCookNow ? l10n.t("recipes.allInStock") : "\(l10n.t("recipes.missing")) \(missing.count)")
                                 .font(.caption.weight(.semibold))
                         }
                         .foregroundStyle(canCookNow ? .green : .orange)
@@ -808,7 +812,7 @@ struct RecipeDetailView: View {
 
                     // Ingredients with quantities
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Ingredients", systemImage: "basket.fill")
+                        Label(l10n.t("recipes.ingredients"), systemImage: "basket.fill")
                             .font(.title3.bold())
                             .foregroundStyle(.primary)
 
@@ -824,7 +828,7 @@ struct RecipeDetailView: View {
                                 Text(s.qty)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(s.inStock ? Color.primary : Color.red)
-                                Text(s.inStock ? "OK" : "missing")
+                                Text(s.inStock ? "OK" : l10n.t("recipes.missing"))
                                     .font(.caption2.weight(.bold))
                                     .foregroundStyle(s.inStock ? .green : .red)
                                     .padding(.horizontal, 8)
@@ -847,7 +851,7 @@ struct RecipeDetailView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "flame.fill")
-                                    Text("Cook now")
+                                    Text(l10n.t("recipes.cookNow"))
                                         .font(.headline.weight(.bold))
                                 }
                                 .foregroundStyle(.white)
@@ -871,7 +875,7 @@ struct RecipeDetailView: View {
                                             .font(.headline.weight(.bold))
                                     } else {
                                         Image(systemName: "calendar.badge.plus")
-                                        Text("Plan")
+                                        Text(l10n.t("recipes.plan"))
                                             .font(.headline.weight(.bold))
                                     }
                                 }
@@ -888,7 +892,7 @@ struct RecipeDetailView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "cart.badge.plus")
-                                    Text("Add missing to shopping list")
+                                    Text(l10n.t("recipes.addMissingShopping"))
                                         .font(.headline.weight(.bold))
                                 }
                                 .foregroundStyle(.orange)
@@ -903,7 +907,7 @@ struct RecipeDetailView: View {
 
                     // Steps
                     VStack(alignment: .leading, spacing: 12) {
-                        Label("Steps", systemImage: "list.number")
+                        Label(l10n.t("recipes.steps"), systemImage: "list.number")
                             .font(.title3.bold())
                             .foregroundStyle(.primary)
 
@@ -944,6 +948,7 @@ struct RecipeDetailView: View {
         .environmentObject(PlanViewModel())
         .environmentObject(RegionService())
         .environmentObject(UsageService())
+        .environmentObject(LocalizationService())
 }
 
 // MARK: - Meal Slot Picker
@@ -952,6 +957,7 @@ struct MealSlotPicker: View {
     let recipe: Recipe
     @ObservedObject var planViewModel: PlanViewModel
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var l10n: LocalizationService
 
     var body: some View {
         VStack(spacing: 20) {
@@ -959,7 +965,7 @@ struct MealSlotPicker: View {
                 Image(systemName: "calendar.badge.plus")
                     .font(.title2)
                     .foregroundStyle(.orange)
-                Text("Add to plan")
+                Text(l10n.t("recipes.addToPlan"))
                     .font(.headline.weight(.bold))
                 Text(recipe.title)
                     .font(.subheadline)
@@ -984,11 +990,11 @@ struct MealSlotPicker: View {
                                 .font(.subheadline.weight(.semibold))
                             Spacer()
                             if isFilled {
-                                Text("Replace")
+                                Text(l10n.t("recipes.replace"))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.orange)
                             } else {
-                                Text("Empty")
+                                Text(l10n.t("recipes.empty"))
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.green)
                             }
