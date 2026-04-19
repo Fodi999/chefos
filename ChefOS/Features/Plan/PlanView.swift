@@ -11,6 +11,7 @@ struct PlanView: View {
     @EnvironmentObject var viewModel: PlanViewModel
     @EnvironmentObject var regionService: RegionService
     @EnvironmentObject var usageService: UsageService
+    @EnvironmentObject var l10n: LocalizationService
     @State private var appeared = false
     @State private var smartPlanBreathing = false
 
@@ -37,7 +38,7 @@ struct PlanView: View {
                             // MARK: Usage
                             UsageBanner(
                                 icon: "sparkles",
-                                text: "Plan generations left",
+                                text: l10n.t("plan.generationsLeft"),
                                 remaining: usageService.plansRemaining,
                                 total: UsageService.DailyLimits.plans,
                                 color: .orange
@@ -54,7 +55,7 @@ struct PlanView: View {
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.yellow)
                                     Spacer()
-                                    Text("Resets in \(usageService.timeUntilReset)")
+                                    Text("\(l10n.t("plan.resetsIn")) \(usageService.timeUntilReset)")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
@@ -72,7 +73,7 @@ struct PlanView: View {
                                         Image(systemName: "leaf.fill")
                                             .font(.caption2)
                                             .foregroundStyle(.green)
-                                        Text("This plan saves you \(Int(saved)) \(regionService.currency) today")
+                                        Text("\(l10n.t("plan.saves")) \(Int(saved)) \(regionService.currency) \(l10n.t("plan.today"))")
                                             .font(.caption.weight(.semibold))
                                             .foregroundStyle(.green)
                                     }
@@ -94,7 +95,7 @@ struct PlanView: View {
                                     HStack(spacing: 8) {
                                         Image(systemName: "exclamationmark.circle.fill")
                                             .foregroundStyle(.orange)
-                                        Text("You're over budget — Optimize now")
+                                        Text(l10n.t("plan.overBudget"))
                                             .font(.caption.weight(.bold))
                                             .foregroundStyle(.orange)
                                         Spacer()
@@ -151,7 +152,7 @@ struct PlanView: View {
                     .padding(.bottom, 80)
                 }
             }
-            .navigationTitle("Meal Plan")
+            .navigationTitle(l10n.t("plan.title"))
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -200,9 +201,9 @@ struct PlanView: View {
             Image(systemName: "checkmark.circle.fill")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.green)
-            Text("Plan ready")
+            Text(l10n.t("plan.planReady"))
                 .font(.subheadline.weight(.bold))
-            Text("— optimized for your goals")
+            Text(l10n.t("plan.optimizedGoals"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -223,7 +224,7 @@ struct PlanView: View {
             Image(systemName: "calendar.badge.plus")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.cyan)
-            Text("Added to \(viewModel.addedToPlanSlot)")
+            Text("\(l10n.t("plan.addedTo")) \(viewModel.addedToPlanSlot)")
                 .font(.subheadline.weight(.bold))
             Text("— \(viewModel.addedToPlanTitle)")
                 .font(.caption)
@@ -243,14 +244,14 @@ struct PlanView: View {
 
     private var viewToggle: some View {
         HStack(spacing: 0) {
-            ForEach(["Day", "Week"], id: \.self) { mode in
+            ForEach([("Day", l10n.t("plan.day")), ("Week", l10n.t("plan.week"))], id: \.0) { mode, label in
                 let isActive = (mode == "Day" && !viewModel.showWeekView) || (mode == "Week" && viewModel.showWeekView)
                 Button {
                     withAnimation(.snappy(duration: 0.35)) {
                         viewModel.showWeekView = (mode == "Week")
                     }
                 } label: {
-                    Text(mode)
+                    Text(label)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(isActive ? .white : .white.opacity(0.4))
                         .padding(.horizontal, 24)
@@ -309,9 +310,9 @@ struct PlanView: View {
                 .frame(width: 24, height: 24)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.isGenerating ? "Generating…" : "Smart Plan")
+                    Text(viewModel.isGenerating ? l10n.t("plan.generating") : l10n.t("plan.smartPlan"))
                         .font(.headline.weight(.bold))
-                    Text(viewModel.isGenerating ? "AI is thinking" : "Generate all meals")
+                    Text(viewModel.isGenerating ? l10n.t("plan.aiThinking") : l10n.t("plan.generateAll"))
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.7))
                 }
@@ -396,7 +397,7 @@ struct PlanView: View {
                 }
                 .frame(width: 22, height: 22)
 
-                Text("Optimize")
+                Text(l10n.t("plan.optimize"))
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.secondary)
             }
@@ -520,9 +521,9 @@ struct PlanView: View {
             VStack(spacing: 12) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Week Overview")
+                        Text(l10n.t("plan.weekOverview"))
                             .font(.headline)
-                        Text("\(viewModel.weekFilledMeals) of 21 meals · \(viewModel.weekCalories) kcal")
+                        Text("\(viewModel.weekFilledMeals) of 21 \(l10n.t("plan.meals")) · \(viewModel.weekCalories) kcal")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -530,7 +531,7 @@ struct PlanView: View {
                     Text("\(viewModel.weekDaysCompleted)/7")
                         .font(.title3.weight(.bold))
                         .foregroundStyle(.orange)
-                    + Text(" days")
+                    + Text(" \(l10n.t("plan.days"))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -578,10 +579,10 @@ struct PlanView: View {
                         if filled == 0 {
                             // Empty state — conversational
                             VStack(alignment: .leading, spacing: 3) {
-                                Text("No meals planned")
+                                Text(l10n.t("plan.noMeals"))
                                     .font(.subheadline.weight(.medium))
                                     .foregroundStyle(.secondary)
-                                Text("Tap to generate")
+                                Text(l10n.t("plan.tapGenerate"))
                                     .font(.caption2)
                                     .foregroundStyle(.orange.opacity(0.8))
                             }
@@ -775,6 +776,15 @@ struct MealRow: View {
     var currency: String = "$"
     var onAdd: () -> Void
     var onClear: () -> Void
+    @EnvironmentObject var l10n: LocalizationService
+
+    private var localizedMealType: String {
+        switch meal.type {
+        case .breakfast: return l10n.t("plan.breakfast")
+        case .lunch: return l10n.t("plan.lunch")
+        case .dinner: return l10n.t("plan.dinner")
+        }
+    }
 
     private var innerPadding: CGFloat {
         meal.type == .lunch ? 18 : 14
@@ -794,11 +804,11 @@ struct MealRow: View {
                     .background(iconColor.opacity(meal.type == .lunch ? 0.2 : 0.12), in: RoundedRectangle(cornerRadius: meal.type == .lunch ? 12 : 10))
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(meal.type.rawValue)
+                    Text(localizedMealType)
                         .font(meal.type == .lunch ? .headline.weight(.bold) : .subheadline.weight(.semibold))
 
                     if meal.type == .lunch && meal.recipe != nil {
-                        Text("Main meal")
+                        Text(l10n.t("plan.mainMeal"))
                             .font(.caption2)
                             .foregroundStyle(.orange.opacity(0.8))
                     }
@@ -845,7 +855,7 @@ struct MealRow: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                                     .font(.caption2.weight(.bold))
-                                Text("Replace")
+                                Text(l10n.t("plan.replace"))
                                     .font(.caption2.weight(.semibold))
                             }
                         }
@@ -868,7 +878,7 @@ struct MealRow: View {
                 Button(action: onAdd) {
                     HStack(spacing: 8) {
                         Image(systemName: "plus.circle.fill")
-                        Text("Add meal")
+                        Text(l10n.t("plan.addMeal"))
                     }
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.orange.opacity(0.9))
@@ -974,4 +984,5 @@ extension View {
         .environmentObject(PlanViewModel())
         .environmentObject(RegionService())
         .environmentObject(UsageService())
+        .environmentObject(LocalizationService())
 }
