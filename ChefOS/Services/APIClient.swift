@@ -476,6 +476,22 @@ final class APIClient {
         let role: String
         let available: Bool
         let expiringSoon: Bool
+        let productId: String?
+
+        enum CodingKeys: String, CodingKey {
+            case name, slug, grossG, role, available, expiringSoon, productId
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            name = try c.decode(String.self, forKey: .name)
+            slug = try c.decode(String.self, forKey: .slug)
+            grossG = try c.decode(Double.self, forKey: .grossG)
+            role = try c.decode(String.self, forKey: .role)
+            available = try c.decode(Bool.self, forKey: .available)
+            expiringSoon = try c.decode(Bool.self, forKey: .expiringSoon)
+            productId = try c.decodeIfPresent(String.self, forKey: .productId)
+        }
     }
 
     struct DishInsight: Codable {
