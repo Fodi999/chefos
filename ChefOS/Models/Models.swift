@@ -139,13 +139,14 @@ struct UserProfile {
     // MARK: AI Summary
 
     var aiSummary: String {
+        let l10n = LocalizationService.shared
         var lines: [String] = []
-        lines.append("Goal: \(goal.rawValue)")
-        lines.append("Calories: \(calorieTarget) kcal · Protein: \(proteinTarget)g")
-        if diet != .noRestrictions { lines.append("Diet: \(diet.rawValue)") }
-        if !allergies.isEmpty { lines.append("Avoid: \(allergies.joined(separator: ", "))") }
-        if cookingTime != .any { lines.append("Time: \(cookingTime.rawValue)") }
-        lines.append("Level: \(cookingLevel.rawValue)")
+        lines.append("\(l10n.t("ai.goal")): \(l10n.t(goal.l10nKey))")
+        lines.append("\(l10n.t("ai.calories")): \(calorieTarget) \(l10n.t("ai.kcal")) · \(l10n.t("ai.protein")): \(proteinTarget)\(l10n.t("ai.g"))")
+        if diet != .noRestrictions { lines.append("\(l10n.t("ai.diet")): \(l10n.t(diet.l10nKey))") }
+        if !allergies.isEmpty { lines.append("\(l10n.t("ai.avoid")): \(allergies.joined(separator: ", "))") }
+        if cookingTime != .any { lines.append("\(l10n.t("ai.time")): \(l10n.t(cookingTime.l10nKey))") }
+        lines.append("\(l10n.t("ai.level")): \(l10n.t(cookingLevel.l10nKey))")
         return lines.joined(separator: "\n")
     }
 }

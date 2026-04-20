@@ -116,6 +116,17 @@ final class LocalizationService: ObservableObject {
             "time.long": "≤ 60 min",
             "time.any": "Any",
 
+            // AI Summary labels
+            "ai.goal": "Goal",
+            "ai.calories": "Calories",
+            "ai.kcal": "kcal",
+            "ai.protein": "Protein",
+            "ai.g": "g",
+            "ai.diet": "Diet",
+            "ai.avoid": "Avoid",
+            "ai.time": "Time",
+            "ai.level": "Level",
+
             // Chat
             "chat.title": "Chat",
             "chat.placeholder": "Start with anything…",
@@ -305,6 +316,16 @@ final class LocalizationService: ObservableObject {
             "time.long": "≤ 60 мин",
             "time.any": "Любое",
 
+            "ai.goal": "Цель",
+            "ai.calories": "Калории",
+            "ai.kcal": "ккал",
+            "ai.protein": "Белок",
+            "ai.g": "г",
+            "ai.diet": "Диета",
+            "ai.avoid": "Избегать",
+            "ai.time": "Время",
+            "ai.level": "Уровень",
+
             "chat.title": "Чат",
             "chat.placeholder": "Начните с чего угодно…",
             "chat.send": "Отправить",
@@ -490,6 +511,16 @@ final class LocalizationService: ObservableObject {
             "time.long": "≤ 60 min",
             "time.any": "Dowolny",
 
+            "ai.goal": "Cel",
+            "ai.calories": "Kalorie",
+            "ai.kcal": "kcal",
+            "ai.protein": "Białko",
+            "ai.g": "g",
+            "ai.diet": "Dieta",
+            "ai.avoid": "Unikaj",
+            "ai.time": "Czas",
+            "ai.level": "Poziom",
+
             "chat.title": "Czat",
             "chat.placeholder": "Zacznij od czegokolwiek…",
             "chat.send": "Wyślij",
@@ -674,6 +705,16 @@ final class LocalizationService: ObservableObject {
             "time.medium": "≤ 30 хв",
             "time.long": "≤ 60 хв",
             "time.any": "Будь-який",
+
+            "ai.goal": "Ціль",
+            "ai.calories": "Калорії",
+            "ai.kcal": "ккал",
+            "ai.protein": "Білок",
+            "ai.g": "г",
+            "ai.diet": "Дієта",
+            "ai.avoid": "Уникати",
+            "ai.time": "Час",
+            "ai.level": "Рівень",
 
             "chat.title": "Чат",
             "chat.placeholder": "Почніть з будь-чого…",
