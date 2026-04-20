@@ -154,13 +154,25 @@ struct UserProfile {
     }
 }
 
+// MARK: RecipeStep (rich)
+
+struct RecipeStepDetail: Identifiable {
+    let id: Int
+    let text: String
+    let timeMin: Int?
+    let tempC: Int?
+    let tip: String?
+}
+
 // MARK: RecipeIngredient
 
 struct RecipeIngredient: Identifiable {
     let id = UUID()
-    var name: String           // must fuzzy-match StockItem.name
+    var name: String
     var quantity: Double
-    var unit: String           // "g", "kg", "ml", "pcs", etc.
+    var unit: String
+    var role: String = ""
+    var available: Bool = true
 }
 
 // MARK: Recipe
@@ -170,12 +182,22 @@ struct Recipe: Identifiable {
     var title: String
     var calories: Int
     var protein: Int = 0
+    var fat: Int = 0
+    var carbs: Int = 0
     var servings: Int = 2
-    var ingredients: [String]            // kept for backward compat
+    var dishType: String = ""
+    var complexity: String = ""
+    var ingredients: [String]
     var recipeIngredients: [RecipeIngredient] = []
+    var richSteps: [RecipeStepDetail] = []
     var steps: [String]
     var imageName: String? = nil
-    var estimatedCost: Double = 0        // zł total
+    var estimatedCost: Double = 0
+    var tags: [String] = []
+    var warnings: [String] = []
+    var missingIngredients: [String] = []
+    /// Reference to source dish for favorites
+    var sourceDish: APIClient.SuggestedDish? = nil
     var costPerServing: Double { servings > 0 ? estimatedCost / Double(servings) : estimatedCost }
 }
 
@@ -186,10 +208,29 @@ extension Recipe {
             title: dish.displayName ?? dish.dishNameLocal ?? dish.dishName,
             calories: dish.perServingKcal,
             protein: Int(dish.perServingProteinG),
+            fat: Int(dish.perServingFatG),
+            carbs: Int(dish.perServingCarbsG),
             servings: max(dish.servings, 1),
+            dishType: dish.dishType,
+            complexity: dish.complexity,
             ingredients: dish.ingredients.map { $0.name },
             recipeIngredients: dish.ingredients.map { ing in
-                RecipeIngredient(name: ing.name, quantity: Double(ing.grossG), unit: "g")
+                RecipeIngredient(
+                    name: ing.name,
+                    quantity: Double(ing.grossG),
+                    unit: "g",
+                    role: ing.role,
+                    available: ing.available
+                )
+            },
+            richSteps: dish.steps.enumerated().map { i, s in
+                RecipeStepDetail(
+                    id: i + 1,
+                    text: s.text,
+                    timeMin: s.timeMin,
+                    tempC: s.tempC,
+                    tip: s.tip
+                )
             },
             steps: dish.steps.map { s in
                 var line = s.text
@@ -197,7 +238,11 @@ extension Recipe {
                 if let temp = s.tempC { line += " \(temp)°C" }
                 return line
             },
-            estimatedCost: Double(dish.insight.estimatedCostCents) / 100.0
+            estimatedCost: Double(dish.insight.estimatedCostCents) / 100.0,
+            tags: dish.tags,
+            warnings: dish.warnings,
+            missingIngredients: dish.missingIngredients,
+            sourceDish: dish
         )
     }
 

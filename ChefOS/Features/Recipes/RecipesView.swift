@@ -127,13 +127,11 @@ struct RecipesView: View {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showCookSuggestions) {
+            .fullScreenCover(isPresented: $showCookSuggestions) {
                 CookSuggestionsSheet(vm: cookVM)
                     .environmentObject(l10n)
                     .environmentObject(regionService)
                     .environmentObject(favVM)
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showShoppingList) {
                 ShoppingListSheet(vm: shoppingVM)
@@ -660,34 +658,31 @@ struct RecipesView: View {
 
     private var cookView: some View {
         VStack(spacing: 14) {
-            let itemCount = stockVM.items.count
+            if favVM.favorites.isEmpty {
+                // Empty state
+                VStack(spacing: 20) {
+                    Spacer().frame(height: 40)
 
-            if stockVM.isLoading {
-                // Loading state
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .scaleEffect(1.3)
-                    Text(l10n.t("cook.analyzing"))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Image(systemName: "heart.slash")
+                        .font(.system(size: 56))
+                        .foregroundStyle(.secondary.opacity(0.4))
+
+                    VStack(spacing: 8) {
+                        Text(l10n.t("cook.noFavorites"))
+                            .font(.title3.weight(.bold))
+                        Text(l10n.t("cook.noFavoritesHint"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
+                    }
+
+                    Spacer().frame(height: 20)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 60)
-
-            } else if itemCount == 0 {
-                // 🟢 State 1 — EMPTY INVENTORY
-                cookEmptyState
-                    .staggerIn(appeared: appeared, delay: 0.04)
-
-            } else if itemCount < 3 {
-                // 🟡 State 2 — INSUFFICIENT (1-2 products)
-                cookInsufficientState
-                    .staggerIn(appeared: appeared, delay: 0.04)
-
             } else {
-                // 🟢 State 3 — READY (3+ products)
-                cookReadyState
-                    .staggerIn(appeared: appeared, delay: 0.04)
+                // Group favorites by dishType
+                favoritesGrouped
             }
         }
     }
@@ -1162,6 +1157,159 @@ struct RecipesView: View {
         }
     }
 
+    // MARK: - Favorites Grouped by Category
+
+    private var favoritesGrouped: some View {
+        let grouped = Dictionary(grouping: favVM.favorites, by: \.dishType)
+        let sortedKeys = grouped.keys.sorted()
+
+        return VStack(spacing: 16) {
+            // Header
+            HStack(spacing: 6) {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(.pink)
+                Text(l10n.t("cook.favorites"))
+                    .font(.headline.weight(.bold))
+                Spacer()
+                Text("\(favVM.favorites.count)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.pink.opacity(0.7), in: Capsule())
+            }
+
+            ForEach(sortedKeys, id: \.self) { category in
+                if let dishes = grouped[category] {
+                    favoriteCategorySection(category: category, dishes: dishes)
+                        .staggerIn(appeared: appeared, delay: 0.02)
+                }
+            }
+        }
+    }
+
+    private func favoriteCategorySection(category: String, dishes: [FavoriteDish]) -> some View {
+        let color = categoryColor(category)
+        let icon = categoryIcon(category)
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundStyle(color)
+                Text(category.capitalized)
+                    .font(.subheadline.weight(.bold))
+                Spacer()
+                Text("\(dishes.count)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(color.opacity(0.7), in: Capsule())
+            }
+
+            ForEach(dishes) { fav in
+                favoriteDishCard(fav, accentColor: color)
+            }
+        }
+    }
+
+    private func favoriteDishCard(_ fav: FavoriteDish, accentColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(fav.displayName)
+                        .font(.subheadline.weight(.bold))
+                    if fav.displayName != fav.dishName {
+                        Text(fav.dishName)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                HStack(spacing: 6) {
+                    Text(fav.complexity)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(accentColor.opacity(0.15), in: Capsule())
+                        .foregroundStyle(accentColor)
+                    Button {
+                        withAnimation {
+                            if let idx = favVM.favorites.firstIndex(where: { $0.dishName == fav.dishName }) {
+                                favVM.favorites.remove(at: idx)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "heart.slash.fill")
+                            .font(.caption)
+                            .foregroundStyle(.pink.opacity(0.6))
+                    }
+                }
+            }
+
+            HStack(spacing: 12) {
+                nutritionMini("🔥", "\(fav.perServingKcal)")
+                nutritionMini("P", String(format: "%.0fg", fav.perServingProteinG))
+                nutritionMini("F", String(format: "%.0fg", fav.perServingFatG))
+                nutritionMini("C", String(format: "%.0fg", fav.perServingCarbsG))
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "list.number").font(.caption2)
+                    Text("\(fav.stepsCount)").font(.caption2)
+                }
+                .foregroundStyle(.secondary)
+            }
+
+            if !fav.ingredientNames.isEmpty {
+                FlowLayout(spacing: 4) {
+                    ForEach(fav.ingredientNames.prefix(8), id: \.self) { name in
+                        Text(name)
+                            .font(.caption2)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(accentColor.opacity(0.1), in: Capsule())
+                            .foregroundStyle(accentColor.opacity(0.8))
+                    }
+                    if fav.ingredientNames.count > 8 {
+                        Text("+\(fav.ingredientNames.count - 8)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(accentColor.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private func categoryColor(_ type: String) -> Color {
+        switch type {
+        case "soup": return .cyan
+        case "stew": return .orange
+        case "salad": return .green
+        case "grill": return .red
+        case "pasta": return .yellow
+        case "stir-fry", "stir_fry": return .orange
+        default: return .pink
+        }
+    }
+
+    private func categoryIcon(_ type: String) -> String {
+        switch type {
+        case "soup": return "drop.fill"
+        case "stew": return "flame.fill"
+        case "salad": return "leaf.fill"
+        case "grill": return "flame"
+        case "pasta": return "fork.knife"
+        case "stir-fry", "stir_fry": return "frying.pan.fill"
+        default: return "fork.knife.circle"
+        }
+    }
+
     // MARK: - Suggestion Section (real AI data)
 
     private func suggestionSection(title: String, icon: String, color: Color, dishes: [APIClient.SuggestedDish]) -> some View {
@@ -1182,6 +1330,9 @@ struct RecipesView: View {
 
             ForEach(dishes) { dish in
                 suggestionCard(dish, accentColor: color)
+                    .onTapGesture {
+                        cookVM.selectedDish = dish
+                    }
             }
         }
     }

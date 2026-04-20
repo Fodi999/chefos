@@ -14,6 +14,8 @@ struct PlanView: View {
     @EnvironmentObject var l10n: LocalizationService
     @State private var appeared = false
     @State private var smartPlanBreathing = false
+    @State private var expandedMealId: UUID? = nil
+    @StateObject private var favVM = FavoritesViewModel()
 
     var body: some View {
         NavigationStack {
@@ -131,7 +133,9 @@ struct PlanView: View {
                                     MealRow(
                                         meal: meal,
                                         isLoading: viewModel.isGenerating || viewModel.isOptimizing,
+                                        isExpanded: expandedMealId == meal.id,
                                         currency: regionService.currency,
+                                        favVM: favVM,
                                         onAdd: {
                                             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                                                 viewModel.replaceWithRandom(at: index)
@@ -140,12 +144,22 @@ struct PlanView: View {
                                         onClear: {
                                             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                                                 viewModel.clearMeal(at: index)
+                                                if expandedMealId == meal.id { expandedMealId = nil }
+                                            }
+                                        },
+                                        onTap: {
+                                            withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+                                                expandedMealId = (expandedMealId == meal.id) ? nil : meal.id
                                             }
                                         }
                                     )
                                     .staggerIn(appeared: appeared, delay: 0.15 + Double(index) * 0.05)
                                 }
                             }
+
+                            // MARK: Day Shopping Summary
+                            dayShoppingSummary
+                                .staggerIn(appeared: appeared, delay: 0.3)
                         }
                     }
                     .padding()
@@ -281,6 +295,58 @@ struct PlanView: View {
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    // MARK: - Day Shopping Summary
+
+    @ViewBuilder
+    private var dayShoppingSummary: some View {
+        let allMissing = viewModel.selectedDay.meals
+            .compactMap { $0.recipe }
+            .flatMap { $0.recipeIngredients.filter { !$0.available } }
+
+        if !allMissing.isEmpty {
+            // Deduplicate by name, sum quantities
+            let grouped = Dictionary(grouping: allMissing, by: \.name)
+            let items = grouped.map { (name: $0.key, totalG: $0.value.reduce(0) { $0 + $1.quantity }) }
+                .sorted { $0.name < $1.name }
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "cart.fill")
+                        .foregroundStyle(.red)
+                    Text(l10n.t("plan.shoppingList"))
+                        .font(.headline.weight(.bold))
+                    Spacer()
+                    Text("\(items.count)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.red.opacity(0.7), in: Capsule())
+                }
+
+                ForEach(items, id: \.name) { item in
+                    HStack(spacing: 8) {
+                        Image(systemName: "circle")
+                            .font(.caption2)
+                            .foregroundStyle(.red.opacity(0.6))
+                        Text(item.name)
+                            .font(.subheadline)
+                        Spacer()
+                        Text("\(Int(item.totalG))g")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(14)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+            )
+        }
     }
 
     // MARK: - Smart Plan Button (Hero)
@@ -454,7 +520,7 @@ struct PlanView: View {
                     icon: "flame.fill",
                     current: viewModel.totalCalories,
                     target: viewModel.calorieTarget,
-                    unit: "kcal",
+                    unit: l10n.t("plan.kcal"),
                     color: .orange
                 )
 
@@ -463,7 +529,7 @@ struct PlanView: View {
                     icon: "bolt.fill",
                     current: viewModel.totalProtein,
                     target: viewModel.proteinTarget,
-                    unit: "g protein",
+                    unit: l10n.t("plan.gProtein"),
                     color: .cyan
                 )
 
@@ -479,7 +545,7 @@ struct PlanView: View {
             // Budget status
             let status = viewModel.budgetStatus
             HStack(spacing: 6) {
-                Text(status.text)
+                Text(localizeWithArgs(status.key, args: status.args))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(status.color)
             }
@@ -499,7 +565,7 @@ struct PlanView: View {
                 .frame(width: 32, height: 32)
                 .background(insight.color.opacity(0.12), in: Circle())
 
-            Text(insight.text)
+            Text(localizeWithArgs(insight.key, args: insight.args))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.primary.opacity(0.9))
 
@@ -647,6 +713,16 @@ struct PlanView: View {
             }
         }
     }
+
+    private func localizeWithArgs(_ key: String, args: [String]) -> String {
+        var result = l10n.t(key)
+        for arg in args {
+            if let range = result.range(of: "%@") {
+                result.replaceSubrange(range, with: arg)
+            }
+        }
+        return result
+    }
 }
 
 // MARK: - ProgressRing
@@ -775,9 +851,12 @@ struct CalendarDayCell: View {
 struct MealRow: View {
     let meal: Meal
     let isLoading: Bool
+    var isExpanded: Bool = false
     var currency: String = "$"
+    @ObservedObject var favVM: FavoritesViewModel
     var onAdd: () -> Void
     var onClear: () -> Void
+    var onTap: () -> Void
     @EnvironmentObject var l10n: LocalizationService
 
     private var localizedMealType: String {
@@ -788,16 +867,9 @@ struct MealRow: View {
         }
     }
 
-    private var innerPadding: CGFloat {
-        meal.type == .lunch ? 18 : 14
-    }
-
-    private var cardOpacity: Double {
-        meal.type == .dinner ? 0.85 : 1.0
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // MARK: Header
             HStack {
                 Image(systemName: iconName)
                     .font(meal.type == .lunch ? .title2 : .title3)
@@ -808,7 +880,6 @@ struct MealRow: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(localizedMealType)
                         .font(meal.type == .lunch ? .headline.weight(.bold) : .subheadline.weight(.semibold))
-
                     if meal.type == .lunch && meal.recipe != nil {
                         Text(l10n.t("plan.mainMeal"))
                             .font(.caption2)
@@ -819,6 +890,21 @@ struct MealRow: View {
                 Spacer()
 
                 if let recipe = meal.recipe {
+                    // Favorite button
+                    if let dish = recipe.sourceDish {
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                favVM.toggle(dish)
+                            }
+                        } label: {
+                            Image(systemName: favVM.isFavorite(dish.dishName) ? "heart.fill" : "heart")
+                                .font(.body)
+                                .foregroundStyle(favVM.isFavorite(dish.dishName) ? .red : .secondary.opacity(0.5))
+                                .symbolEffect(.bounce, value: favVM.isFavorite(dish.dishName))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
                     HStack(spacing: 6) {
                         Text("\(recipe.calories) kcal")
                             .font(.caption.weight(.semibold))
@@ -826,12 +912,21 @@ struct MealRow: View {
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(.orange.opacity(0.12), in: Capsule())
-                        Text(String(format: "%.2f %@", recipe.estimatedCost, currency))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.green)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.green.opacity(0.12), in: Capsule())
+                        if recipe.estimatedCost > 0 {
+                            Text(String(format: "%.2f %@", recipe.estimatedCost, currency))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(.green.opacity(0.12), in: Capsule())
+                        }
+                        if !recipe.recipeIngredients.filter({ !$0.available }).isEmpty {
+                            Image(systemName: "cart.badge.plus")
+                                .font(.caption2)
+                                .foregroundStyle(.red)
+                                .padding(4)
+                                .background(.red.opacity(0.12), in: Circle())
+                        }
                     }
                 }
             }
@@ -839,21 +934,36 @@ struct MealRow: View {
             if let recipe = meal.recipe {
                 Divider().overlay(Color.white.opacity(0.06))
 
+                // MARK: Collapsed summary
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(recipe.title)
                             .font(.subheadline.weight(.medium))
-                        Text(recipe.ingredients.prefix(3).joined(separator: " · "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+
+                        if !recipe.dishType.isEmpty {
+                            HStack(spacing: 6) {
+                                Text(recipe.dishType)
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.cyan)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.cyan.opacity(0.1), in: Capsule())
+                                if !recipe.complexity.isEmpty {
+                                    Text(recipe.complexity)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        } else {
+                            Text(recipe.ingredients.prefix(3).joined(separator: " · "))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
                     Spacer()
                     HStack(spacing: 8) {
-                        // Replace — primary
-                        Button {
-                            onAdd()
-                        } label: {
+                        Button { onAdd() } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                                     .font(.caption2.weight(.bold))
@@ -865,16 +975,32 @@ struct MealRow: View {
                         .tint(.orange)
                         .controlSize(.small)
 
-                        // Delete — whisper quiet
-                        Button {
-                            onClear()
-                        } label: {
+                        Button { onClear() } label: {
                             Image(systemName: "xmark")
                                 .font(.caption2.weight(.medium))
                         }
                         .buttonStyle(.plain)
                         .foregroundStyle(.secondary.opacity(0.35))
                     }
+                }
+
+                // Tap hint
+                if !isExpanded {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.down")
+                            .font(.caption2)
+                        Text(l10n.t("plan.tapToExpand"))
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.secondary.opacity(0.5))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, 2)
+                }
+
+                // MARK: Expanded Detail
+                if isExpanded {
+                    expandedDetail(recipe: recipe)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             } else {
                 Button(action: onAdd) {
@@ -891,10 +1017,10 @@ struct MealRow: View {
                 }
             }
         }
-        .padding(innerPadding)
+        .padding(meal.type == .lunch ? 18 : 14)
         .glassCard(cornerRadius: 18)
         .shadow(color: .black.opacity(0.25), radius: 10, y: 5)
-        .opacity(cardOpacity)
+        .opacity(meal.type == .dinner ? 0.85 : 1.0)
         .overlay {
             if meal.type == .lunch {
                 RoundedRectangle(cornerRadius: 18)
@@ -903,18 +1029,258 @@ struct MealRow: View {
                         lineWidth: 1
                     )
             }
+            if isExpanded {
+                RoundedRectangle(cornerRadius: 18)
+                    .strokeBorder(Color.orange.opacity(0.15), lineWidth: 1)
+            }
         }
-        // Skeleton loading
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if meal.recipe != nil { onTap() }
+        }
         .redacted(reason: isLoading ? .placeholder : [])
         .opacity(isLoading ? 0.45 : 1)
         .animation(.easeInOut(duration: 0.4), value: isLoading)
-        .if(isLoading) { view in
-            view.shimmering()
-        }
+        .if(isLoading) { view in view.shimmering() }
         .transition(.asymmetric(
             insertion: .move(edge: .bottom).combined(with: .opacity),
             removal: .opacity
         ))
+    }
+
+    // MARK: - Expanded Detail
+
+    @ViewBuilder
+    private func expandedDetail(recipe: Recipe) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Divider().overlay(Color.white.opacity(0.06))
+
+            // Nutrition row
+            HStack(spacing: 12) {
+                nutriPill(icon: "flame.fill", value: "\(recipe.calories)", unit: l10n.t("plan.kcal"), color: .orange)
+                nutriPill(icon: "bolt.fill", value: "\(recipe.protein)", unit: l10n.t("plan.gP"), color: .cyan)
+                nutriPill(icon: "drop.fill", value: "\(recipe.fat)", unit: l10n.t("plan.gF"), color: .yellow)
+                nutriPill(icon: "leaf.fill", value: "\(recipe.carbs)", unit: l10n.t("plan.gC"), color: .green)
+            }
+
+            // Tags
+            if !recipe.tags.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(recipe.tags, id: \.self) { tag in
+                            Text(tag)
+                                .font(.caption2.weight(.medium))
+                                .foregroundStyle(.purple)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(.purple.opacity(0.1), in: Capsule())
+                        }
+                    }
+                }
+            }
+
+            // Ingredients
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "basket.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    Text(l10n.t("plan.ingredients"))
+                        .font(.subheadline.weight(.bold))
+                    Spacer()
+                    Text("\(recipe.recipeIngredients.count)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                ForEach(recipe.recipeIngredients) { ing in
+                    HStack(spacing: 8) {
+                        Image(systemName: ing.available ? "checkmark.circle.fill" : "circle.dashed")
+                            .font(.caption)
+                            .foregroundStyle(ing.available ? .green : .red.opacity(0.7))
+                        Text(ing.name)
+                            .font(.caption)
+                            .foregroundStyle(ing.available ? .primary : .secondary)
+                        Spacer()
+                        Text("\(Int(ing.quantity))g")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        if !ing.role.isEmpty {
+                            Text(ing.role)
+                                .font(.caption2)
+                                .foregroundStyle(.cyan.opacity(0.7))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(.cyan.opacity(0.08), in: Capsule())
+                        }
+                    }
+                }
+            }
+            .padding(12)
+            .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 12))
+
+            // Missing ingredients — need to buy
+            let missing = recipe.recipeIngredients.filter { !$0.available }
+            if !missing.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "cart.badge.plus")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.red)
+                        Text(l10n.t("plan.needToBuy"))
+                            .font(.subheadline.weight(.bold))
+                        Spacer()
+                        Text("\(missing.count)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Color.red.opacity(0.7), in: Capsule())
+                    }
+
+                    ForEach(missing) { ing in
+                        HStack(spacing: 8) {
+                            Image(systemName: "circle.dashed")
+                                .font(.caption)
+                                .foregroundStyle(.red.opacity(0.7))
+                            Text(ing.name)
+                                .font(.caption)
+                            Spacer()
+                            Text("\(Int(ing.quantity))g")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color.red.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                )
+            }
+
+            // Steps
+            if !recipe.richSteps.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "list.number")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.orange)
+                        Text(l10n.t("plan.steps"))
+                            .font(.subheadline.weight(.bold))
+                        Spacer()
+                        Text("\(recipe.richSteps.count) \(l10n.t("plan.stepsCount"))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ForEach(recipe.richSteps) { step in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(alignment: .top, spacing: 8) {
+                                Text("\(step.id)")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.orange)
+                                    .frame(width: 20, height: 20)
+                                    .background(.orange.opacity(0.12), in: Circle())
+
+                                Text(step.text)
+                                    .font(.caption)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+
+                            HStack(spacing: 8) {
+                                if let time = step.timeMin {
+                                    Label("\(time) min", systemImage: "clock")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.cyan)
+                                }
+                                if let temp = step.tempC {
+                                    Label("\(temp)°C", systemImage: "thermometer.medium")
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                            .padding(.leading, 28)
+
+                            if let tip = step.tip, !tip.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "lightbulb.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.yellow)
+                                    Text(tip)
+                                        .font(.caption2)
+                                        .foregroundStyle(.yellow.opacity(0.8))
+                                }
+                                .padding(.leading, 28)
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                .padding(12)
+                .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 12))
+            }
+
+            // Warnings
+            if !recipe.warnings.isEmpty {
+                ForEach(recipe.warnings, id: \.self) { w in
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.yellow)
+                        Text(w)
+                            .font(.caption2)
+                            .foregroundStyle(.yellow.opacity(0.8))
+                    }
+                }
+            }
+
+            // Collapse hint
+            HStack {
+                Spacer()
+                HStack(spacing: 4) {
+                    Image(systemName: "chevron.up")
+                        .font(.caption2)
+                    Text(l10n.t("plan.tapToCollapse"))
+                        .font(.caption2)
+                }
+                .foregroundStyle(.secondary.opacity(0.5))
+                Spacer()
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    // MARK: - Nutrition Pill
+
+    private func nutriPill(icon: String, value: String, unit: String, color: Color) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundStyle(color)
+            Text(value)
+                .font(.caption.weight(.bold))
+            Text(unit)
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: - Localize with args helper
+
+    private func localizeWithArgs(_ key: String, args: [String]) -> String {
+        var result = l10n.t(key)
+        for arg in args {
+            if let range = result.range(of: "%@") {
+                result.replaceSubrange(range, with: arg)
+            }
+        }
+        return result
     }
 
     private var iconName: String {

@@ -72,41 +72,41 @@ final class PlanViewModel: ObservableObject {
         return min(totalCost / budgetTarget, 1.0)
     }
 
-    var budgetStatus: (text: String, color: Color) {
+    var budgetStatus: (key: String, args: [String], color: Color) {
         let diff = budgetTarget - totalCost
-        if totalCost == 0 { return ("No meals yet", .secondary) }
-        if diff >= 0 { return ("Within budget", .green) }
-        return ("Over budget by \(String(format: "%.0f", abs(diff))) \(currency)", .red)
+        if totalCost == 0 { return ("plan.noMealsYet", [], .secondary) }
+        if diff >= 0 { return ("plan.withinBudget", [], .green) }
+        return ("plan.overBudgetBy", [String(format: "%.0f", abs(diff)), currency], .red)
     }
 
     // MARK: AI Insight
 
-    var insight: (icon: String, text: String, color: Color) {
+    var insight: (icon: String, key: String, args: [String], color: Color) {
         if filledCount == 0 {
             if availableRecipes.isEmpty {
-                return ("sparkles", "Tap Smart Plan to load recipes from your inventory", .orange)
+                return ("sparkles", "plan.hint.loadRecipes", [], .orange)
             }
-            return ("sparkles", "Tap Smart Plan to generate your day", .orange)
+            return ("sparkles", "plan.hint.generateDay", [], .orange)
         }
         let calDiff = calorieTarget - totalCalories
         let protDiff = proteinTarget - totalProtein
 
         if filledCount == 3 && abs(calDiff) < 200 && abs(protDiff) < 20 {
-            return ("hand.thumbsup.fill", "Balanced day — looking great!", .green)
+            return ("hand.thumbsup.fill", "plan.hint.balanced", [], .green)
         }
         if protDiff > 30 {
-            return ("bolt.fill", "You're \(protDiff)g under your protein goal", .cyan)
+            return ("bolt.fill", "plan.hint.lowProtein", ["\(protDiff)"], .cyan)
         }
         if calDiff < -200 {
-            return ("exclamationmark.triangle.fill", "Over calorie target by \(abs(calDiff)) kcal", .red)
+            return ("exclamationmark.triangle.fill", "plan.hint.overCalories", ["\(abs(calDiff))"], .red)
         }
         if totalCost > budgetTarget {
-            return ("banknote.fill", "Over budget by \(String(format: "%.0f", totalCost - budgetTarget)) \(currency) — try cheaper options", .red)
+            return ("banknote.fill", "plan.hint.overBudget", [String(format: "%.0f", totalCost - budgetTarget), currency], .red)
         }
         if filledCount < 3 {
-            return ("fork.knife", "\(3 - filledCount) meal\(filledCount == 2 ? "" : "s") still empty", .secondary)
+            return ("fork.knife", "plan.hint.emptySlots", ["\(3 - filledCount)"], .secondary)
         }
-        return ("checkmark.seal.fill", "On track for today's goals", .green)
+        return ("checkmark.seal.fill", "plan.hint.onTrack", [], .green)
     }
 
     // MARK: Week summary

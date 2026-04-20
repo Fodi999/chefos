@@ -70,11 +70,11 @@ struct CookSuggestionsSheet: View {
                     }
                 }
             }
-            .sheet(item: $vm.selectedDish) { dish in
-                RecipeDetailSheet(dish: dish)
-                    .environmentObject(l10n)
-                    .environmentObject(favVM)
-            }
+        }
+        .sheet(item: $vm.selectedDish) { dish in
+            RecipeDetailSheet(dish: dish)
+                .environmentObject(l10n)
+                .environmentObject(favVM)
         }
     }
 
@@ -151,8 +151,11 @@ struct CookSuggestionsSheet: View {
                     .background(color.opacity(0.8), in: Capsule())
             }
             ForEach(dishes) { dish in
-                Button { vm.selectedDish = dish } label: { dishCard(dish, accentColor: color) }
-                    .buttonStyle(.plain)
+                dishCard(dish, accentColor: color)
+                    .onTapGesture {
+                        print("🟢 TAP: \(dish.dishName) id=\(dish.id)")
+                        vm.selectedDish = dish
+                    }
             }
         }
     }

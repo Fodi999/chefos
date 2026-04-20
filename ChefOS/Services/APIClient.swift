@@ -254,10 +254,7 @@ final class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(prefs)
         try attachAuth(&request)
-        let (_, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try await executeVoid(request)
     }
 
     func getAvatarUploadUrl(contentType: String = "image/webp") async throws -> AvatarUploadResponse {
@@ -271,10 +268,7 @@ final class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(["avatar_url": url])
         try attachAuth(&request)
-        let (_, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try await executeVoid(request)
     }
 
     func updateLanguage(_ code: String) async throws {
@@ -284,10 +278,7 @@ final class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try encoder.encode(["language": code])
         try attachAuth(&request)
-        let (_, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try await executeVoid(request)
     }
 
     // MARK: - Catalog Endpoints
@@ -393,10 +384,7 @@ final class APIClient {
         if let p = priceCents { body["price_per_unit_cents"] = p }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         try attachAuth(&request)
-        let (_, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try await executeVoid(request)
     }
 
     func deleteInventoryProduct(id: String) async throws {
@@ -404,10 +392,7 @@ final class APIClient {
         var request = URLRequest(url: requestUrl)
         request.httpMethod = "DELETE"
         try attachAuth(&request)
-        let (_, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
-        }
+        try await executeVoid(request)
     }
 
     // MARK: - Cook Suggestions (POST /api/cook/suggestions)
@@ -418,6 +403,17 @@ final class APIClient {
         let almost: [SuggestedDish]
         let strategic: [SuggestedDish]
         let suggestions: UnlockSuggestions
+        let personalization: PersonalizationInfo?
+    }
+
+    struct PersonalizationInfo: Codable {
+        let personalized: Bool
+        let goal: String
+        let diet: String
+        let kcalTarget: Int
+        let proteinTarget: Int
+        let excludedAllergens: [String]
+        let excludedDislikes: [String]
     }
 
     struct InventoryInsight: Codable {
@@ -560,32 +556,12 @@ final class APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         try attachAuth(&request)
         request.httpBody = try JSONEncoder().encode([:] as [String: String])
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
-            let body = String(data: data, encoding: .utf8) ?? "no body"
-            print("❌ cook/suggestions HTTP \(code): \(body.prefix(500))")
-            throw URLError(.badServerResponse)
+        let result: CookSuggestionsResponse = try await execute(request)
+        print("✅ Parsed: canCook=\(result.canCook.count), almost=\(result.almost.count), strategic=\(result.strategic.count)")
+        for dish in result.canCook + result.almost + result.strategic {
+            print("  🍽 \(dish.dishName) | steps=\(dish.steps.count) | missing=\(dish.missingCount) | ingredients=\(dish.ingredients.count)")
         }
-        // Debug: print raw JSON
-        if let raw = String(data: data, encoding: .utf8) {
-            print("📦 cook/suggestions raw (\(data.count) bytes):")
-            print(raw.prefix(2000))
-        }
-        do {
-            let result = try decoder.decode(CookSuggestionsResponse.self, from: data)
-            print("✅ Parsed: canCook=\(result.canCook.count), almost=\(result.almost.count), strategic=\(result.strategic.count)")
-            for dish in result.canCook + result.almost + result.strategic {
-                print("  🍽 \(dish.dishName) | steps=\(dish.steps.count) | missing=\(dish.missingCount) | ingredients=\(dish.ingredients.count)")
-            }
-            return result
-        } catch {
-            print("❌ Decode error: \(error)")
-            if let raw = String(data: data, encoding: .utf8) {
-                print("📦 Full raw: \(raw.prefix(3000))")
-            }
-            throw error
-        }
+        return result
     }
 
     // MARK: - Chat Endpoints (RuleBot — POST /public/chat)
@@ -746,6 +722,32 @@ final class APIClient {
             }
             let plainText = String(data: data, encoding: .utf8) ?? "Server error"
             throw APIError.serverError(http.statusCode, plainText)
+        }
+    }
+
+    private func executeVoid(_ request: URLRequest) async throws {
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.networkError
+        }
+        switch http.statusCode {
+        case 200...299:
+            return
+        case 401:
+            if request.value(forHTTPHeaderField: "X-Retry") == nil {
+                try await refreshAccessToken()
+                var retryRequest = request
+                retryRequest.setValue("true", forHTTPHeaderField: "X-Retry")
+                try attachAuth(&retryRequest)
+                try await executeVoid(retryRequest)
+                return
+            }
+            throw APIError.unauthorized
+        default:
+            if let errorBody = try? decoder.decode(APIErrorResponse.self, from: data) {
+                throw APIError.serverError(http.statusCode, errorBody.details ?? errorBody.message)
+            }
+            throw URLError(.badServerResponse)
         }
     }
 }
