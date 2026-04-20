@@ -173,6 +173,9 @@ struct CookSuggestionsSheet: View {
                 }
                 Spacer()
                 HStack(spacing: 4) {
+                    if favVM.isFavorite(dish.dishName) {
+                        Image(systemName: "heart.fill").font(.caption2).foregroundStyle(.red)
+                    }
                     if dish.insight.usesExpiring { insightBadge("⏰", color: .orange) }
                     if dish.insight.highProtein { insightBadge("💪", color: .blue) }
                     if dish.insight.budgetFriendly { insightBadge("💰", color: .green) }
@@ -225,6 +228,14 @@ struct CookSuggestionsSheet: View {
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(accentColor.opacity(0.3), lineWidth: 1))
+        .overlay(
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white.opacity(0.35))
+                .padding(.trailing, 14),
+            alignment: .trailing
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 16))
     }
 
     // MARK: - Helpers
