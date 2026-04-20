@@ -114,7 +114,7 @@ struct ProfileView: View {
             .shadow(color: .orange.opacity(0.5), radius: 20, y: 4)
             .onTapGesture { showPhotoPicker = true }
 
-            TextField("Your name", text: $viewModel.profile.name)
+            TextField(l10n.t("onboarding.name"), text: $viewModel.profile.name)
                 .font(.title3.weight(.semibold))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
@@ -176,7 +176,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.goal")) {
                 Picker("", selection: $viewModel.profile.goal) {
                     ForEach(UserProfile.FitnessGoal.allCases) { g in
-                        Text(g.rawValue).tag(g)
+                        Text(l10n.t(g.l10nKey)).tag(g)
                     }
                 }
                 .labelsHidden()
@@ -207,7 +207,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.diet")) {
                 Picker("", selection: $viewModel.profile.diet) {
                     ForEach(UserProfile.DietType.allCases) { d in
-                        Text(d.rawValue).tag(d)
+                        Text(l10n.t(d.l10nKey)).tag(d)
                     }
                 }
                 .labelsHidden()
@@ -216,7 +216,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.cuisine")) {
                 Picker("", selection: $viewModel.profile.preferredCuisine) {
                     ForEach(UserProfile.CuisineType.allCases) { c in
-                        Text(c.rawValue).tag(c)
+                        Text(l10n.t(c.l10nKey)).tag(c)
                     }
                 }
                 .labelsHidden()
@@ -227,6 +227,7 @@ struct ProfileView: View {
                 title: l10n.t("profile.likes"),
                 tags: viewModel.profile.likes,
                 input: $viewModel.newLike,
+                placeholder: l10n.t("tags.addLikes"),
                 color: .green
             ) { tag in
                 viewModel.addTag(to: \.likes, value: tag)
@@ -239,6 +240,7 @@ struct ProfileView: View {
                 title: l10n.t("profile.dislikes"),
                 tags: viewModel.profile.dislikes,
                 input: $viewModel.newDislike,
+                placeholder: l10n.t("tags.addDislikes"),
                 color: .red
             ) { tag in
                 viewModel.addTag(to: \.dislikes, value: tag)
@@ -257,6 +259,7 @@ struct ProfileView: View {
                 title: l10n.t("profile.allergies"),
                 tags: viewModel.profile.allergies,
                 input: $viewModel.newAllergy,
+                placeholder: l10n.t("tags.addAllergies"),
                 color: .orange
             ) { tag in
                 viewModel.addTag(to: \.allergies, value: tag)
@@ -269,6 +272,7 @@ struct ProfileView: View {
                 title: l10n.t("profile.conditions"),
                 tags: viewModel.profile.medicalConditions,
                 input: $viewModel.newCondition,
+                placeholder: l10n.t("tags.addConditions"),
                 color: .purple
             ) { tag in
                 viewModel.addTag(to: \.medicalConditions, value: tag)
@@ -286,7 +290,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.cookingLevel")) {
                 Picker("", selection: $viewModel.profile.cookingLevel) {
                     ForEach(UserProfile.CookingLevel.allCases) { l in
-                        Text(l.rawValue).tag(l)
+                        Text(l10n.t(l.l10nKey)).tag(l)
                     }
                 }
                 .labelsHidden()
@@ -295,7 +299,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.cookingTime")) {
                 Picker("", selection: $viewModel.profile.cookingTime) {
                     ForEach(UserProfile.CookingTime.allCases) { t in
-                        Text(t.rawValue).tag(t)
+                        Text(l10n.t(t.l10nKey)).tag(t)
                     }
                 }
                 .labelsHidden()
@@ -562,6 +566,7 @@ struct TagEditor: View {
     let title: String
     let tags: [String]
     @Binding var input: String
+    var placeholder: String = ""
     var color: Color = .orange
     var onAdd: (String) -> Void
     var onRemove: (String) -> Void
@@ -599,7 +604,7 @@ struct TagEditor: View {
 
             // Input
             HStack(spacing: 8) {
-                TextField("Add \(title.lowercased())…", text: $input)
+                TextField(placeholder.isEmpty ? title : placeholder, text: $input)
                     .font(.subheadline)
                     .foregroundStyle(.white)
                     .onSubmit {

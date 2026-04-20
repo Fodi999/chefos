@@ -49,6 +49,15 @@ struct UserProfile {
         case eatHealthier = "Eat healthier"
         case medicalDiet = "Medical diet"
         var id: String { rawValue }
+        var l10nKey: String {
+            switch self {
+            case .loseFat: "goal.loseFat"
+            case .gainMuscle: "goal.gainMuscle"
+            case .maintainWeight: "goal.maintainWeight"
+            case .eatHealthier: "goal.eatHealthier"
+            case .medicalDiet: "goal.medicalDiet"
+            }
+        }
     }
 
     enum DietType: String, CaseIterable, Identifiable {
@@ -60,6 +69,17 @@ struct UserProfile {
         case glutenFree = "Gluten-free"
         case dairyFree = "Dairy-free"
         var id: String { rawValue }
+        var l10nKey: String {
+            switch self {
+            case .noRestrictions: "diet.noRestrictions"
+            case .vegetarian: "diet.vegetarian"
+            case .vegan: "diet.vegan"
+            case .keto: "diet.keto"
+            case .paleo: "diet.paleo"
+            case .glutenFree: "diet.glutenFree"
+            case .dairyFree: "diet.dairyFree"
+            }
+        }
     }
 
     enum CookingLevel: String, CaseIterable, Identifiable {
@@ -68,6 +88,14 @@ struct UserProfile {
         case advanced = "Advanced"
         case chef = "Chef"
         var id: String { rawValue }
+        var l10nKey: String {
+            switch self {
+            case .beginner: "cooking.beginner"
+            case .homeCook: "cooking.homeCook"
+            case .advanced: "cooking.advanced"
+            case .chef: "cooking.chef"
+            }
+        }
     }
 
     enum CookingTime: String, CaseIterable, Identifiable {
@@ -76,6 +104,14 @@ struct UserProfile {
         case long = "≤ 60 min"
         case any = "Any"
         var id: String { rawValue }
+        var l10nKey: String {
+            switch self {
+            case .quick: "time.quick"
+            case .medium: "time.medium"
+            case .long: "time.long"
+            case .any: "time.any"
+            }
+        }
     }
 
     enum CuisineType: String, CaseIterable, Identifiable {
@@ -87,6 +123,17 @@ struct UserProfile {
         case italian = "Italian"
         case middleEastern = "Middle Eastern"
         var id: String { rawValue }
+        var l10nKey: String {
+            switch self {
+            case .any: "cuisine.any"
+            case .asian: "cuisine.asian"
+            case .mediterranean: "cuisine.mediterranean"
+            case .american: "cuisine.american"
+            case .mexican: "cuisine.mexican"
+            case .italian: "cuisine.italian"
+            case .middleEastern: "cuisine.middleEastern"
+            }
+        }
     }
 
     // MARK: AI Summary
