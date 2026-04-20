@@ -145,9 +145,9 @@ final class PlanViewModel: ObservableObject {
 
     private func generateWeek() {
         let today = Date.now
-        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
+        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) ?? today
         weekDays = (0..<7).map { offset in
-            let date = calendar.date(byAdding: .day, value: offset, to: startOfWeek)!
+            let date = calendar.date(byAdding: .day, value: offset, to: startOfWeek) ?? today
             return MealPlanDay(
                 date: date,
                 meals: Meal.MealType.allCases.map { type in
@@ -159,6 +159,8 @@ final class PlanViewModel: ObservableObject {
     }
 
     func selectDay(_ index: Int) {
+        guard weekDays.indices.contains(index) else { return }
+
         withAnimation(.snappy(duration: 0.35)) {
             selectedDayIndex = index
         }
@@ -218,10 +220,14 @@ final class PlanViewModel: ObservableObject {
     }
 
     func generateDay() {
+        let idx = selectedDayIndex
+        guard weekDays.indices.contains(idx) else {
+            isGenerating = false
+            return
+        }
+
         isGenerating = true
         revealedMealIndex = -1
-        let idx = selectedDayIndex
-        guard weekDays.indices.contains(idx) else { return }
 
         Task {
             if availableRecipes.isEmpty {
@@ -234,12 +240,29 @@ final class PlanViewModel: ObservableObject {
             }
 
             var usedTitles: [String] = []
+            guard self.weekDays.indices.contains(idx) else {
+                self.isGenerating = false
+                return
+            }
+
             for i in weekDays[idx].meals.indices {
+                guard self.weekDays.indices.contains(idx),
+                      self.weekDays[idx].meals.indices.contains(i) else {
+                    self.isGenerating = false
+                    return
+                }
+
                 let mealType = weekDays[idx].meals[i].type
                 let recipe = pickRecipe(for: mealType, excluding: usedTitles)
                 if let r = recipe { usedTitles.append(r.title) }
 
                 try? await Task.sleep(nanoseconds: 400_000_000)
+
+                guard self.weekDays.indices.contains(idx),
+                      self.weekDays[idx].meals.indices.contains(i) else {
+                    self.isGenerating = false
+                    return
+                }
 
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                     self.weekDays[idx].meals[i].recipe = recipe
@@ -269,7 +292,8 @@ final class PlanViewModel: ObservableObject {
     }
 
     func optimizeDay() {
-        guard weekDays.indices.contains(selectedDayIndex) else { return }
+        let idx = selectedDayIndex
+        guard weekDays.indices.contains(idx) else { return }
         isOptimizing = true
 
         Task {
@@ -289,9 +313,14 @@ final class PlanViewModel: ObservableObject {
             }
 
             withAnimation(.snappy(duration: 0.5)) {
-                for i in self.weekDays[self.selectedDayIndex].meals.indices {
+                guard self.weekDays.indices.contains(idx) else {
+                    self.isOptimizing = false
+                    return
+                }
+
+                for i in self.weekDays[idx].meals.indices {
                     let pick = balanced[i % balanced.count]
-                    self.weekDays[self.selectedDayIndex].meals[i].recipe = pick
+                    self.weekDays[idx].meals[i].recipe = pick
                 }
                 self.isOptimizing = false
                 self.showSuccessBanner = true
@@ -316,6 +345,9 @@ final class PlanViewModel: ObservableObject {
             Task {
                 await fetchRecipes()
                 let recipe = pickRecipe(for: mealType, excluding: usedTitles)
+                guard self.weekDays.indices.contains(self.selectedDayIndex),
+                      self.weekDays[self.selectedDayIndex].meals.indices.contains(index) else { return }
+
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                     self.weekDays[self.selectedDayIndex].meals[index].recipe = recipe
                 }

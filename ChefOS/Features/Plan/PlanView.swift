@@ -528,12 +528,14 @@ struct PlanView: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Text("\(viewModel.weekDaysCompleted)/7")
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.orange)
-                    + Text(" \(l10n.t("plan.days"))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 2) {
+                        Text("\(viewModel.weekDaysCompleted)/7")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(.orange)
+                        Text(l10n.t("plan.days"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 // Week progress bar

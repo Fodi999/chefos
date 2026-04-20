@@ -103,7 +103,7 @@ struct PaywallView: View {
             }
         }
         .onAppear {
-            selectedPackage = StorePackage.packages[1] // Popular default
+            selectedPackage = StorePackage.packages.first { $0.badge != nil } ?? StorePackage.packages.first
             withAnimation(.easeOut(duration: 0.5)) {
                 appeared = true
             }

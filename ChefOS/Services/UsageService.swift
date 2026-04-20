@@ -188,7 +188,6 @@ final class UsageService: ObservableObject {
 
     private func checkCalendarDayReset() {
         let calendar = Calendar.current
-        let now = Date()
 
         if let lastReset = UserDefaults.standard.object(forKey: resetKey) as? Date {
             if !calendar.isDateInToday(lastReset) {
