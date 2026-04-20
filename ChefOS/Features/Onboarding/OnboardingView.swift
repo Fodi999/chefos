@@ -11,6 +11,7 @@ struct OnboardingView: View {
     @EnvironmentObject var authService: AuthService
     @EnvironmentObject var regionService: RegionService
     @EnvironmentObject var usageService: UsageService
+    @EnvironmentObject var l10n: LocalizationService
     @State private var step: OnboardingStep = .welcome
     @State private var appeared = false
     @State private var logoScale: CGFloat = 0.6
@@ -101,11 +102,11 @@ struct OnboardingView: View {
                 }
                 .scaleEffect(logoScale)
 
-                Text("Welcome to ChefOS")
+                Text(l10n.t("onboarding.welcome"))
                     .font(.largeTitle.weight(.bold))
                     .foregroundStyle(.white)
 
-                Text("Your AI cooking assistant")
+                Text(l10n.t("onboarding.subtitle"))
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
@@ -119,7 +120,7 @@ struct OnboardingView: View {
                     HStack(spacing: 10) {
                         ProgressView()
                             .tint(.orange)
-                        Text("Detecting your region…")
+                        Text(l10n.t("onboarding.detecting"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -134,7 +135,7 @@ struct OnboardingView: View {
                                 Text(regionService.countryName)
                                     .font(.headline.weight(.bold))
                                     .foregroundStyle(.white)
-                                Text("Currency: \(regionService.currency)")
+                                Text("\(l10n.t("onboarding.currency")) \(regionService.currency)")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
@@ -157,7 +158,7 @@ struct OnboardingView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "globe")
                                     .font(.caption)
-                                Text("Change country")
+                                Text(l10n.t("onboarding.changeCountry"))
                                     .font(.caption.weight(.semibold))
                             }
                             .foregroundStyle(.orange)
@@ -177,7 +178,7 @@ struct OnboardingView: View {
                     step = .auth
                 }
             } label: {
-                Text("Continue")
+                Text(l10n.t("onboarding.continue"))
                     .font(.headline.weight(.bold))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -213,11 +214,11 @@ struct OnboardingView: View {
                         LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
 
-                Text(isLoginMode ? "Sign In" : "Create Account")
+                Text(isLoginMode ? l10n.t("onboarding.signIn") : l10n.t("onboarding.createAccount"))
                     .font(.title2.weight(.bold))
                     .foregroundStyle(.white)
 
-                Text(isLoginMode ? "Welcome back to ChefOS" : "Start your cooking journey")
+                Text(isLoginMode ? l10n.t("onboarding.welcomeBack") : l10n.t("onboarding.startJourney"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -226,25 +227,25 @@ struct OnboardingView: View {
 
             VStack(spacing: 14) {
                 if !isLoginMode {
-                    authTextField(icon: "person.fill", placeholder: "Your kitchen name", text: $name)
+                    authTextField(icon: "person.fill", placeholder: l10n.t("onboarding.kitchenName"), text: $name)
                         .focused($focusedField, equals: .name)
                         .submitLabel(.next)
                         .onSubmit { focusedField = .email }
                 }
 
-                authTextField(icon: "envelope.fill", placeholder: "Email", text: $email)
+                authTextField(icon: "envelope.fill", placeholder: l10n.t("onboarding.email"), text: $email)
                     .focused($focusedField, equals: .email)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.emailAddress)
                     .submitLabel(.next)
                     .onSubmit { focusedField = .password }
 
-                authTextField(icon: "lock.fill", placeholder: "Password", text: $password, isSecure: true)
+                authTextField(icon: "lock.fill", placeholder: l10n.t("onboarding.password"), text: $password, isSecure: true)
                     .focused($focusedField, equals: .password)
                     .submitLabel(.go)
 
                 if !isLoginMode {
-                    Text("Min 8 characters, at least one letter and one number")
+                    Text(l10n.t("onboarding.passwordHint"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -296,7 +297,7 @@ struct OnboardingView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    Text(isLoginMode ? "Sign In" : "Create Account")
+                    Text(isLoginMode ? l10n.t("onboarding.signIn") : l10n.t("onboarding.createAccount"))
                         .font(.headline.weight(.bold))
                 }
                 .foregroundStyle(.white)
@@ -323,7 +324,7 @@ struct OnboardingView: View {
                     authService.error = nil
                 }
             } label: {
-                Text(isLoginMode ? "Don't have an account? **Sign Up**" : "Already have an account? **Sign In**")
+                Text(isLoginMode ? "\(l10n.t("onboarding.noAccount")) **\(l10n.t("onboarding.signUp"))**" : "\(l10n.t("onboarding.haveAccount")) **\(l10n.t("onboarding.signIn"))**")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.top, 16)
@@ -380,10 +381,10 @@ struct OnboardingView: View {
                 }
 
                 VStack(spacing: 8) {
-                    Text("Enable \(authService.biometricLabel)?")
+                    Text("\(l10n.t("onboarding.enableBiometric")) \(authService.biometricLabel)?")
                         .font(.title2.weight(.bold))
                         .foregroundStyle(.white)
-                    Text("Secure access to your data with \(authService.biometricLabel)")
+                    Text("\(l10n.t("onboarding.secureAccess")) \(authService.biometricLabel)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -398,7 +399,7 @@ struct OnboardingView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: authService.biometricIcon)
-                        Text("Enable \(authService.biometricLabel)")
+                        Text("\(l10n.t("onboarding.enableBiometric")) \(authService.biometricLabel)")
                             .font(.headline.weight(.bold))
                     }
                     .foregroundStyle(.white)
@@ -418,7 +419,7 @@ struct OnboardingView: View {
                 Button {
                     authService.skipBiometrics()
                 } label: {
-                    Text("Maybe later")
+                    Text(l10n.t("onboarding.maybeLater"))
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                         .padding(.vertical, 12)
@@ -436,6 +437,7 @@ struct OnboardingView: View {
 
 struct LockScreenView: View {
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var l10n: LocalizationService
 
     var body: some View {
         ZStack {
@@ -482,7 +484,7 @@ struct LockScreenView: View {
                             .foregroundStyle(.white.opacity(0.9))
                             .symbolEffect(.bounce, options: .repeating.speed(0.2))
 
-                        Text("Tap to unlock")
+                        Text(l10n.t("onboarding.tapToUnlock"))
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
@@ -517,6 +519,7 @@ struct LockScreenView: View {
 
 struct CountryPickerView: View {
     @ObservedObject var regionService: RegionService
+    @EnvironmentObject var l10n: LocalizationService
     @Environment(\.dismiss) var dismiss
     @State private var search = ""
 
@@ -566,9 +569,9 @@ struct CountryPickerView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .searchable(text: $search, prompt: "Search countries")
+            .searchable(text: $search, prompt: l10n.t("onboarding.searchCountries"))
         }
-        .navigationTitle("Country")
+        .navigationTitle(l10n.t("onboarding.country"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -579,6 +582,7 @@ struct CountryPickerView: View {
             .environmentObject(AuthService())
             .environmentObject(RegionService())
             .environmentObject(UsageService())
+            .environmentObject(LocalizationService())
     }
     .preferredColorScheme(.dark)
 }
