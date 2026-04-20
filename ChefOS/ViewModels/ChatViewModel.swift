@@ -11,9 +11,7 @@ import UIKit
 // MARK: - ViewModels/Chat
 
 final class ChatViewModel: ObservableObject {
-    @Published var messages: [Message] = [
-        Message(content: .text("Hi! I'm your ChefOS assistant.\nWhat are we cooking today?"), isFromUser: false)
-    ]
+    @Published var messages: [Message] = []
     @Published var draft: String = ""
     @Published var isThinking: Bool = false
     @Published var suggestions: [APIClient.ChatSuggestion] = []
@@ -22,6 +20,13 @@ final class ChatViewModel: ObservableObject {
     private var chatContext: APIClient.ChatContext = .empty()
 
     private let api = APIClient.shared
+    private let l10n = LocalizationService.shared
+
+    init() {
+        messages = [
+            Message(content: .text(l10n.t("chat.welcome")), isFromUser: false)
+        ]
+    }
 
     func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -61,6 +66,11 @@ final class ChatViewModel: ObservableObject {
         withAnimation(.easeOut(duration: 0.25)) {
             isThinking = true
             suggestions = []
+        }
+
+        // Pass user's preferred language in context
+        if chatContext.lastLang == nil || chatContext.lastLang?.isEmpty == true {
+            chatContext.lastLang = l10n.language
         }
 
         Task { @MainActor in
@@ -103,7 +113,7 @@ final class ChatViewModel: ObservableObject {
                 }
                 withAnimation(.snappy(duration: 0.35)) {
                     self.messages.append(Message(
-                        content: .text("Sorry, I couldn't reach the server. Check your connection and try again."),
+                        content: .text(self.l10n.t("chat.error")),
                         isFromUser: false
                     ))
                 }

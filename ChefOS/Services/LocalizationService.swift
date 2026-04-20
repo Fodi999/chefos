@@ -115,9 +115,18 @@ final class LocalizationService: ObservableObject {
             "time.any": "Any time",
 
             // Chat
-            "chat.title": "ChefOS",
-            "chat.placeholder": "Ask me anything about cooking…",
+            "chat.title": "Chat",
+            "chat.placeholder": "Start with anything…",
             "chat.send": "Send",
+            "chat.actionsLeft": "AI actions left today:",
+            "chat.purchased": "purchased",
+            "chat.thinking": "ChefOS is thinking",
+            "chat.welcome": "Hi! I'm your ChefOS assistant.\nWhat are we cooking today?",
+            "chat.error": "Sorry, I couldn't reach the server. Check your connection and try again.",
+            "chat.ai": "AI",
+            "chat.photo": "Photo",
+            "chat.voice": "Voice",
+            "chat.ingredients": "ingredients",
 
             // Onboarding
             "onboarding.welcome": "Welcome to ChefOS",
@@ -132,10 +141,6 @@ final class LocalizationService: ObservableObject {
             "onboarding.haveAccount": "Already have an account?",
             "onboarding.continue": "Continue",
             "onboarding.done": "Done",
-
-            // Recipes
-            "recipes.title": "Recipes",
-            "recipes.search": "Search recipes…",
 
             // Plan
             "plan.title": "Meal Plan",
@@ -282,9 +287,18 @@ final class LocalizationService: ObservableObject {
             "time.long": "Долго (30–60 мин)",
             "time.any": "Любое время",
 
-            "chat.title": "ChefOS",
-            "chat.placeholder": "Спросите что угодно о готовке…",
+            "chat.title": "Чат",
+            "chat.placeholder": "Начните с чего угодно…",
             "chat.send": "Отправить",
+            "chat.actionsLeft": "ИИ-действий осталось сегодня:",
+            "chat.purchased": "куплено",
+            "chat.thinking": "ChefOS думает",
+            "chat.welcome": "Привет! Я твой помощник ChefOS.\nЧто сегодня готовим?",
+            "chat.error": "Не удалось связаться с сервером. Проверьте подключение.",
+            "chat.ai": "ИИ",
+            "chat.photo": "Фото",
+            "chat.voice": "Голос",
+            "chat.ingredients": "ингредиентов",
 
             "onboarding.welcome": "Добро пожаловать в ChefOS",
             "onboarding.signIn": "Войти",
@@ -298,9 +312,6 @@ final class LocalizationService: ObservableObject {
             "onboarding.haveAccount": "Уже есть аккаунт?",
             "onboarding.continue": "Продолжить",
             "onboarding.done": "Готово",
-
-            "recipes.title": "Рецепты",
-            "recipes.search": "Поиск рецептов…",
 
             "plan.title": "План питания",
             "plan.day": "День",
@@ -445,9 +456,18 @@ final class LocalizationService: ObservableObject {
             "time.long": "Długo (30–60 min)",
             "time.any": "Dowolny czas",
 
-            "chat.title": "ChefOS",
-            "chat.placeholder": "Zapytaj o gotowanie…",
+            "chat.title": "Czat",
+            "chat.placeholder": "Zacznij od czegokolwiek…",
             "chat.send": "Wyślij",
+            "chat.actionsLeft": "Pozostało akcji AI na dziś:",
+            "chat.purchased": "kupione",
+            "chat.thinking": "ChefOS myśli",
+            "chat.welcome": "Cześć! Jestem Twoim asystentem ChefOS.\nCo dziś gotujemy?",
+            "chat.error": "Nie udało się połączyć z serwerem. Sprawdź połączenie.",
+            "chat.ai": "AI",
+            "chat.photo": "Zdjęcie",
+            "chat.voice": "Głos",
+            "chat.ingredients": "składników",
 
             "onboarding.welcome": "Witaj w ChefOS",
             "onboarding.signIn": "Zaloguj się",
@@ -461,9 +481,6 @@ final class LocalizationService: ObservableObject {
             "onboarding.haveAccount": "Masz już konto?",
             "onboarding.continue": "Kontynuuj",
             "onboarding.done": "Gotowe",
-
-            "recipes.title": "Przepisy",
-            "recipes.search": "Szukaj przepisów…",
 
             "plan.title": "Plan posiłków",
             "plan.day": "Dzień",
@@ -608,9 +625,18 @@ final class LocalizationService: ObservableObject {
             "time.long": "Довго (30–60 хв)",
             "time.any": "Будь-який час",
 
-            "chat.title": "ChefOS",
-            "chat.placeholder": "Запитайте будь-що про готування…",
+            "chat.title": "Чат",
+            "chat.placeholder": "Почніть з будь-чого…",
             "chat.send": "Надіслати",
+            "chat.actionsLeft": "ШІ-дій залишилось сьогодні:",
+            "chat.purchased": "куплено",
+            "chat.thinking": "ChefOS думає",
+            "chat.welcome": "Привіт! Я твій помічник ChefOS.\nЩо сьогодні готуємо?",
+            "chat.error": "Не вдалося зв'язатися з сервером. Перевірте підключення.",
+            "chat.ai": "ШІ",
+            "chat.photo": "Фото",
+            "chat.voice": "Голос",
+            "chat.ingredients": "інгредієнтів",
 
             "onboarding.welcome": "Ласкаво просимо до ChefOS",
             "onboarding.signIn": "Увійти",
@@ -624,9 +650,6 @@ final class LocalizationService: ObservableObject {
             "onboarding.haveAccount": "Вже є акаунт?",
             "onboarding.continue": "Продовжити",
             "onboarding.done": "Готово",
-
-            "recipes.title": "Рецепти",
-            "recipes.search": "Пошук рецептів…",
 
             "plan.title": "План харчування",
             "plan.day": "День",

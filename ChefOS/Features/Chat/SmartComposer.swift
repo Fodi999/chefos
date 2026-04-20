@@ -13,6 +13,7 @@ struct SmartComposer: View {
     var onCamera: () -> Void
     var onAISuggest: () -> Void
     @FocusState private var isFocused: Bool
+    @EnvironmentObject var l10n: LocalizationService
 
     private var canSend: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -22,7 +23,7 @@ struct SmartComposer: View {
         ZStack(alignment: .bottomTrailing) {
             VStack(alignment: .leading, spacing: 12) {
                 // Clean text field — no extra styling, just text
-                TextField("Start with anything…", text: $text, axis: .vertical)
+                TextField(l10n.t("chat.placeholder"), text: $text, axis: .vertical)
                     .lineLimit(1...5)
                     .foregroundStyle(.white)
                     .font(.body)
@@ -33,13 +34,13 @@ struct SmartComposer: View {
 
                 // Subtle tool hints
                 HStack(spacing: 6) {
-                    ComposerToolButton(icon: "sparkles", label: "AI", color: .purple) {
+                    ComposerToolButton(icon: "sparkles", label: l10n.t("chat.ai"), color: .purple) {
                         onAISuggest()
                     }
-                    ComposerToolButton(icon: "camera.fill", label: "Photo", color: .orange) {
+                    ComposerToolButton(icon: "camera.fill", label: l10n.t("chat.photo"), color: .orange) {
                         onCamera()
                     }
-                    ComposerToolButton(icon: "waveform", label: "Voice", color: .cyan) {
+                    ComposerToolButton(icon: "waveform", label: l10n.t("chat.voice"), color: .cyan) {
                         // stub
                     }
                     Spacer()

@@ -12,6 +12,7 @@ import UIKit
 struct ChatView: View {
     @StateObject private var viewModel = ChatViewModel()
     @EnvironmentObject var usageService: UsageService
+    @EnvironmentObject var l10n: LocalizationService
     @State private var showCamera = false
     @State private var showPhotoPicker = false
     @State private var pickedImage: UIImage?
@@ -30,12 +31,12 @@ struct ChatView: View {
                         Image(systemName: "sparkles")
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(.orange)
-                        Text("AI actions left today: \(usageService.chatsRemaining)")
+                        Text("\(l10n.t("chat.actionsLeft")) \(usageService.chatsRemaining)")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                         Spacer()
                         if usageService.purchasedActions > 0 {
-                            Text("+\(usageService.purchasedActions) purchased")
+                            Text("+\(usageService.purchasedActions) \(l10n.t("chat.purchased"))")
                                 .font(.caption2.weight(.bold))
                                 .foregroundStyle(.cyan)
                         }
@@ -81,7 +82,7 @@ struct ChatView: View {
                     )
                 }
             }
-            .navigationTitle("Chat")
+            .navigationTitle(l10n.t("chat.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
             .sheet(isPresented: $showPhotoPicker) {
@@ -221,6 +222,7 @@ struct MessageBubble: View {
 
 struct RecipeCardBubble: View {
     let recipe: Recipe
+    @EnvironmentObject var l10n: LocalizationService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -241,7 +243,7 @@ struct RecipeCardBubble: View {
                     .font(.subheadline)
                     .foregroundStyle(.orange)
                 Spacer()
-                Text("\(recipe.ingredients.count) ingredients")
+                Text("\(recipe.ingredients.count) \(l10n.t("chat.ingredients"))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -261,6 +263,7 @@ struct RecipeCardBubble: View {
 
 struct ThinkingIndicator: View {
     @State private var phase: Int = 0
+    @EnvironmentObject var l10n: LocalizationService
     private let timer = Timer.publish(every: 0.35, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -285,7 +288,7 @@ struct ThinkingIndicator: View {
             .padding(.vertical, 10)
             .glassCard(cornerRadius: 16)
 
-            Text("ChefOS is thinking")
+            Text(l10n.t("chat.thinking"))
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(.secondary)
 
@@ -310,5 +313,7 @@ struct PressButtonStyle: ButtonStyle {
 
 #Preview {
     ChatView()
+        .environmentObject(UsageService())
+        .environmentObject(LocalizationService())
         .preferredColorScheme(.dark)
 }
