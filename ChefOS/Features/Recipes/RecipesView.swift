@@ -536,126 +536,370 @@ struct RecipesView: View {
 
     // MARK: - Strategy Block
 
-    private var strategyBlock: some View {
-        let tips = viewModel.strategyTips(plan: planViewModel)
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "brain.head.profile.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.purple)
-                Text(l10n.t("recipes.strategy"))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.purple)
-                Spacer()
-            }
-
-            ForEach(tips) { tip in
-                HStack(spacing: 8) {
-                    Image(systemName: tip.icon)
-                        .font(.caption2)
-                        .foregroundStyle(tip.color)
-                        .frame(width: 18)
-                    Text(tip.text)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.primary.opacity(0.85))
-                }
-            }
-        }
-        .padding(14)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.purple.opacity(0.15), lineWidth: 1)
-                )
-        }
-        .shadow(color: .purple.opacity(0.08), radius: 8, y: 3)
-    }
-
     // MARK: - Cook View
 
     private var cookView: some View {
         VStack(spacing: 14) {
-            // Strategy block
-            strategyBlock
-                .staggerIn(appeared: appeared, delay: 0.02)
+            let itemCount = stockVM.items.count
 
-            HStack(spacing: 6) {
+            if stockVM.isLoading {
+                // Loading state
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.3)
+                    Text(l10n.t("cook.analyzing"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 60)
+
+            } else if itemCount == 0 {
+                // 🟢 State 1 — EMPTY INVENTORY
+                cookEmptyState
+                    .staggerIn(appeared: appeared, delay: 0.04)
+
+            } else if itemCount < 3 {
+                // 🟡 State 2 — INSUFFICIENT (1-2 products)
+                cookInsufficientState
+                    .staggerIn(appeared: appeared, delay: 0.04)
+
+            } else {
+                // 🟢 State 3 — READY (3+ products)
+                cookReadyState
+                    .staggerIn(appeared: appeared, delay: 0.04)
+            }
+        }
+    }
+
+    // MARK: - Cook State 1: Empty Inventory
+
+    private var cookEmptyState: some View {
+        VStack(spacing: 20) {
+            Spacer().frame(height: 20)
+
+            Image(systemName: "refrigerator")
+                .font(.system(size: 56))
+                .foregroundStyle(.secondary.opacity(0.4))
+                .symbolEffect(.pulse, options: .repeating)
+
+            VStack(spacing: 8) {
+                Text(l10n.t("cook.noProducts"))
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.primary)
+                Text(l10n.t("cook.noProductsHint"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 20)
+            }
+
+            VStack(spacing: 10) {
+                Button {
+                    withAnimation(.snappy(duration: 0.35)) {
+                        viewModel.showStock = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        stockVM.showAddSheet = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.body)
+                        Text(l10n.t("cook.addProducts"))
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.green.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(PressButtonStyle())
+            }
+
+            // Hint
+            HStack(spacing: 8) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                Text(l10n.t("cook.addHint"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Spacer().frame(height: 20)
+        }
+    }
+
+    // MARK: - Cook State 2: Insufficient Products
+
+    private var cookInsufficientState: some View {
+        VStack(spacing: 16) {
+            // What you have
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "shippingbox.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Text(l10n.t("cook.youHave"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.orange)
+                        .textCase(.uppercase)
+                }
+
+                FlowLayout(spacing: 6) {
+                    ForEach(stockVM.items, id: \.id) { item in
+                        HStack(spacing: 4) {
+                            Text(StockViewModel.categoryEmoji(item.category))
+                                .font(.caption)
+                            Text(item.name)
+                                .font(.caption.weight(.medium))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.orange.opacity(0.15), in: Capsule())
+                        .foregroundStyle(.orange)
+                    }
+                }
+            }
+            .padding(14)
+            .glassCard(cornerRadius: 16)
+
+            // Not enough message
+            VStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                Text(l10n.t("cook.notEnough"))
+                    .font(.subheadline.weight(.bold))
+                Text(l10n.t("cook.notEnoughHint"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            // Recommendations
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.caption)
+                        .foregroundStyle(.yellow)
+                    Text(l10n.t("cook.recommend"))
+                        .font(.caption.weight(.bold))
+                        .textCase(.uppercase)
+                }
+
+                recommendationRow(emoji: "🥩", text: l10n.t("cook.addProtein"))
+                recommendationRow(emoji: "🍚", text: l10n.t("cook.addBase"))
+                recommendationRow(emoji: "🥕", text: l10n.t("cook.addVegetable"))
+            }
+            .padding(14)
+            .glassCard(cornerRadius: 16)
+
+            // Unlock hint
+            HStack(spacing: 8) {
+                Image(systemName: "lock.open.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                Text(l10n.t("cook.unlockHint"))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            // Action buttons
+            VStack(spacing: 10) {
+                Button {
+                    withAnimation(.snappy(duration: 0.35)) {
+                        viewModel.showStock = true
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        stockVM.showAddSheet = true
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "plus.circle.fill")
+                        Text(l10n.t("cook.addProducts"))
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.green.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(PressButtonStyle())
+            }
+        }
+    }
+
+    private func recommendationRow(emoji: String, text: String) -> some View {
+        HStack(spacing: 8) {
+            Text(emoji)
+                .font(.caption)
+            Text("+ " + text)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.primary.opacity(0.85))
+        }
+    }
+
+    // MARK: - Cook State 3: Ready (3+ products)
+
+    private var cookReadyState: some View {
+        VStack(spacing: 14) {
+            // Inventory summary chip
+            HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .foregroundStyle(.orange)
                 Text(l10n.t("recipes.basedOnStock"))
                     .font(.subheadline.weight(.bold))
                 Spacer()
+                Text("\(stockVM.items.count) " + l10n.t("recipes.items").lowercased())
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
-            .staggerIn(appeared: appeared, delay: 0.04)
 
-            cookFilters
-                .staggerIn(appeared: appeared, delay: 0.06)
+            // Available ingredients
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "leaf.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                    Text(l10n.t("cook.yourIngredients"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.green)
+                        .textCase(.uppercase)
+                }
 
-            if viewModel.cookFilter == .all {
-                if !viewModel.canCookRecipes.isEmpty {
-                    cookSection(title: l10n.t("recipes.canCookNow"), icon: "checkmark.circle.fill", color: .green, recipes: viewModel.canCookRecipes, canCook: true)
-                }
-                if !viewModel.missingRecipes.isEmpty {
-                    cookSection(title: l10n.t("recipes.missingIngredients"), icon: "exclamationmark.triangle.fill", color: .orange, recipes: viewModel.missingRecipes, canCook: false)
-                }
-            } else {
-                ForEach(Array(viewModel.filteredRecipes.enumerated()), id: \.element.id) { index, recipe in
-                    NavigationLink(value: recipe.id) {
-                        CookRecipeRow(recipe: recipe, canCook: viewModel.canCook(recipe), viewModel: viewModel, planViewModel: planViewModel, onAddToPlan: { mealPickerRecipe = recipe }, currency: regionService.currency)
+                FlowLayout(spacing: 5) {
+                    ForEach(stockVM.items.prefix(12), id: \.id) { item in
+                        HStack(spacing: 3) {
+                            Text(StockViewModel.categoryEmoji(item.category))
+                                .font(.system(size: 10))
+                            Text(item.name)
+                                .font(.caption2.weight(.medium))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.green.opacity(0.12), in: Capsule())
+                        .foregroundStyle(.green)
                     }
-                    .buttonStyle(.plain)
-                    .staggerIn(appeared: appeared, delay: 0.09 + Double(index) * 0.04)
+                    if stockVM.items.count > 12 {
+                        Text("+\(stockVM.items.count - 12)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.white.opacity(0.06), in: Capsule())
+                    }
                 }
             }
+            .padding(14)
+            .glassCard(cornerRadius: 16)
 
-            if viewModel.filteredRecipes.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "frying.pan")
-                        .font(.largeTitle)
-                        .foregroundStyle(.secondary.opacity(0.5))
-                    Text(l10n.t("recipes.noRecipes"))
-                        .font(.subheadline.weight(.medium))
+            // AI Suggestions
+            if cookVM.isLoading {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text(l10n.t("cook.analyzing"))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-            }
-        }
-    }
-
-    private var cookFilters: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(RecipesViewModel.CookFilter.allCases, id: \.self) { filter in
-                    let isActive = viewModel.cookFilter == filter
-                    Button {
-                        withAnimation(.snappy(duration: 0.3)) {
-                            viewModel.cookFilter = filter
-                        }
-                    } label: {
-                        Text(filter.rawValue)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(isActive ? .white : .secondary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background {
-                                if isActive {
-                                    Capsule().fill(Color.orange.opacity(0.6))
-                                } else {
-                                    Capsule().fill(.ultraThinMaterial)
-                                }
-                            }
-                            .overlay(Capsule().stroke(Color.white.opacity(isActive ? 0 : 0.06), lineWidth: 1))
+                .padding(.vertical, 30)
+            } else if let error = cookVM.errorMessage {
+                VStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.title3)
+                        .foregroundStyle(.orange)
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button(l10n.t("cook.retry")) {
+                        Task { await cookVM.loadSuggestions() }
                     }
-                    .buttonStyle(PressButtonStyle())
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.borderedProminent)
+                }
+                .padding(.vertical, 20)
+            } else if cookVM.hasLoaded && cookVM.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "frying.pan")
+                        .font(.title2)
+                        .foregroundStyle(.secondary.opacity(0.5))
+                    Text(l10n.t("cook.noRecipesFound"))
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(l10n.t("cook.tryAddMore"))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
+            } else if cookVM.hasLoaded {
+                // Real suggestions from backend
+                if !cookVM.canCook.isEmpty {
+                    suggestionSection(
+                        title: l10n.t("cook.canCookNow"),
+                        icon: "checkmark.circle.fill",
+                        color: .green,
+                        dishes: cookVM.canCook
+                    )
+                }
+                if !cookVM.almost.isEmpty {
+                    suggestionSection(
+                        title: l10n.t("cook.almostReady"),
+                        icon: "minus.circle.fill",
+                        color: .orange,
+                        dishes: cookVM.almost
+                    )
+                }
+                if !cookVM.strategic.isEmpty {
+                    suggestionSection(
+                        title: l10n.t("cook.strategic"),
+                        icon: "brain.head.profile",
+                        color: .purple,
+                        dishes: cookVM.strategic
+                    )
                 }
             }
+
+            // Generate button
+            if !cookVM.isLoading {
+                Button {
+                    Task { await cookVM.loadSuggestions() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .font(.caption.weight(.bold))
+                        Text(cookVM.hasLoaded ? l10n.t("cook.refreshSuggestions") : l10n.t("cook.generateRecipes"))
+                            .font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    )
+                }
+                .buttonStyle(PressButtonStyle())
+            }
+        }
+        .task {
+            if !cookVM.hasLoaded && !cookVM.isLoading {
+                await cookVM.loadSuggestions()
+            }
         }
     }
 
-    private func cookSection(title: String, icon: String, color: Color, recipes: [Recipe], canCook: Bool) -> some View {
+    // MARK: - Suggestion Section (real AI data)
+
+    private func suggestionSection(title: String, icon: String, color: Color, dishes: [APIClient.SuggestedDish]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -663,22 +907,103 @@ struct RecipesView: View {
                 Text(title)
                     .font(.subheadline.weight(.bold))
                 Spacer()
-                Text("\(recipes.count)")
+                Text("\(dishes.count)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(color)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(color.opacity(0.12), in: Capsule())
+                    .background(color.opacity(0.7), in: Capsule())
             }
 
-            ForEach(Array(recipes.enumerated()), id: \.element.id) { index, recipe in
-                NavigationLink(value: recipe.id) {
-                    CookRecipeRow(recipe: recipe, canCook: canCook, viewModel: viewModel, planViewModel: planViewModel, onAddToPlan: { mealPickerRecipe = recipe }, currency: regionService.currency)
-                }
-                .buttonStyle(.plain)
-                .staggerIn(appeared: appeared, delay: 0.09 + Double(index) * 0.04)
+            ForEach(dishes) { dish in
+                suggestionCard(dish, accentColor: color)
             }
         }
+    }
+
+    private func suggestionCard(_ dish: APIClient.SuggestedDish, accentColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Name
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(dish.dishNameLocal ?? dish.dishName)
+                        .font(.subheadline.weight(.bold))
+                    if let local = dish.dishNameLocal, local != dish.dishName {
+                        Text(dish.dishName)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                HStack(spacing: 4) {
+                    if dish.insight.usesExpiring {
+                        Text("⏰").font(.caption).padding(3).background(Color.orange.opacity(0.15), in: Circle())
+                    }
+                    if dish.insight.highProtein {
+                        Text("💪").font(.caption).padding(3).background(Color.blue.opacity(0.15), in: Circle())
+                    }
+                    if dish.insight.budgetFriendly {
+                        Text("💰").font(.caption).padding(3).background(Color.green.opacity(0.15), in: Circle())
+                    }
+                }
+            }
+
+            // Nutrition
+            HStack(spacing: 12) {
+                nutritionMini("🔥", "\(dish.totalKcal)")
+                nutritionMini("P", String(format: "%.0fg", dish.totalProteinG))
+                nutritionMini("F", String(format: "%.0fg", dish.totalFatG))
+                nutritionMini("C", String(format: "%.0fg", dish.totalCarbsG))
+                Spacer()
+                Text("🍽 \(dish.servings)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Ingredients
+            let available = dish.ingredients.filter { $0.available }
+            if !available.isEmpty {
+                FlowLayout(spacing: 4) {
+                    ForEach(available, id: \.slug) { ing in
+                        Text(ing.name)
+                            .font(.caption2)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                ing.expiringSoon ? Color.orange.opacity(0.2) : Color.green.opacity(0.15),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(ing.expiringSoon ? .orange : .green)
+                    }
+                }
+            }
+
+            // Missing
+            if !dish.missingIngredients.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "cart.badge.plus")
+                        .font(.caption2)
+                        .foregroundStyle(.red.opacity(0.7))
+                    Text(dish.missingIngredients.joined(separator: ", "))
+                        .font(.caption2)
+                        .foregroundStyle(.red.opacity(0.8))
+                }
+            }
+        }
+        .padding(14)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(accentColor.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private func nutritionMini(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 2) {
+            Text(label).font(.caption2.weight(.bold))
+            Text(value).font(.caption2)
+        }
+        .foregroundStyle(.secondary)
     }
 }
 

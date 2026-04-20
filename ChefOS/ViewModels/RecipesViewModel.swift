@@ -9,7 +9,7 @@ import Combine
 // MARK: - ViewModels/Recipes
 
 final class RecipesViewModel: ObservableObject {
-    @Published var recipes: [Recipe] = Recipe.samples
+    @Published var recipes: [Recipe] = []
     @Published var stockItems: [StockItem] = []
     @Published var isLoadingStock = false
     @Published var searchText: String = ""
@@ -298,8 +298,6 @@ final class RecipesViewModel: ObservableObject {
             stockItems = response.items.map { StockItem(from: $0) }
         } catch {
             print("Failed to load stock: \(error)")
-            // fallback to samples if not logged in
-            if stockItems.isEmpty { stockItems = StockItem.samples }
         }
         isLoadingStock = false
     }
