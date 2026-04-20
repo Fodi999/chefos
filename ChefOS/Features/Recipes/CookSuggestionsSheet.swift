@@ -42,6 +42,10 @@ struct CookSuggestionsSheet: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 20) {
+                            // ── Personalization Banner ──
+                            if let p = vm.personalization, p.personalized {
+                                personalizationBanner(p)
+                            }
                             if let insight = vm.inventoryInsight {
                                 inventoryInsightCard(insight)
                             }
@@ -75,6 +79,116 @@ struct CookSuggestionsSheet: View {
             RecipeDetailSheet(dish: dish)
                 .environmentObject(l10n)
                 .environmentObject(favVM)
+        }
+    }
+
+    // MARK: - Personalization Banner
+
+    @ViewBuilder
+    private func personalizationBanner(_ p: APIClient.PersonalizationInfo) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "person.badge.shield.checkmark.fill")
+                    .foregroundStyle(.indigo)
+                Text(l10n.t("cook.personalizedForYou"))
+                    .font(.headline.weight(.bold))
+            }
+
+            // Goal
+            HStack(spacing: 6) {
+                Text(goalEmoji(p.goal))
+                Text(l10n.t("cook.yourGoal") + ": " + localizeGoal(p.goal))
+                    .font(.subheadline)
+            }
+
+            // Diet (if not default)
+            if p.diet != "no_restrictions" {
+                HStack(spacing: 6) {
+                    Text("🥗")
+                    Text(l10n.t("cook.yourDiet") + ": " + localizeDiet(p.diet))
+                        .font(.subheadline)
+                }
+            }
+
+            // Targets
+            HStack(spacing: 16) {
+                HStack(spacing: 4) {
+                    Text("🔥").font(.caption)
+                    Text("\(p.kcalTarget) \(l10n.t("cook.kcal"))")
+                        .font(.caption.weight(.bold))
+                }
+                HStack(spacing: 4) {
+                    Text("💪").font(.caption)
+                    Text("\(p.proteinTarget)g \(l10n.t("cook.protein"))")
+                        .font(.caption.weight(.bold))
+                }
+            }
+
+            // Excluded allergens
+            if !p.excludedAllergens.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "nosign").font(.caption2).foregroundStyle(.red)
+                    Text(l10n.t("cook.excluded") + ": " + p.excludedAllergens.joined(separator: ", "))
+                        .font(.caption).foregroundStyle(.red.opacity(0.9))
+                }
+            }
+
+            // Excluded dislikes
+            if !p.excludedDislikes.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "hand.thumbsdown.fill").font(.caption2).foregroundStyle(.orange)
+                    Text(l10n.t("cook.dislikesExcluded") + ": " + p.excludedDislikes.joined(separator: ", "))
+                        .font(.caption).foregroundStyle(.orange.opacity(0.9))
+                }
+            }
+        }
+        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(
+                    LinearGradient(colors: [.indigo.opacity(0.08), .purple.opacity(0.06)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    LinearGradient(colors: [.indigo.opacity(0.4), .purple.opacity(0.2)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing),
+                    lineWidth: 1
+                )
+        )
+    }
+
+    // MARK: - Personalization Helpers
+
+    private func goalEmoji(_ goal: String) -> String {
+        switch goal {
+        case "lose_weight", "low_calorie", "cut": return "🔥"
+        case "gain_muscle", "high_protein", "bulk": return "💪"
+        case "gain_weight", "mass": return "🍖"
+        default: return "🎯"
+        }
+    }
+
+    private func localizeGoal(_ goal: String) -> String {
+        switch goal {
+        case "lose_weight", "low_calorie", "cut": return l10n.t("cook.goal.loseWeight")
+        case "gain_muscle", "high_protein", "bulk": return l10n.t("cook.goal.gainMuscle")
+        case "gain_weight", "mass": return l10n.t("cook.goal.gainWeight")
+        case "eat_healthier": return l10n.t("cook.goal.eatHealthier")
+        default: return l10n.t("cook.goal.balanced")
+        }
+    }
+
+    private func localizeDiet(_ diet: String) -> String {
+        switch diet {
+        case "vegan": return l10n.t("cook.diet.vegan")
+        case "vegetarian": return l10n.t("cook.diet.vegetarian")
+        case "pescatarian": return l10n.t("cook.diet.pescatarian")
+        case "keto": return l10n.t("cook.diet.keto")
+        default: return diet.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
 
@@ -194,6 +308,27 @@ struct CookSuggestionsSheet: View {
                 Text("🍽 \(dish.servings)").font(.caption2).foregroundStyle(.secondary)
             }
 
+            // ── Smart Badges ──
+            if let p = vm.personalization, p.personalized {
+                FlowLayout(spacing: 4) {
+                    if dish.insight.highProtein {
+                        smartBadge("💪", l10n.t("cook.badge.highProtein"), .blue)
+                    }
+                    if dish.perServingKcal <= p.kcalTarget / (p.personalized ? 3 : 3) {
+                        smartBadge("🔥", l10n.t("cook.badge.lowCal"), .green)
+                    }
+                    if !p.excludedAllergens.isEmpty {
+                        smartBadge("✅", l10n.t("cook.badge.allergenFree"), .mint)
+                    }
+                    if let totalTime = dish.steps.compactMap(\.timeMin).reduce(0, +) as Int?, totalTime > 0, totalTime <= 20 {
+                        smartBadge("⚡", l10n.t("cook.badge.quick"), .orange)
+                    }
+                    if dish.insight.budgetFriendly {
+                        smartBadge("💰", l10n.t("cook.badge.budget"), .green)
+                    }
+                }
+            }
+
             if let flavor = dish.flavor {
                 HStack(spacing: 6) {
                     flavorBar(score: flavor.balanceScore)
@@ -285,6 +420,16 @@ struct CookSuggestionsSheet: View {
             Text(label).font(.caption2.weight(.bold))
             Text(value).font(.caption2)
         }.foregroundStyle(.secondary)
+    }
+
+    private func smartBadge(_ emoji: String, _ text: String, _ color: Color) -> some View {
+        HStack(spacing: 3) {
+            Text(emoji).font(.caption2)
+            Text(text).font(.caption2.weight(.medium))
+        }
+        .padding(.horizontal, 8).padding(.vertical, 3)
+        .background(color.opacity(0.12), in: Capsule())
+        .foregroundStyle(color)
     }
 }
 

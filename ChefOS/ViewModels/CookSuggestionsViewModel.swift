@@ -8,6 +8,7 @@ final class CookSuggestionsViewModel: ObservableObject {
     @Published var almost: [APIClient.SuggestedDish] = []
     @Published var strategic: [APIClient.SuggestedDish] = []
     @Published var unlockSuggestions: APIClient.UnlockSuggestions?
+    @Published var personalization: APIClient.PersonalizationInfo?
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var hasLoaded = false
@@ -25,8 +26,9 @@ final class CookSuggestionsViewModel: ObservableObject {
             almost = response.almost
             strategic = response.strategic
             unlockSuggestions = response.suggestions
+            personalization = response.personalization
             hasLoaded = true
-            print("🧠 VM loaded: canCook=\(canCook.count), almost=\(almost.count), strategic=\(strategic.count)")
+            print("🧠 VM loaded: canCook=\(canCook.count), almost=\(almost.count), strategic=\(strategic.count), personalized=\(personalization?.personalized ?? false)")
         } catch {
             errorMessage = error.localizedDescription
             print("🔴 VM error: \(error)")
