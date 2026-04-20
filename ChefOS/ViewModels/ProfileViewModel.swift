@@ -38,22 +38,68 @@ final class ProfileViewModel: ObservableObject {
     @Published var newCondition: String = ""
 
     @Published var autoSaved: Bool = false
+    @Published var isSaving: Bool = false
     @Published var isLoading: Bool = false
     @Published var loadError: String?
+    @Published var hasUnsavedChanges: Bool = false
+    @Published var saveSuccess: Bool = false
 
     private let api = APIClient.shared
     private var cancellables = Set<AnyCancellable>()
     private var skipAutoSave = true
 
     init() {
+        // Track changes for the save button
         $profile
             .dropFirst()
-            .debounce(for: .seconds(1.5), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 guard let self, !self.skipAutoSave else { return }
-                self.saveToBackend()
+                self.hasUnsavedChanges = true
             }
             .store(in: &cancellables)
+    }
+
+    // MARK: - Explicit Save
+
+    func save() {
+        syncNumbers()
+        isSaving = true
+
+        let dto = APIClient.UserPreferencesDTO(
+            age: profile.age,
+            weight: profile.weight,
+            targetWeight: profile.targetWeight,
+            goal: profile.goal.backendKey,
+            calorieTarget: profile.calorieTarget,
+            proteinTarget: profile.proteinTarget,
+            mealsPerDay: profile.mealsPerDay,
+            diet: profile.diet.backendKey,
+            preferredCuisine: profile.preferredCuisine.backendKey,
+            cookingLevel: profile.cookingLevel.backendKey,
+            cookingTime: profile.cookingTime.backendKey,
+            likes: profile.likes,
+            dislikes: profile.dislikes,
+            allergies: profile.allergies,
+            intolerances: profile.intolerances,
+            medicalConditions: profile.medicalConditions
+        )
+
+        Task {
+            do {
+                try await api.savePreferences(dto)
+                isSaving = false
+                hasUnsavedChanges = false
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                    saveSuccess = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    withAnimation { self?.saveSuccess = false }
+                }
+            } catch {
+                isSaving = false
+                print("⚠️ Failed to save preferences:", error)
+            }
+        }
     }
 
     // MARK: - Load from Backend
@@ -191,38 +237,6 @@ final class ProfileViewModel: ObservableObject {
         profile.allergies = p.allergies
         profile.intolerances = p.intolerances
         profile.medicalConditions = p.medicalConditions
-    }
-
-    private func saveToBackend() {
-        syncNumbers()
-
-        let dto = APIClient.UserPreferencesDTO(
-            age: profile.age,
-            weight: profile.weight,
-            targetWeight: profile.targetWeight,
-            goal: profile.goal.backendKey,
-            calorieTarget: profile.calorieTarget,
-            proteinTarget: profile.proteinTarget,
-            mealsPerDay: profile.mealsPerDay,
-            diet: profile.diet.backendKey,
-            preferredCuisine: profile.preferredCuisine.backendKey,
-            cookingLevel: profile.cookingLevel.backendKey,
-            cookingTime: profile.cookingTime.backendKey,
-            likes: profile.likes,
-            dislikes: profile.dislikes,
-            allergies: profile.allergies,
-            intolerances: profile.intolerances,
-            medicalConditions: profile.medicalConditions
-        )
-
-        Task {
-            do {
-                try await api.savePreferences(dto)
-                showAutoSaved()
-            } catch {
-                print("⚠️ Failed to save preferences:", error)
-            }
-        }
     }
 
     private func showAutoSaved() {

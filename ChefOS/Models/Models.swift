@@ -58,6 +58,15 @@ struct UserProfile {
             case .medicalDiet: "goal.medicalDiet"
             }
         }
+        var emoji: String {
+            switch self {
+            case .loseFat: "🔥"
+            case .gainMuscle: "💪"
+            case .maintainWeight: "⚖️"
+            case .eatHealthier: "🥗"
+            case .medicalDiet: "🏥"
+            }
+        }
     }
 
     enum DietType: String, CaseIterable, Identifiable {
@@ -80,6 +89,17 @@ struct UserProfile {
             case .dairyFree: "diet.dairyFree"
             }
         }
+        var emoji: String {
+            switch self {
+            case .noRestrictions: "🍽"
+            case .vegetarian: "🥬"
+            case .vegan: "🌱"
+            case .keto: "🥑"
+            case .paleo: "🦴"
+            case .glutenFree: "🚫"
+            case .dairyFree: "🥛"
+            }
+        }
     }
 
     enum CookingLevel: String, CaseIterable, Identifiable {
@@ -96,6 +116,14 @@ struct UserProfile {
             case .chef: "cooking.chef"
             }
         }
+        var emoji: String {
+            switch self {
+            case .beginner: "🌱"
+            case .homeCook: "🏠"
+            case .advanced: "⭐"
+            case .chef: "👨‍🍳"
+            }
+        }
     }
 
     enum CookingTime: String, CaseIterable, Identifiable {
@@ -110,6 +138,14 @@ struct UserProfile {
             case .medium: "time.medium"
             case .long: "time.long"
             case .any: "time.any"
+            }
+        }
+        var emoji: String {
+            switch self {
+            case .quick: "⚡"
+            case .medium: "⏱"
+            case .long: "🕐"
+            case .any: "♾️"
             }
         }
     }
@@ -132,6 +168,17 @@ struct UserProfile {
             case .mexican: "cuisine.mexican"
             case .italian: "cuisine.italian"
             case .middleEastern: "cuisine.middleEastern"
+            }
+        }
+        var emoji: String {
+            switch self {
+            case .any: "🌍"
+            case .asian: "🍜"
+            case .mediterranean: "🫒"
+            case .american: "🍔"
+            case .mexican: "🌮"
+            case .italian: "🍝"
+            case .middleEastern: "🧆"
             }
         }
     }

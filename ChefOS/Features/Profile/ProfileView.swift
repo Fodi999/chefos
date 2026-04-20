@@ -53,14 +53,15 @@ struct ProfileView: View {
                             .staggerIn(appeared: appeared, delay: 0.4)
                     }
                     .padding()
-                    .padding(.bottom, 30)
+                    .padding(.bottom, 100) // space for save button
                 }
             }
             .navigationTitle(l10n.t("profile.title"))
             .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
             .overlay(alignment: .bottom) {
-                if viewModel.autoSaved {
-                    autoSavedBanner
+                // ── Sticky Save Button ──
+                if viewModel.hasUnsavedChanges || viewModel.saveSuccess {
+                    saveButton
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -81,6 +82,53 @@ struct ProfileView: View {
                 viewModel.updateLanguage(newValue)
             }
         }
+    }
+
+    // MARK: - Save Button
+
+    private var saveButton: some View {
+        Button {
+            viewModel.save()
+        } label: {
+            HStack(spacing: 10) {
+                if viewModel.isSaving {
+                    ProgressView()
+                        .tint(.white)
+                        .scaleEffect(0.8)
+                } else if viewModel.saveSuccess {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.title3)
+                        .symbolEffect(.bounce, value: viewModel.saveSuccess)
+                    Text(l10n.t("profile.saved"))
+                        .font(.headline.weight(.bold))
+                } else {
+                    Image(systemName: "square.and.arrow.down.fill")
+                        .font(.title3)
+                    Text(l10n.t("profile.save"))
+                        .font(.headline.weight(.bold))
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                viewModel.saveSuccess
+                    ? LinearGradient(colors: [.green, .green.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
+                    : LinearGradient(colors: [.orange, .orange.opacity(0.8)], startPoint: .leading, endPoint: .trailing),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .shadow(color: (viewModel.saveSuccess ? Color.green : Color.orange).opacity(0.4), radius: 12, y: 6)
+        }
+        .disabled(viewModel.isSaving || viewModel.saveSuccess)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 16)
+        .background(
+            LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .top, endPoint: .bottom)
+                .frame(height: 100)
+                .ignoresSafeArea()
+                .allowsHitTesting(false),
+            alignment: .bottom
+        )
     }
 
     // MARK: - Avatar
@@ -173,29 +221,56 @@ struct ProfileView: View {
 
     private var goalsCard: some View {
         ProfileSection(title: l10n.t("profile.goals"), icon: "target", emphasis: true) {
-            ProfileField(l10n.t("profile.goal")) {
-                Picker("", selection: $viewModel.profile.goal) {
+            // Goal chips
+            VStack(alignment: .leading, spacing: 8) {
+                Text(l10n.t("profile.goal"))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14).padding(.top, 10)
+                FlowLayout(spacing: 8) {
                     ForEach(UserProfile.FitnessGoal.allCases) { g in
-                        Text(l10n.t(g.l10nKey)).tag(g)
+                        ChipButton(
+                            title: l10n.t(g.l10nKey),
+                            emoji: g.emoji,
+                            isSelected: viewModel.profile.goal == g,
+                            color: .orange
+                        ) {
+                            withAnimation(.snappy(duration: 0.25)) {
+                                viewModel.profile.goal = g
+                            }
+                        }
                     }
                 }
-                .labelsHidden()
-                .tint(.orange)
+                .padding(.horizontal, 14).padding(.bottom, 10)
             }
+
+            Divider().overlay(Color.white.opacity(0.04))
+
             ProfileField(l10n.t("profile.targetWeight")) {
-                TextField("65", text: $viewModel.targetWeightText)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
+                HStack(spacing: 4) {
+                    TextField("65", text: $viewModel.targetWeightText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 60)
+                    Text("kg").font(.caption).foregroundStyle(.secondary)
+                }
             }
             ProfileField(l10n.t("profile.caloriesDay")) {
-                TextField("2200", text: $viewModel.calorieText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
+                HStack(spacing: 4) {
+                    TextField("2200", text: $viewModel.calorieText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 60)
+                    Text("kcal").font(.caption).foregroundStyle(.secondary)
+                }
             }
             ProfileField(l10n.t("profile.protein")) {
-                TextField("120", text: $viewModel.proteinText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
+                HStack(spacing: 4) {
+                    TextField("120", text: $viewModel.proteinText)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 50)
+                    Text("g").font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -204,24 +279,53 @@ struct ProfileView: View {
 
     private var preferencesCard: some View {
         ProfileSection(title: l10n.t("profile.preferences"), icon: "fork.knife") {
-            ProfileField(l10n.t("profile.diet")) {
-                Picker("", selection: $viewModel.profile.diet) {
+            // Diet chips
+            VStack(alignment: .leading, spacing: 8) {
+                Text(l10n.t("profile.diet"))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14).padding(.top, 10)
+                FlowLayout(spacing: 8) {
                     ForEach(UserProfile.DietType.allCases) { d in
-                        Text(l10n.t(d.l10nKey)).tag(d)
+                        ChipButton(
+                            title: l10n.t(d.l10nKey),
+                            emoji: d.emoji,
+                            isSelected: viewModel.profile.diet == d,
+                            color: .green
+                        ) {
+                            withAnimation(.snappy(duration: 0.25)) {
+                                viewModel.profile.diet = d
+                            }
+                        }
                     }
                 }
-                .labelsHidden()
-                .tint(.orange)
+                .padding(.horizontal, 14).padding(.bottom, 10)
             }
-            ProfileField(l10n.t("profile.cuisine")) {
-                Picker("", selection: $viewModel.profile.preferredCuisine) {
+
+            Divider().overlay(Color.white.opacity(0.04))
+
+            // Cuisine chips
+            VStack(alignment: .leading, spacing: 8) {
+                Text(l10n.t("profile.cuisine"))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14).padding(.top, 10)
+                FlowLayout(spacing: 8) {
                     ForEach(UserProfile.CuisineType.allCases) { c in
-                        Text(l10n.t(c.l10nKey)).tag(c)
+                        ChipButton(
+                            title: l10n.t(c.l10nKey),
+                            emoji: c.emoji,
+                            isSelected: viewModel.profile.preferredCuisine == c,
+                            color: .cyan
+                        ) {
+                            withAnimation(.snappy(duration: 0.25)) {
+                                viewModel.profile.preferredCuisine = c
+                            }
+                        }
                     }
                 }
-                .labelsHidden()
-                .tint(.orange)
+                .padding(.horizontal, 14).padding(.bottom, 10)
             }
+
+            Divider().overlay(Color.white.opacity(0.04))
 
             TagEditor(
                 title: l10n.t("profile.likes"),
@@ -287,28 +391,76 @@ struct ProfileView: View {
 
     private var lifestyleCard: some View {
         ProfileSection(title: l10n.t("profile.lifestyle"), icon: "clock") {
-            ProfileField(l10n.t("profile.cookingLevel")) {
-                Picker("", selection: $viewModel.profile.cookingLevel) {
-                    ForEach(UserProfile.CookingLevel.allCases) { l in
-                        Text(l10n.t(l.l10nKey)).tag(l)
+            // Cooking level chips
+            VStack(alignment: .leading, spacing: 8) {
+                Text(l10n.t("profile.cookingLevel"))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14).padding(.top, 10)
+                FlowLayout(spacing: 8) {
+                    ForEach(UserProfile.CookingLevel.allCases) { lvl in
+                        ChipButton(
+                            title: l10n.t(lvl.l10nKey),
+                            emoji: lvl.emoji,
+                            isSelected: viewModel.profile.cookingLevel == lvl,
+                            color: .purple
+                        ) {
+                            withAnimation(.snappy(duration: 0.25)) {
+                                viewModel.profile.cookingLevel = lvl
+                            }
+                        }
                     }
                 }
-                .labelsHidden()
-                .tint(.orange)
+                .padding(.horizontal, 14).padding(.bottom, 10)
             }
-            ProfileField(l10n.t("profile.cookingTime")) {
-                Picker("", selection: $viewModel.profile.cookingTime) {
+
+            Divider().overlay(Color.white.opacity(0.04))
+
+            // Cooking time chips
+            VStack(alignment: .leading, spacing: 8) {
+                Text(l10n.t("profile.cookingTime"))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .padding(.horizontal, 14).padding(.top, 10)
+                FlowLayout(spacing: 8) {
                     ForEach(UserProfile.CookingTime.allCases) { t in
-                        Text(l10n.t(t.l10nKey)).tag(t)
+                        ChipButton(
+                            title: l10n.t(t.l10nKey),
+                            emoji: t.emoji,
+                            isSelected: viewModel.profile.cookingTime == t,
+                            color: .indigo
+                        ) {
+                            withAnimation(.snappy(duration: 0.25)) {
+                                viewModel.profile.cookingTime = t
+                            }
+                        }
                     }
                 }
-                .labelsHidden()
-                .tint(.orange)
+                .padding(.horizontal, 14).padding(.bottom, 10)
             }
+
+            Divider().overlay(Color.white.opacity(0.04))
+
             ProfileField(l10n.t("profile.mealsDay")) {
-                TextField("3", text: $viewModel.mealsText)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
+                HStack(spacing: 12) {
+                    ForEach([2, 3, 4, 5], id: \.self) { n in
+                        Button {
+                            withAnimation(.snappy(duration: 0.2)) {
+                                viewModel.mealsText = "\(n)"
+                                viewModel.profile.mealsPerDay = n
+                            }
+                        } label: {
+                            Text("\(n)")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(viewModel.profile.mealsPerDay == n ? .white : .secondary)
+                                .frame(width: 36, height: 36)
+                                .background(
+                                    viewModel.profile.mealsPerDay == n
+                                        ? AnyShapeStyle(Color.orange)
+                                        : AnyShapeStyle(Color.white.opacity(0.08)),
+                                    in: Circle()
+                                )
+                        }
+                    }
+                }
             }
         }
     }
@@ -483,21 +635,44 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Auto-save Banner
+    // MARK: - Auto-save Banner (legacy, kept for compat)
 
     private var autoSavedBanner: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "checkmark.circle.fill")
-            Text(l10n.t("profile.autoSaved"))
-                .fontWeight(.medium)
+        EmptyView()
+    }
+}
+
+// MARK: - Chip Button
+
+struct ChipButton: View {
+    let title: String
+    var emoji: String = ""
+    let isSelected: Bool
+    var color: Color = .orange
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                if !emoji.isEmpty {
+                    Text(emoji).font(.caption)
+                }
+                Text(title).font(.caption.weight(isSelected ? .bold : .medium))
+            }
+            .foregroundStyle(isSelected ? .white : .secondary)
+            .padding(.horizontal, 12).padding(.vertical, 8)
+            .background(
+                isSelected
+                    ? AnyShapeStyle(color)
+                    : AnyShapeStyle(Color.white.opacity(0.06)),
+                in: Capsule()
+            )
+            .overlay(
+                Capsule().stroke(isSelected ? color.opacity(0.5) : Color.white.opacity(0.08), lineWidth: 1)
+            )
         }
-        .font(.subheadline)
-        .foregroundStyle(.white)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: Capsule())
-        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
-        .padding(.bottom, 16)
+        .buttonStyle(.plain)
+        .sensoryFeedback(.selection, trigger: isSelected)
     }
 }
 

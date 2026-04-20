@@ -569,6 +569,7 @@ final class APIClient {
     struct ChatRequest: Codable {
         let input: String
         let context: ChatContext?
+        let userId: String?
     }
 
     struct ChatContext: Codable {
@@ -619,8 +620,8 @@ final class APIClient {
         let fatPer100g: Double?
     }
 
-    func sendChat(input: String, context: ChatContext?) async throws -> ChatApiResponse {
-        let body = ChatRequest(input: input, context: context)
+    func sendChat(input: String, context: ChatContext?, userId: String? = nil) async throws -> ChatApiResponse {
+        let body = ChatRequest(input: input, context: context, userId: userId)
         // /public/chat is outside /api — use absolute path
         let url = URL(string: baseURL.replacingOccurrences(of: "/api", with: "") + "/public/chat")!
         var request = URLRequest(url: url)

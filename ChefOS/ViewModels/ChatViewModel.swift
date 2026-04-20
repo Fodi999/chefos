@@ -21,11 +21,84 @@ final class ChatViewModel: ObservableObject {
 
     private let api = APIClient.shared
     private let l10n = LocalizationService.shared
+    private let userId: String?
 
     init() {
+        userId = AuthService.readCurrentUserId()
         messages = [
             Message(content: .text(l10n.t("chat.welcome")), isFromUser: false)
         ]
+        // Load preferences and show personalized greeting
+        Task { @MainActor in
+            await loadPersonalizedGreeting()
+        }
+    }
+
+    @MainActor
+    private func loadPersonalizedGreeting() async {
+        guard userId != nil else { return }
+        do {
+            // Fetch name + preferences in parallel
+            async let meResult = api.getMe()
+            async let prefsResult = api.getPreferences()
+
+            let me = try await meResult
+            let prefs = try await prefsResult
+
+            let name = me.user.displayName ?? ""
+            let greeting = buildPersonalizedGreeting(prefs, userName: name)
+            if !greeting.isEmpty {
+                // Replace the generic welcome with personalized one
+                if !messages.isEmpty {
+                    messages[0] = Message(
+                        content: .text(l10n.t("chat.welcomePersonal")
+                            .replacingOccurrences(of: "{name}", with: name.isEmpty ? "" : name)),
+                        isFromUser: false
+                    )
+                }
+                withAnimation(.snappy(duration: 0.35)) {
+                    messages.append(Message(content: .text(greeting), isFromUser: false))
+                }
+            }
+        } catch {
+            print("⚠️ Chat: failed to load prefs for greeting: \(error)")
+        }
+    }
+
+    private func buildPersonalizedGreeting(_ p: APIClient.UserPreferencesDTO, userName: String) -> String {
+        var parts: [String] = []
+
+        // Goal motivation
+        switch p.goal {
+        case "lose_weight", "low_calorie", "cut":
+            parts.append(l10n.t("chat.motivation.loseWeight"))
+        case "gain_muscle", "high_protein", "bulk":
+            parts.append(l10n.t("chat.motivation.gainMuscle"))
+        case "gain_weight", "mass":
+            parts.append(l10n.t("chat.motivation.gainWeight"))
+        case "eat_healthier":
+            parts.append(l10n.t("chat.motivation.eatHealthier"))
+        default:
+            parts.append(l10n.t("chat.motivation.balanced"))
+        }
+
+        // Diet reminder
+        if p.diet != "no_restrictions" && !p.diet.isEmpty {
+            let dietName = p.diet.replacingOccurrences(of: "_", with: " ").capitalized
+            parts.append(l10n.t("chat.motivation.diet").replacingOccurrences(of: "{diet}", with: dietName))
+        }
+
+        // Calorie / protein targets
+        parts.append(l10n.t("chat.motivation.targets")
+            .replacingOccurrences(of: "{kcal}", with: "\(p.calorieTarget)")
+            .replacingOccurrences(of: "{protein}", with: "\(p.proteinTarget)"))
+
+        // Allergies warning
+        if !p.allergies.isEmpty {
+            parts.append(l10n.t("chat.motivation.allergies").replacingOccurrences(of: "{list}", with: p.allergies.joined(separator: ", ")))
+        }
+
+        return parts.joined(separator: "\n")
     }
 
     func send() {
@@ -75,7 +148,7 @@ final class ChatViewModel: ObservableObject {
 
         Task { @MainActor in
             do {
-                let response = try await api.sendChat(input: input, context: chatContext)
+                let response = try await api.sendChat(input: input, context: chatContext, userId: userId)
 
                 withAnimation(.easeOut(duration: 0.2)) {
                     self.isThinking = false

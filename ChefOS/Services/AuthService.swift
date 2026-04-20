@@ -77,6 +77,23 @@ final class AuthService: ObservableObject {
         SecItemDelete(query as CFDictionary)
     }
 
+    // Public accessor for userId
+    func readUserId() -> String? { readKeychain(userIdKey) }
+
+    /// Static accessor — reads userId from keychain without an instance
+    static func readCurrentUserId() -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: "com.chefos.user_id",
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
     // Legacy compat
     func saveToken(_ token: String) { saveKeychain(accessTokenKey, value: token) }
     func readToken() -> String? { readKeychain(accessTokenKey) }
