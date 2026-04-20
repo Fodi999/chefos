@@ -17,32 +17,32 @@ struct CookSuggestionsSheet: View {
 
                 if vm.isLoading {
                     VStack(spacing: 16) {
-                        ProgressView().scaleEffect(1.5)
+                        ProgressView()
+                            .controlSize(.large)
+                            .tint(.secondary)
                         Text(l10n.t("cook.analyzing"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                 } else if let error = vm.errorMessage {
-                    VStack(spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle")
-                            .font(.largeTitle).foregroundStyle(.orange)
-                        Text(error).font(.caption).foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                    ContentUnavailableView {
+                        Label(l10n.t("cook.retry"), systemImage: "exclamationmark.triangle")
+                    } description: {
+                        Text(error)
+                    } actions: {
                         Button(l10n.t("cook.retry")) {
                             Task { await vm.loadSuggestions() }
-                        }.buttonStyle(.borderedProminent)
-                    }.padding()
-                } else if vm.isEmpty && vm.hasLoaded {
-                    VStack(spacing: 12) {
-                        Image(systemName: "basket")
-                            .font(.system(size: 48)).foregroundStyle(.secondary)
-                        Text(l10n.t("cook.empty"))
-                            .font(.subheadline).foregroundStyle(.secondary)
+                        }.buttonStyle(.borderedProminent).tint(.orange)
                     }
+                } else if vm.isEmpty && vm.hasLoaded {
+                    ContentUnavailableView(
+                        l10n.t("cook.empty"),
+                        systemImage: "basket",
+                        description: Text(l10n.t("cook.empty"))
+                    )
                 } else {
                     ScrollView {
-                        VStack(spacing: 20) {
-                            // ── Personalization Banner ──
+                        LazyVStack(spacing: 24) {
                             if let p = vm.personalization, p.personalized {
                                 personalizationBanner(p)
                             }
@@ -50,27 +50,32 @@ struct CookSuggestionsSheet: View {
                                 inventoryInsightCard(insight)
                             }
                             if !vm.canCook.isEmpty {
-                                dishSection(title: l10n.t("cook.canCookNow"), icon: "checkmark.circle.fill", color: .green, dishes: vm.canCook)
+                                dishSection(title: l10n.t("cook.canCookNow"), icon: "checkmark.seal.fill", color: .green, dishes: vm.canCook)
                             }
                             if !vm.almost.isEmpty {
-                                dishSection(title: l10n.t("cook.almostReady"), icon: "minus.circle.fill", color: .orange, dishes: vm.almost)
+                                dishSection(title: l10n.t("cook.almostReady"), icon: "ellipsis.circle.fill", color: .orange, dishes: vm.almost)
                             }
                             if !vm.strategic.isEmpty {
-                                dishSection(title: l10n.t("cook.strategic"), icon: "brain.head.profile", color: .purple, dishes: vm.strategic)
+                                dishSection(title: l10n.t("cook.strategic"), icon: "brain.head.profile.fill", color: .purple, dishes: vm.strategic)
                             }
                             if let unlock = vm.unlockSuggestions, !unlock.unlockHints.isEmpty {
                                 unlockCard(unlock)
                             }
-                        }.padding()
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
                     }
                 }
             }
             .navigationTitle(l10n.t("cook.title"))
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -86,89 +91,73 @@ struct CookSuggestionsSheet: View {
 
     @ViewBuilder
     private func personalizationBanner(_ p: APIClient.PersonalizationInfo) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
                 Image(systemName: "person.badge.shield.checkmark.fill")
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
                     .foregroundStyle(.indigo)
                 Text(l10n.t("cook.personalizedForYou"))
-                    .font(.headline.weight(.bold))
+                    .font(.subheadline.weight(.semibold))
             }
 
-            // Goal
-            HStack(spacing: 6) {
-                Text(goalEmoji(p.goal))
-                Text(l10n.t("cook.yourGoal") + ": " + localizeGoal(p.goal))
-                    .font(.subheadline)
-            }
-
-            // Diet (if not default)
-            if p.diet != "no_restrictions" {
-                HStack(spacing: 6) {
-                    Text("🥗")
-                    Text(l10n.t("cook.yourDiet") + ": " + localizeDiet(p.diet))
-                        .font(.subheadline)
+            FlowLayout(spacing: 6) {
+                infoPill(icon: goalIcon(p.goal), text: localizeGoal(p.goal), color: .indigo)
+                if p.diet != "no_restrictions" {
+                    infoPill(icon: "leaf.fill", text: localizeDiet(p.diet), color: .green)
                 }
+                infoPill(icon: "flame.fill", text: "\(p.kcalTarget) \(l10n.t("cook.kcal"))", color: .orange)
+                infoPill(icon: "figure.strengthtraining.traditional", text: "\(p.proteinTarget)g", color: .blue)
             }
 
-            // Targets
-            HStack(spacing: 16) {
-                HStack(spacing: 4) {
-                    Text("🔥").font(.caption)
-                    Text("\(p.kcalTarget) \(l10n.t("cook.kcal"))")
-                        .font(.caption.weight(.bold))
-                }
-                HStack(spacing: 4) {
-                    Text("💪").font(.caption)
-                    Text("\(p.proteinTarget)g \(l10n.t("cook.protein"))")
-                        .font(.caption.weight(.bold))
-                }
-            }
-
-            // Excluded allergens
             if !p.excludedAllergens.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "nosign").font(.caption2).foregroundStyle(.red)
-                    Text(l10n.t("cook.excluded") + ": " + p.excludedAllergens.joined(separator: ", "))
-                        .font(.caption).foregroundStyle(.red.opacity(0.9))
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.caption2).foregroundStyle(.red)
+                    Text(p.excludedAllergens.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.red.opacity(0.8))
                 }
             }
-
-            // Excluded dislikes
             if !p.excludedDislikes.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "hand.thumbsdown.fill").font(.caption2).foregroundStyle(.orange)
-                    Text(l10n.t("cook.dislikesExcluded") + ": " + p.excludedDislikes.joined(separator: ", "))
-                        .font(.caption).foregroundStyle(.orange.opacity(0.9))
+                HStack(spacing: 6) {
+                    Image(systemName: "hand.thumbsdown.fill")
+                        .font(.caption2).foregroundStyle(.secondary)
+                    Text(p.excludedDislikes.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(
-                    LinearGradient(colors: [.indigo.opacity(0.08), .purple.opacity(0.06)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(
-                    LinearGradient(colors: [.indigo.opacity(0.4), .purple.opacity(0.2)],
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(colors: [.indigo.opacity(0.3), .purple.opacity(0.15)],
                                    startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 1
+                    lineWidth: 0.5
                 )
         )
     }
 
-    // MARK: - Personalization Helpers
+    private func infoPill(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.caption2.weight(.semibold))
+            Text(text).font(.caption.weight(.medium))
+        }
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(color.opacity(0.12), in: Capsule())
+        .foregroundStyle(color)
+    }
 
-    private func goalEmoji(_ goal: String) -> String {
+    // MARK: - Helpers
+
+    private func goalIcon(_ goal: String) -> String {
         switch goal {
-        case "lose_weight", "low_calorie", "cut": return "🔥"
-        case "gain_muscle", "high_protein", "bulk": return "💪"
-        case "gain_weight", "mass": return "🍖"
-        default: return "🎯"
+        case "lose_weight", "low_calorie", "cut": return "flame.fill"
+        case "gain_muscle", "high_protein", "bulk": return "figure.strengthtraining.traditional"
+        case "gain_weight", "mass": return "arrow.up.circle.fill"
+        case "eat_healthier": return "heart.fill"
+        default: return "target"
         }
     }
 
@@ -196,28 +185,22 @@ struct CookSuggestionsSheet: View {
 
     @ViewBuilder
     private func inventoryInsightCard(_ insight: APIClient.InventoryInsight) -> some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 16) {
-                insightMetric(icon: "refrigerator.fill", value: "\(insight.totalIngredients)", label: l10n.t("cook.ingredients"))
-                insightMetric(icon: "calendar.badge.clock", value: "~\(insight.daysLeft)", label: l10n.t("cook.daysLeft"))
-                insightMetric(icon: "exclamationmark.triangle.fill", value: "\(insight.wasteRisk)%", label: l10n.t("cook.wasteRisk"), color: insight.wasteRisk > 30 ? .red : .orange)
-            }
-            if !insight.atRisk.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "clock.badge.exclamationmark").font(.caption2).foregroundStyle(.orange)
-                    Text(insight.atRisk.joined(separator: ", ")).font(.caption2).foregroundStyle(.orange).lineLimit(2)
-                }
-            }
+        HStack(spacing: 0) {
+            insightMetric(icon: "refrigerator.fill", value: "\(insight.totalIngredients)", label: l10n.t("cook.ingredients"), color: .blue)
+            Divider().frame(height: 32).opacity(0.3)
+            insightMetric(icon: "calendar.badge.clock", value: "~\(insight.daysLeft)d", label: l10n.t("cook.daysLeft"), color: .cyan)
+            Divider().frame(height: 32).opacity(0.3)
+            insightMetric(icon: "exclamationmark.triangle.fill", value: "\(insight.wasteRisk)%", label: l10n.t("cook.wasteRisk"), color: insight.wasteRisk > 30 ? .red : .orange)
         }
-        .padding(14).frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.blue.opacity(0.3), lineWidth: 1))
+        .padding(.vertical, 14).frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
     }
 
-    private func insightMetric(icon: String, value: String, label: String, color: Color = .blue) -> some View {
+    private func insightMetric(icon: String, value: String, label: String, color: Color) -> some View {
         VStack(spacing: 4) {
-            Image(systemName: icon).font(.title3).foregroundStyle(color)
-            Text(value).font(.headline.weight(.bold))
+            Image(systemName: icon).font(.body).symbolRenderingMode(.hierarchical).foregroundStyle(color)
+            Text(value).font(.subheadline.weight(.bold)).monospacedDigit()
             Text(label).font(.caption2).foregroundStyle(.secondary)
         }.frame(maxWidth: .infinity)
     }
@@ -226,50 +209,51 @@ struct CookSuggestionsSheet: View {
 
     @ViewBuilder
     private func unlockCard(_ unlock: APIClient.UnlockSuggestions) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "lightbulb.fill").foregroundStyle(.yellow)
-                Text(l10n.t("cook.unlockMore")).font(.headline.weight(.bold))
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "lightbulb.max.fill").symbolRenderingMode(.hierarchical).foregroundStyle(.yellow)
+                Text(l10n.t("cook.unlockMore")).font(.subheadline.weight(.semibold))
             }
             ForEach(unlock.unlockHints, id: \.self) { hint in
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill").font(.caption).foregroundStyle(.green)
                     Text(hint).font(.caption)
                 }
             }
             if !unlock.missingFrequently.isEmpty {
-                FlowLayout(spacing: 4) {
+                FlowLayout(spacing: 6) {
                     ForEach(unlock.missingFrequently, id: \.self) { name in
-                        Text(name).font(.caption2).padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Color.yellow.opacity(0.15), in: Capsule()).foregroundStyle(.orange)
+                        Text(name).font(.caption2.weight(.medium))
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(Color.yellow.opacity(0.1), in: Capsule())
+                            .foregroundStyle(.orange)
                     }
                 }
             }
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.yellow.opacity(0.3), lineWidth: 1))
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.yellow.opacity(0.2), lineWidth: 0.5))
     }
 
     // MARK: - Section
 
     @ViewBuilder
     private func dishSection(title: String, icon: String, color: Color, dishes: [APIClient.SuggestedDish]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: icon).foregroundStyle(color)
-                Text(title).font(.headline.weight(.bold))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).symbolRenderingMode(.hierarchical).foregroundStyle(color)
+                Text(title).font(.subheadline.weight(.semibold))
                 Spacer()
-                Text("\(dishes.count)").font(.caption.weight(.bold)).foregroundStyle(.white)
+                Text("\(dishes.count)").font(.caption.weight(.bold)).monospacedDigit()
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(color.opacity(0.8), in: Capsule())
+                    .background(color, in: Capsule())
             }
             ForEach(dishes) { dish in
                 dishCard(dish, accentColor: color)
-                    .onTapGesture {
-                        print("🟢 TAP: \(dish.dishName) id=\(dish.id)")
-                        vm.selectedDish = dish
-                    }
+                    .contentShape(.rect(cornerRadius: 20))
+                    .onTapGesture { vm.selectedDish = dish }
             }
         }
     }
@@ -278,157 +262,141 @@ struct CookSuggestionsSheet: View {
 
     @ViewBuilder
     private func dishCard(_ dish: APIClient.SuggestedDish, accentColor: Color) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Title
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(dish.displayName ?? dish.dishNameLocal ?? dish.dishName)
-                        .font(.subheadline.weight(.bold))
-                    HStack(spacing: 6) {
-                        dishTypeBadge(dish.dishType)
-                        complexityBadge(dish.complexity)
-                    }
+                        .font(.subheadline.weight(.semibold)).lineLimit(2)
+                    HStack(spacing: 8) {
+                        Label(dish.dishType.capitalized, systemImage: dishTypeIcon(dish.dishType))
+                        Label(dish.complexity.capitalized, systemImage: "gauge.medium")
+                    }.font(.caption2).foregroundStyle(.secondary)
                 }
-                Spacer()
-                HStack(spacing: 4) {
+                Spacer(minLength: 8)
+                HStack(spacing: 6) {
                     if favVM.isFavorite(dish.dishName) {
-                        Image(systemName: "heart.fill").font(.caption2).foregroundStyle(.red)
+                        Image(systemName: "heart.fill").font(.caption).foregroundStyle(.red)
                     }
-                    if dish.insight.usesExpiring { insightBadge("⏰", color: .orange) }
-                    if dish.insight.highProtein { insightBadge("💪", color: .blue) }
-                    if dish.insight.budgetFriendly { insightBadge("💰", color: .green) }
+                    if dish.insight.usesExpiring { sfBadge(icon: "clock.badge.exclamationmark", color: .orange) }
+                    if dish.insight.highProtein { sfBadge(icon: "figure.strengthtraining.traditional", color: .blue) }
+                    if dish.insight.budgetFriendly { sfBadge(icon: "dollarsign.circle.fill", color: .green) }
                 }
             }
 
-            HStack(spacing: 12) {
-                nutritionPill("🔥", "\(dish.perServingKcal)")
-                nutritionPill("P", String(format: "%.0fg", dish.perServingProteinG))
-                nutritionPill("F", String(format: "%.0fg", dish.perServingFatG))
-                nutritionPill("C", String(format: "%.0fg", dish.perServingCarbsG))
+            // Nutrition
+            HStack(spacing: 0) {
+                nutritionCell(icon: "flame.fill", value: "\(dish.perServingKcal)", unit: l10n.t("cook.kcal"), color: .orange)
+                nutritionCell(icon: "p.circle.fill", value: String(format: "%.0f", dish.perServingProteinG), unit: "g", color: .blue)
+                nutritionCell(icon: "f.circle.fill", value: String(format: "%.0f", dish.perServingFatG), unit: "g", color: .yellow)
+                nutritionCell(icon: "c.circle.fill", value: String(format: "%.0f", dish.perServingCarbsG), unit: "g", color: .green)
                 Spacer()
-                Text("🍽 \(dish.servings)").font(.caption2).foregroundStyle(.secondary)
+                Label("\(dish.servings)", systemImage: "person.2.fill").font(.caption2).foregroundStyle(.secondary)
             }
 
-            // ── Smart Badges ──
+            // Smart Badges
             if let p = vm.personalization, p.personalized {
-                FlowLayout(spacing: 4) {
+                FlowLayout(spacing: 6) {
                     if dish.insight.highProtein {
-                        smartBadge("💪", l10n.t("cook.badge.highProtein"), .blue)
+                        smartPill(icon: "figure.strengthtraining.traditional", text: l10n.t("cook.badge.highProtein"), color: .blue)
                     }
-                    if dish.perServingKcal <= p.kcalTarget / (p.personalized ? 3 : 3) {
-                        smartBadge("🔥", l10n.t("cook.badge.lowCal"), .green)
+                    if dish.perServingKcal <= p.kcalTarget / 3 {
+                        smartPill(icon: "flame.fill", text: l10n.t("cook.badge.lowCal"), color: .green)
                     }
                     if !p.excludedAllergens.isEmpty {
-                        smartBadge("✅", l10n.t("cook.badge.allergenFree"), .mint)
+                        smartPill(icon: "checkmark.shield.fill", text: l10n.t("cook.badge.allergenFree"), color: .mint)
                     }
                     if let totalTime = dish.steps.compactMap(\.timeMin).reduce(0, +) as Int?, totalTime > 0, totalTime <= 20 {
-                        smartBadge("⚡", l10n.t("cook.badge.quick"), .orange)
+                        smartPill(icon: "bolt.fill", text: l10n.t("cook.badge.quick"), color: .orange)
                     }
                     if dish.insight.budgetFriendly {
-                        smartBadge("💰", l10n.t("cook.badge.budget"), .green)
+                        smartPill(icon: "dollarsign.circle.fill", text: l10n.t("cook.badge.budget"), color: .green)
                     }
                 }
             }
 
+            // Flavor
             if let flavor = dish.flavor {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     flavorBar(score: flavor.balanceScore)
-                    if let dom = flavor.dominant { Text(dom).font(.caption2).foregroundStyle(.secondary) }
+                    if let dom = flavor.dominant { Text(dom.capitalized).font(.caption2).foregroundStyle(.secondary) }
                 }
             }
 
+            // Steps
             if !dish.steps.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "list.number").font(.caption2).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    Image(systemName: "list.bullet").font(.caption2).foregroundStyle(.secondary)
                     Text("\(dish.steps.count) \(l10n.t("cook.steps"))").font(.caption2).foregroundStyle(.secondary)
                     if let totalTime = dish.steps.compactMap(\.timeMin).reduce(0, +) as Int?, totalTime > 0 {
-                        Text("• ~\(totalTime) \(l10n.t("cook.min"))").font(.caption2).foregroundStyle(.secondary)
+                        Text("·").foregroundStyle(.quaternary)
+                        Image(systemName: "clock").font(.caption2).foregroundStyle(.secondary)
+                        Text("~\(totalTime) \(l10n.t("cook.min"))").font(.caption2).foregroundStyle(.secondary)
                     }
                 }
             }
 
-            // ── OPEN RECIPE BUTTON ──
+            // CTA
             HStack(spacing: 8) {
-                if dish.missingCount == 0 {
-                    Image(systemName: "flame.fill").foregroundStyle(.green)
-                    Text(l10n.t("cook.openRecipe")).font(.subheadline.weight(.bold))
-                } else {
-                    Image(systemName: "book.fill").foregroundStyle(.orange)
-                    Text(l10n.t("cook.openRecipe")).font(.subheadline.weight(.bold))
-                    Spacer()
-                    Text("\(dish.missingCount) ✕")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.orange)
-                }
+                Image(systemName: dish.missingCount == 0 ? "play.fill" : "book.fill").font(.caption.weight(.semibold))
+                Text(l10n.t("cook.openRecipe")).font(.caption.weight(.semibold))
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.secondary)
+                if dish.missingCount > 0 {
+                    Text("\(dish.missingCount) \(l10n.t("cook.missing"))").font(.caption2.weight(.medium))
+                }
+                Image(systemName: "chevron.right").font(.caption2.weight(.bold)).foregroundStyle(.tertiary)
             }
+            .foregroundStyle(dish.missingCount == 0 ? .green : .orange)
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(
-                (dish.missingCount == 0 ? Color.green : Color.orange).opacity(0.12),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-            )
+            .background((dish.missingCount == 0 ? Color.green : Color.orange).opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
-        .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(accentColor.opacity(0.3), lineWidth: 1))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(accentColor.opacity(0.15), lineWidth: 0.5))
     }
 
-    // MARK: - Helpers
+    // MARK: - Small Helpers
 
     private func flavorBar(score: Double) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.gray.opacity(0.2))
-                Capsule()
-                    .fill(score > 0.7 ? Color.green : score > 0.4 ? Color.orange : Color.red)
+                Capsule().fill(Color.primary.opacity(0.08))
+                Capsule().fill(score > 0.7 ? Color.green : score > 0.4 ? Color.orange : Color.red)
                     .frame(width: geo.size.width * score)
             }
-        }.frame(width: 50, height: 6)
+        }.frame(width: 50, height: 5)
     }
 
-    private func dishTypeBadge(_ type: String) -> some View {
-        let icon: String = { switch type {
+    private func dishTypeIcon(_ type: String) -> String {
+        switch type {
         case "soup": return "drop.fill"
         case "stew": return "flame.fill"
         case "salad": return "leaf.fill"
         case "grill": return "flame"
         case "pasta": return "fork.knife"
-        default: return "circle"
-        }}()
-        return Image(systemName: icon).font(.caption2).foregroundStyle(.secondary)
+        default: return "circle.fill"
+        }
     }
 
-    private func complexityBadge(_ complexity: String) -> some View {
-        let dots: String = { switch complexity {
-        case "easy": return "●○○"
-        case "medium": return "●●○"
-        case "hard": return "●●●"
-        default: return "●○○"
-        }}()
-        return Text(dots).font(.caption2).foregroundStyle(.secondary)
+    private func sfBadge(icon: String, color: Color) -> some View {
+        Image(systemName: icon).font(.caption2).symbolRenderingMode(.hierarchical)
+            .foregroundStyle(color).padding(5).background(color.opacity(0.1), in: Circle())
     }
 
-    private func insightBadge(_ emoji: String, color: Color) -> some View {
-        Text(emoji).font(.caption).padding(4).background(color.opacity(0.15), in: Circle())
-    }
-
-    private func nutritionPill(_ label: String, _ value: String) -> some View {
+    private func nutritionCell(icon: String, value: String, unit: String, color: Color) -> some View {
         HStack(spacing: 2) {
-            Text(label).font(.caption2.weight(.bold))
-            Text(value).font(.caption2)
-        }.foregroundStyle(.secondary)
+            Image(systemName: icon).font(.system(size: 9)).foregroundStyle(color)
+            Text(value + unit).font(.caption2.weight(.medium)).monospacedDigit()
+        }.foregroundStyle(.secondary).padding(.trailing, 10)
     }
 
-    private func smartBadge(_ emoji: String, _ text: String, _ color: Color) -> some View {
-        HStack(spacing: 3) {
-            Text(emoji).font(.caption2)
+    private func smartPill(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon).font(.system(size: 9))
             Text(text).font(.caption2.weight(.medium))
         }
-        .padding(.horizontal, 8).padding(.vertical, 3)
-        .background(color.opacity(0.12), in: Capsule())
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(color.opacity(0.1), in: Capsule())
         .foregroundStyle(color)
     }
 }
@@ -451,7 +419,7 @@ struct RecipeDetailSheet: View {
         NavigationStack {
             ZStack {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 24) {
                         headerSection
                         actionButtons
                         if !dish.insight.reasons.isEmpty { reasonsSection }
@@ -462,22 +430,20 @@ struct RecipeDetailSheet: View {
                         if !dish.steps.isEmpty { stepsSection }
                         if !dish.warnings.isEmpty { warningsSection }
                         if !dish.tags.isEmpty || !dish.allergens.isEmpty { tagsSection }
-                        Color.clear.frame(height: 20) // bottom padding
-                    }.padding()
+                        Color.clear.frame(height: 24)
+                    }.padding(.horizontal).padding(.top, 8)
                 }
 
-                // Toast
                 if showAddedToast {
                     VStack {
                         Spacer()
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                            Text(l10n.t("cook.addedToShoppingList"))
-                                .font(.subheadline.weight(.medium))
+                            Text(l10n.t("cook.addedToShoppingList")).font(.subheadline.weight(.medium))
                         }
                         .padding(.horizontal, 20).padding(.vertical, 12)
                         .background(.ultraThickMaterial, in: Capsule())
-                        .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+                        .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
                         .padding(.bottom, 30)
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -491,25 +457,22 @@ struct RecipeDetailSheet: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button { favVM.toggle(dish) } label: {
                         Image(systemName: favVM.isFavorite(dish.dishName) ? "heart.fill" : "heart")
+                            .symbolRenderingMode(.hierarchical)
                             .foregroundStyle(favVM.isFavorite(dish.dishName) ? .red : .secondary)
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
-                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        Image(systemName: "xmark.circle.fill").symbolRenderingMode(.hierarchical).foregroundStyle(.secondary)
                     }
                 }
             }
             .fullScreenCover(isPresented: $showCookMode) {
-                CookModeView(dish: dish, onComplete: {
-                    cookingComplete = true
-                    showCookMode = false
-                })
-                .environmentObject(l10n)
+                CookModeView(dish: dish, onComplete: { cookingComplete = true; showCookMode = false })
+                    .environmentObject(l10n)
             }
             .sheet(isPresented: $cookingComplete) {
-                CookingCompleteSheet(dish: dish)
-                    .environmentObject(l10n)
+                CookingCompleteSheet(dish: dish).environmentObject(l10n)
             }
         }
     }
@@ -519,50 +482,35 @@ struct RecipeDetailSheet: View {
     private var actionButtons: some View {
         VStack(spacing: 10) {
             if canCookNow {
-                Button {
-                    showCookMode = true
-                } label: {
+                Button { showCookMode = true } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: "flame.fill").font(.title3)
+                        Image(systemName: "play.fill").font(.title3)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(l10n.t("cook.cookNow")).font(.headline.weight(.bold))
+                            Text(l10n.t("cook.cookNow")).font(.subheadline.weight(.bold))
                             if let totalTime = dish.steps.compactMap(\.timeMin).reduce(0, +) as Int?, totalTime > 0 {
-                                Text("~\(totalTime) \(l10n.t("cook.min")) • \(dish.steps.count) \(l10n.t("cook.steps"))")
+                                Text("~\(totalTime) \(l10n.t("cook.min")) · \(dish.steps.count) \(l10n.t("cook.steps"))")
                                     .font(.caption).opacity(0.8)
                             }
                         }
                         Spacer()
-                        Image(systemName: "chevron.right")
+                        Image(systemName: "chevron.right").font(.caption.weight(.bold))
                     }
-                    .foregroundStyle(.white)
-                    .padding(16)
-                    .background(
-                        LinearGradient(colors: [.green, .green.opacity(0.8)], startPoint: .leading, endPoint: .trailing),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
-                    .shadow(color: .green.opacity(0.3), radius: 8, y: 4)
+                    .foregroundStyle(.white).padding(16)
+                    .background(.green.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             } else {
-                Button {
-                    addMissingToShoppingList()
-                } label: {
+                Button { addMissingToShoppingList() } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "cart.badge.plus").font(.title3)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(l10n.t("cook.addMissing")).font(.headline.weight(.bold))
-                            Text("\(dish.missingCount) \(l10n.t("cook.ingredientsMissing"))")
-                                .font(.caption).opacity(0.8)
+                            Text(l10n.t("cook.addMissing")).font(.subheadline.weight(.bold))
+                            Text("\(dish.missingCount) \(l10n.t("cook.ingredientsMissing"))").font(.caption).opacity(0.8)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right")
+                        Image(systemName: "chevron.right").font(.caption.weight(.bold))
                     }
-                    .foregroundStyle(.white)
-                    .padding(16)
-                    .background(
-                        LinearGradient(colors: [.orange, .orange.opacity(0.8)], startPoint: .leading, endPoint: .trailing),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
-                    .shadow(color: .orange.opacity(0.3), radius: 8, y: 4)
+                    .foregroundStyle(.white).padding(16)
+                    .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             }
         }
@@ -571,39 +519,30 @@ struct RecipeDetailSheet: View {
     private func addMissingToShoppingList() {
         let dishName = dish.displayName ?? dish.dishNameLocal ?? dish.dishName
         for name in dish.missingIngredients {
-            shoppingVM.add(
-                name: name,
-                note: l10n.t("cook.forRecipe") + " " + dishName,
-                source: .recipeSuggestion
-            )
+            shoppingVM.add(name: name, note: l10n.t("cook.forRecipe") + " " + dishName, source: .recipeSuggestion)
         }
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-            showAddedToast = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation { showAddedToast = false }
-        }
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { showAddedToast = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { withAnimation { showAddedToast = false } }
     }
 
     // MARK: - Header
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(dish.displayName ?? dish.dishNameLocal ?? dish.dishName)
-                .font(.title2.weight(.bold))
-            HStack(spacing: 12) {
-                Label(dish.dishType.capitalized, systemImage: "fork.knife").font(.caption)
-                Label(dish.complexity.capitalized, systemImage: "speedometer").font(.caption)
-                Label("\(dish.servings)", systemImage: "person.2").font(.caption)
-            }.foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 8) {
+            Text(dish.displayName ?? dish.dishNameLocal ?? dish.dishName).font(.title2.weight(.bold))
+            HStack(spacing: 14) {
+                Label(dish.dishType.capitalized, systemImage: "fork.knife")
+                Label(dish.complexity.capitalized, systemImage: "gauge.medium")
+                Label("\(dish.servings)", systemImage: "person.2")
+            }.font(.caption).foregroundStyle(.secondary)
         }
     }
 
-    // MARK: - Why This Dish
+    // MARK: - Reasons
 
     private var reasonsSection: some View {
-        sectionCard(title: l10n.t("cook.whyThisDish"), icon: "lightbulb.fill", color: .yellow) {
-            VStack(alignment: .leading, spacing: 6) {
+        sectionCard(title: l10n.t("cook.whyThisDish"), icon: "lightbulb.max.fill", color: .yellow) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(dish.insight.reasons, id: \.self) { reason in
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill").font(.caption).foregroundStyle(.green)
@@ -618,22 +557,22 @@ struct RecipeDetailSheet: View {
 
     private var nutritionSection: some View {
         sectionCard(title: l10n.t("cook.nutrition"), icon: "chart.bar.fill", color: .blue) {
-            VStack(spacing: 8) {
-                Text(l10n.t("cook.perServing")).font(.caption).foregroundStyle(.secondary)
+            VStack(spacing: 10) {
+                Text(l10n.t("cook.perServing")).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 0) {
-                    nutritionBlock("🔥", "\(dish.perServingKcal)", l10n.t("cook.kcal"))
-                    nutritionBlock("🥩", String(format: "%.1f", dish.perServingProteinG), l10n.t("cook.protein"))
-                    nutritionBlock("🧈", String(format: "%.1f", dish.perServingFatG), l10n.t("cook.fat"))
-                    nutritionBlock("🍞", String(format: "%.1f", dish.perServingCarbsG), l10n.t("cook.carbs"))
+                    nutritionBlock(icon: "flame.fill", value: "\(dish.perServingKcal)", label: l10n.t("cook.kcal"), color: .orange)
+                    nutritionBlock(icon: "p.circle.fill", value: String(format: "%.1f", dish.perServingProteinG), label: l10n.t("cook.protein"), color: .blue)
+                    nutritionBlock(icon: "f.circle.fill", value: String(format: "%.1f", dish.perServingFatG), label: l10n.t("cook.fat"), color: .yellow)
+                    nutritionBlock(icon: "c.circle.fill", value: String(format: "%.1f", dish.perServingCarbsG), label: l10n.t("cook.carbs"), color: .green)
                 }
             }
         }
     }
 
-    private func nutritionBlock(_ emoji: String, _ value: String, _ label: String) -> some View {
-        VStack(spacing: 2) {
-            Text(emoji).font(.title3)
-            Text(value).font(.headline.weight(.bold))
+    private func nutritionBlock(icon: String, value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon).font(.title3).symbolRenderingMode(.hierarchical).foregroundStyle(color)
+            Text(value).font(.subheadline.weight(.bold)).monospacedDigit()
             Text(label).font(.caption2).foregroundStyle(.secondary)
         }.frame(maxWidth: .infinity)
     }
@@ -642,30 +581,29 @@ struct RecipeDetailSheet: View {
 
     private func flavorSection(_ flavor: APIClient.FlavorInfo) -> some View {
         sectionCard(title: l10n.t("cook.flavorProfile"), icon: "sparkles", color: .purple) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text(l10n.t("cook.balance")).font(.caption)
                     GeometryReader { geo in
                         ZStack(alignment: .leading) {
-                            Capsule().fill(Color.gray.opacity(0.2))
-                            Capsule()
-                                .fill(flavor.balanceScore > 0.7 ? Color.green : flavor.balanceScore > 0.4 ? Color.orange : Color.red)
+                            Capsule().fill(Color.primary.opacity(0.08))
+                            Capsule().fill(flavor.balanceScore > 0.7 ? Color.green : flavor.balanceScore > 0.4 ? Color.orange : Color.red)
                                 .frame(width: geo.size.width * flavor.balanceScore)
                         }
-                    }.frame(height: 8)
-                    Text(String(format: "%.0f%%", flavor.balanceScore * 100)).font(.caption.weight(.bold))
+                    }.frame(height: 6)
+                    Text(String(format: "%.0f%%", flavor.balanceScore * 100)).font(.caption.weight(.bold)).monospacedDigit()
                 }
                 if let dominant = flavor.dominant {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Text(l10n.t("cook.dominant")).font(.caption).foregroundStyle(.secondary)
                         Text(dominant.capitalized).font(.caption.weight(.bold))
                     }
                 }
                 if !flavor.suggestions.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(l10n.t("cook.canImprove")).font(.caption).foregroundStyle(.secondary)
                         ForEach(flavor.suggestions, id: \.self) { s in
-                            HStack(spacing: 4) {
+                            HStack(spacing: 6) {
                                 Image(systemName: "plus.circle").font(.caption2).foregroundStyle(.orange)
                                 Text(localizeFlavorSuggestion(s)).font(.caption)
                             }
@@ -680,16 +618,16 @@ struct RecipeDetailSheet: View {
 
     private func adaptationSection(_ adaptation: APIClient.AdaptationInfo) -> some View {
         sectionCard(title: l10n.t("cook.adapted"), icon: "arrow.triangle.2.circlepath", color: .cyan) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 if let strategy = adaptation.strategy {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Text(l10n.t("cook.optimizedFor")).font(.caption).foregroundStyle(.secondary)
                         Text(strategy.replacingOccurrences(of: "_", with: " ").capitalized).font(.caption.weight(.bold))
                     }
                 }
                 ForEach(adaptation.actions, id: \.self) { action in
-                    HStack(spacing: 6) {
-                        Image(systemName: "wrench.and.screwdriver").font(.caption2).foregroundStyle(.cyan)
+                    HStack(spacing: 8) {
+                        Image(systemName: "gearshape.fill").font(.caption2).foregroundStyle(.cyan)
                         Text(action).font(.caption)
                     }
                 }
@@ -701,22 +639,21 @@ struct RecipeDetailSheet: View {
 
     private var ingredientsSection: some View {
         sectionCard(title: l10n.t("cook.ingredientsList"), icon: "basket.fill", color: .green) {
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 ForEach(dish.ingredients, id: \.slug) { ing in
-                    HStack {
-                        Circle()
-                            .fill(ing.available ? (ing.expiringSoon ? Color.orange : Color.green) : Color.red.opacity(0.5))
-                            .frame(width: 8, height: 8)
+                    HStack(spacing: 10) {
+                        Circle().fill(ing.available ? (ing.expiringSoon ? Color.orange : Color.green) : Color.red.opacity(0.5))
+                            .frame(width: 7, height: 7)
                         Text(ing.name).font(.subheadline)
                         Spacer()
-                        Text(String(format: "%.0fg", ing.grossG)).font(.caption).foregroundStyle(.secondary)
-                        Text(ing.role).font(.caption2).padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.1), in: Capsule())
+                        Text(String(format: "%.0fg", ing.grossG)).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                        Text(ing.role).font(.caption2).padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Color.primary.opacity(0.06), in: Capsule())
                     }
                 }
                 if !dish.missingIngredients.isEmpty {
-                    Divider()
-                    HStack(spacing: 4) {
+                    Divider().opacity(0.5)
+                    HStack(spacing: 6) {
                         Image(systemName: "cart.badge.plus").font(.caption).foregroundStyle(.red)
                         Text(l10n.t("cook.needToBuy") + ": " + dish.missingIngredients.joined(separator: ", "))
                             .font(.caption).foregroundStyle(.red.opacity(0.8))
@@ -730,15 +667,14 @@ struct RecipeDetailSheet: View {
 
     private var stepsSection: some View {
         sectionCard(title: l10n.t("cook.cookingSteps"), icon: "list.number", color: .orange) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 ForEach(dish.steps) { step in
                     HStack(alignment: .top, spacing: 12) {
-                        Text("\(step.step)")
-                            .font(.caption.weight(.bold)).foregroundStyle(.white)
-                            .frame(width: 24, height: 24).background(Color.orange, in: Circle())
-                        VStack(alignment: .leading, spacing: 4) {
+                        Text("\(step.step)").font(.caption.weight(.bold)).foregroundStyle(.white)
+                            .frame(width: 26, height: 26).background(.orange.gradient, in: Circle())
+                        VStack(alignment: .leading, spacing: 6) {
                             Text(step.text).font(.subheadline)
-                            HStack(spacing: 8) {
+                            HStack(spacing: 10) {
                                 if let time = step.timeMin {
                                     Label("\(time) \(l10n.t("cook.min"))", systemImage: "clock").font(.caption2).foregroundStyle(.secondary)
                                 }
@@ -747,7 +683,7 @@ struct RecipeDetailSheet: View {
                                 }
                             }
                             if let tip = step.tip {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 6) {
                                     Image(systemName: "lightbulb.fill").font(.caption2).foregroundStyle(.yellow)
                                     Text(tip).font(.caption2).foregroundStyle(.secondary).italic()
                                 }
@@ -763,9 +699,9 @@ struct RecipeDetailSheet: View {
 
     private var warningsSection: some View {
         sectionCard(title: l10n.t("cook.warnings"), icon: "exclamationmark.triangle.fill", color: .yellow) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(dish.warnings, id: \.self) { w in
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle").font(.caption).foregroundStyle(.yellow)
                         Text(w).font(.caption)
                     }
@@ -780,12 +716,18 @@ struct RecipeDetailSheet: View {
         sectionCard(title: l10n.t("cook.tags"), icon: "tag.fill", color: .indigo) {
             FlowLayout(spacing: 6) {
                 ForEach(dish.tags, id: \.self) { tag in
-                    Text(tag).font(.caption2).padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Color.green.opacity(0.15), in: Capsule())
+                    Text(tag).font(.caption2.weight(.medium))
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Color.green.opacity(0.1), in: Capsule())
                 }
                 ForEach(dish.allergens, id: \.self) { a in
-                    Text("⚠️ " + a).font(.caption2).padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Color.red.opacity(0.15), in: Capsule())
+                    HStack(spacing: 3) {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 8))
+                        Text(a)
+                    }.font(.caption2.weight(.medium))
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Color.red.opacity(0.1), in: Capsule())
+                    .foregroundStyle(.red)
                 }
             }
         }
@@ -794,15 +736,15 @@ struct RecipeDetailSheet: View {
     // MARK: - Section Card
 
     private func sectionCard<Content: View>(title: String, icon: String, color: Color, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: icon).foregroundStyle(color)
-                Text(title).font(.headline.weight(.bold))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: icon).symbolRenderingMode(.hierarchical).foregroundStyle(color)
+                Text(title).font(.subheadline.weight(.semibold))
             }
             content()
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     // MARK: - Localization

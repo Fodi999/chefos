@@ -8,25 +8,19 @@ import SwiftUI
 // MARK: - Core
 
 struct MainTabView: View {
-    @State private var selectedTab: Tab = .chat
+    @State private var selectedTab: Tab = .recipes
     @StateObject private var planViewModel = PlanViewModel()
     @EnvironmentObject var l10n: LocalizationService
 
     enum Tab: String {
-        case chat, recipes, plan, profile
+        case recipes, plan, chat, profile
     }
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            ChatView()
-                .tabItem {
-                    Label(l10n.t("tab.chat"), systemImage: "bubble.left.and.bubble.right.fill")
-                }
-                .tag(Tab.chat)
-
             RecipesView()
                 .tabItem {
-                    Label(l10n.t("tab.recipes"), systemImage: "book.fill")
+                    Label(l10n.t("tab.recipes"), systemImage: "refrigerator.fill")
                 }
                 .tag(Tab.recipes)
 
@@ -36,13 +30,19 @@ struct MainTabView: View {
                 }
                 .tag(Tab.plan)
 
+            ChatView()
+                .tabItem {
+                    Label(l10n.t("tab.chat"), systemImage: "sparkles")
+                }
+                .tag(Tab.chat)
+
             ProfileView()
                 .tabItem {
-                    Label(l10n.t("tab.profile"), systemImage: "person.fill")
+                    Label(l10n.t("tab.profile"), systemImage: "person.crop.circle")
                 }
                 .tag(Tab.profile)
         }
-        .tint(.orange)
+        .tint(Color.auroraBlue)
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
         .toolbarBackgroundVisibility(.visible, for: .tabBar)
         .environmentObject(planViewModel)
