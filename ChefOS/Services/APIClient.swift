@@ -290,6 +290,179 @@ final class APIClient {
         }
     }
 
+    // MARK: - Catalog Endpoints
+
+    struct CatalogCategoryDTO: Codable, Identifiable {
+        let id: String
+        let name: String
+        let sortOrder: Int
+    }
+
+    struct CatalogCategoriesResponse: Codable {
+        let categories: [CatalogCategoryDTO]
+    }
+
+    struct CatalogIngredientDTO: Codable, Identifiable {
+        let id: String
+        let categoryId: String
+        let name: String
+        let defaultUnit: String
+        let defaultShelfLifeDays: Int?
+        let allergens: [String]
+        let caloriesPer100g: Double?
+        let seasons: [String]
+        let imageUrl: String?
+    }
+
+    struct CatalogIngredientsResponse: Codable {
+        let ingredients: [CatalogIngredientDTO]
+    }
+
+    func getCatalogCategories() async throws -> [CatalogCategoryDTO] {
+        let response: CatalogCategoriesResponse = try await get("/catalog/categories")
+        return response.categories
+    }
+
+    func searchCatalogIngredients(query: String? = nil, categoryId: String? = nil, limit: Int = 50) async throws -> [CatalogIngredientDTO] {
+        var path = "/catalog/ingredients?limit=\(limit)"
+        if let q = query, !q.isEmpty {
+            path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? q)"
+        }
+        if let catId = categoryId {
+            path += "&category_id=\(catId)"
+        }
+        let response: CatalogIngredientsResponse = try await get(path)
+        return response.ingredients
+    }
+
+    // MARK: - Inventory Endpoints
+
+    struct InventoryProductInfo: Codable {
+        let id: String
+        let name: String
+        let category: String
+        let baseUnit: String
+        let imageUrl: String?
+        let minStockThreshold: Double
+    }
+
+    struct InventoryItemDTO: Codable, Identifiable {
+        let id: String
+        let product: InventoryProductInfo
+        let quantity: Double
+        let remainingQuantity: Double
+        let pricePerUnitCents: Int
+        let severity: String          // "Ok", "Warning", "Critical", "Expired", "NoExpiration"
+        let receivedAt: String
+        let expiresAt: String
+        let createdAt: String
+        let updatedAt: String
+    }
+
+    struct InventoryListResponse: Codable {
+        let items: [InventoryItemDTO]
+        let total: Int
+        let page: Int
+        let perPage: Int
+        let totalPages: Int
+    }
+
+    struct AddInventoryRequest: Codable {
+        let catalogIngredientId: String
+        let pricePerUnitCents: Int
+        let quantity: Double
+        let receivedAt: String
+        let expiresAt: String
+    }
+
+    func listInventory(page: Int = 1, perPage: Int = 100) async throws -> InventoryListResponse {
+        try await get("/inventory/products?page=\(page)&per_page=\(perPage)")
+    }
+
+    func addInventoryProduct(_ req: AddInventoryRequest) async throws -> InventoryItemDTO {
+        try await post("/inventory/products", body: req)
+    }
+
+    func updateInventoryProduct(id: String, quantity: Double? = nil, priceCents: Int? = nil) async throws {
+        let requestUrl = URL(string: baseURL + "/inventory/products/\(id)")!
+        var request = URLRequest(url: requestUrl)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body: [String: Any] = [:]
+        if let q = quantity { body["quantity"] = q }
+        if let p = priceCents { body["price_per_unit_cents"] = p }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        try attachAuth(&request)
+        let (_, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    func deleteInventoryProduct(id: String) async throws {
+        let requestUrl = URL(string: baseURL + "/inventory/products/\(id)")!
+        var request = URLRequest(url: requestUrl)
+        request.httpMethod = "DELETE"
+        try attachAuth(&request)
+        let (_, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+    }
+
+    // MARK: - Cook Suggestions (POST /api/cook/suggestions)
+
+    struct CookSuggestionsResponse: Codable {
+        let canCook: [SuggestedDish]
+        let almost: [SuggestedDish]
+        let strategic: [SuggestedDish]
+    }
+
+    struct SuggestedDish: Codable, Identifiable {
+        var id: String { dishName }
+        let dishName: String
+        let dishNameLocal: String?
+        let ingredients: [SuggestedIngredient]
+        let missingIngredients: [String]
+        let missingCount: Int
+        let totalKcal: Int
+        let totalProteinG: Double
+        let totalFatG: Double
+        let totalCarbsG: Double
+        let servings: Int
+        let insight: DishInsight
+    }
+
+    struct SuggestedIngredient: Codable {
+        let name: String
+        let slug: String
+        let grossG: Double
+        let available: Bool
+        let expiringSoon: Bool
+    }
+
+    struct DishInsight: Codable {
+        let usesExpiring: Bool
+        let highProtein: Bool
+        let budgetFriendly: Bool
+        let estimatedCostCents: Int
+        let priorityScore: Int
+    }
+
+    func getCookSuggestions() async throws -> CookSuggestionsResponse {
+        let requestUrl = URL(string: baseURL + "/cook/suggestions")!
+        var request = URLRequest(url: requestUrl)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        try attachAuth(&request)
+        request.httpBody = try JSONEncoder().encode([:] as [String: String])
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try decoder.decode(CookSuggestionsResponse.self, from: data)
+    }
+
     // MARK: - Chat Endpoints (RuleBot — POST /public/chat)
 
     struct ChatRequest: Codable {

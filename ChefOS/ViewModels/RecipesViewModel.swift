@@ -10,7 +10,8 @@ import Combine
 
 final class RecipesViewModel: ObservableObject {
     @Published var recipes: [Recipe] = Recipe.samples
-    @Published var stockItems: [StockItem] = StockItem.samples
+    @Published var stockItems: [StockItem] = []
+    @Published var isLoadingStock = false
     @Published var searchText: String = ""
     @Published var showStock: Bool = false
     @Published var stockFilter: StockFilter = .all
@@ -59,9 +60,9 @@ final class RecipesViewModel: ObservableObject {
         return items
     }
 
-    var groupedStock: [(category: StockItem.StockCategory, items: [StockItem])] {
+    var groupedStock: [(category: String, items: [StockItem])] {
         let dict = Dictionary(grouping: filteredStock) { $0.category }
-        return StockItem.StockCategory.allCases.compactMap { cat in
+        return dict.keys.sorted().compactMap { cat in
             guard let items = dict[cat], !items.isEmpty else { return nil }
             return (category: cat, items: items)
         }
@@ -283,5 +284,23 @@ final class RecipesViewModel: ObservableObject {
         }
 
         return tips
+    }
+
+    // MARK: - Backend
+
+    private let api = APIClient.shared
+
+    @MainActor
+    func loadStock() async {
+        isLoadingStock = true
+        do {
+            let response = try await api.listInventory()
+            stockItems = response.items.map { StockItem(from: $0) }
+        } catch {
+            print("Failed to load stock: \(error)")
+            // fallback to samples if not logged in
+            if stockItems.isEmpty { stockItems = StockItem.samples }
+        }
+        isLoadingStock = false
     }
 }

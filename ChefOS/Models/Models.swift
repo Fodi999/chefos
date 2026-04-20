@@ -270,40 +270,95 @@ struct Message: Identifiable {
 
 struct StockItem: Identifiable {
     let id = UUID()
+    var backendId: String = ""
+    var productId: String = ""          // catalog product id — for grouping same products
     var name: String
     var quantity: Double
     var unit: StockUnit
     var pricePerUnit: Double
     var totalPrice: Double
     var purchaseDate: Date
-    var store: String
     var expiresIn: Int?
-    var category: StockCategory = .other
+    var expiresAt: Date?
+    var category: String = "Other"
+    var severity: String = "Ok"
+    var imageUrl: String?
 
     var isLow: Bool { quantity <= 0.2 }
     var isExpiringSoon: Bool { (expiresIn ?? 999) <= 3 }
 
+    /// 0.0 (just purchased) → 1.0 (expired). nil if no expiry data.
+    var expiryProgress: Double? {
+        guard let expiresAt else { return nil }
+        let total = expiresAt.timeIntervalSince(purchaseDate)
+        guard total > 0 else { return 1.0 }
+        let elapsed = Date().timeIntervalSince(purchaseDate)
+        return min(max(elapsed / total, 0), 1.0)
+    }
+
+    init(name: String, quantity: Double, unit: StockUnit, pricePerUnit: Double, totalPrice: Double, purchaseDate: Date, expiresIn: Int? = nil, category: String = "Other") {
+        self.name = name
+        self.quantity = quantity
+        self.unit = unit
+        self.pricePerUnit = pricePerUnit
+        self.totalPrice = totalPrice
+        self.purchaseDate = purchaseDate
+        self.expiresIn = expiresIn
+        self.category = category
+    }
+
+    init(from dto: APIClient.InventoryItemDTO) {
+        self.backendId = dto.id
+        self.productId = dto.product.id
+        self.name = dto.product.name
+        self.quantity = dto.remainingQuantity
+        self.unit = StockUnit.from(backendUnit: dto.product.baseUnit)
+        self.pricePerUnit = Double(dto.pricePerUnitCents) / 100.0
+        self.totalPrice = Double(dto.pricePerUnitCents) * dto.remainingQuantity / 100.0
+        self.category = dto.product.category
+        self.severity = dto.severity
+        self.imageUrl = dto.product.imageUrl
+
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        self.purchaseDate = isoFormatter.date(from: dto.receivedAt) ?? Date()
+
+        if let expDate = isoFormatter.date(from: dto.expiresAt) {
+            self.expiresAt = expDate
+            self.expiresIn = Calendar.current.dateComponents([.day], from: Date(), to: expDate).day
+        } else {
+            self.expiresAt = nil
+            self.expiresIn = nil
+        }
+    }
+
     enum StockUnit: String, CaseIterable, Identifiable {
         case kg, g, l, ml, pcs, bunch, pack
         var id: String { rawValue }
-    }
 
-    enum StockCategory: String, CaseIterable, Identifiable {
-        case vegetables = "Vegetables"
-        case meat = "Meat & Fish"
-        case dairy = "Dairy"
-        case dryGoods = "Dry Goods"
-        case condiments = "Condiments"
-        case other = "Other"
-        var id: String { rawValue }
-        var icon: String {
+        /// Map backend unit strings like "kilogram", "piece", "liter", "gram" to our enum
+        static func from(backendUnit: String) -> StockUnit {
+            switch backendUnit.lowercased() {
+            case "kilogram", "kg": return .kg
+            case "gram", "g": return .g
+            case "liter", "litre", "l": return .l
+            case "milliliter", "ml": return .ml
+            case "piece", "pcs", "unit": return .pcs
+            case "bunch": return .bunch
+            case "pack", "package": return .pack
+            default: return .pcs
+            }
+        }
+
+        var displayName: String {
             switch self {
-            case .vegetables: return "leaf.fill"
-            case .meat: return "fork.knife"
-            case .dairy: return "cup.and.saucer.fill"
-            case .dryGoods: return "shippingbox.fill"
-            case .condiments: return "drop.fill"
-            case .other: return "tray.fill"
+            case .kg: return "kg"
+            case .g: return "g"
+            case .l: return "l"
+            case .ml: return "ml"
+            case .pcs: return "pcs"
+            case .bunch: return "bunch"
+            case .pack: return "pack"
             }
         }
     }
@@ -311,21 +366,13 @@ struct StockItem: Identifiable {
 
 extension StockItem {
     static let samples: [StockItem] = [
-        StockItem(name: "Tomatoes", quantity: 2.0, unit: .kg, pricePerUnit: 6.0, totalPrice: 12.0, purchaseDate: .now.addingTimeInterval(-86400), store: "Biedronka", expiresIn: 5, category: .vegetables),
-        StockItem(name: "Chicken breast", quantity: 1.5, unit: .kg, pricePerUnit: 18.7, totalPrice: 28.0, purchaseDate: .now.addingTimeInterval(-86400 * 2), store: "Lidl", expiresIn: 3, category: .meat),
-        StockItem(name: "Basil", quantity: 3, unit: .bunch, pricePerUnit: 3.0, totalPrice: 9.0, purchaseDate: .now, store: "Żabka", expiresIn: 2, category: .vegetables),
-        StockItem(name: "Pasta", quantity: 2, unit: .pack, pricePerUnit: 4.5, totalPrice: 9.0, purchaseDate: .now.addingTimeInterval(-86400 * 5), store: "Biedronka", expiresIn: nil, category: .dryGoods),
-        StockItem(name: "Parmesan", quantity: 0.3, unit: .kg, pricePerUnit: 45.0, totalPrice: 13.5, purchaseDate: .now.addingTimeInterval(-86400 * 3), store: "Lidl", expiresIn: 14, category: .dairy),
-        StockItem(name: "Olive oil", quantity: 0.5, unit: .l, pricePerUnit: 24.0, totalPrice: 12.0, purchaseDate: .now.addingTimeInterval(-86400 * 10), store: "Biedronka", expiresIn: nil, category: .condiments),
-        StockItem(name: "Garlic", quantity: 4, unit: .pcs, pricePerUnit: 1.2, totalPrice: 4.8, purchaseDate: .now.addingTimeInterval(-86400 * 4), store: "Biedronka", expiresIn: 20, category: .vegetables),
-        StockItem(name: "Cucumber", quantity: 2, unit: .pcs, pricePerUnit: 2.5, totalPrice: 5.0, purchaseDate: .now, store: "Żabka", expiresIn: 6, category: .vegetables),
-        StockItem(name: "Feta", quantity: 0.4, unit: .kg, pricePerUnit: 32.0, totalPrice: 12.8, purchaseDate: .now.addingTimeInterval(-86400), store: "Lidl", expiresIn: 10, category: .dairy),
-        StockItem(name: "Olives", quantity: 1, unit: .pack, pricePerUnit: 8.5, totalPrice: 8.5, purchaseDate: .now.addingTimeInterval(-86400 * 2), store: "Biedronka", expiresIn: nil, category: .condiments),
-        StockItem(name: "Soy sauce", quantity: 0.3, unit: .l, pricePerUnit: 12.0, totalPrice: 3.6, purchaseDate: .now.addingTimeInterval(-86400 * 7), store: "Lidl", expiresIn: nil, category: .condiments),
-        StockItem(name: "Rice", quantity: 1, unit: .kg, pricePerUnit: 5.5, totalPrice: 5.5, purchaseDate: .now.addingTimeInterval(-86400 * 6), store: "Biedronka", expiresIn: nil, category: .dryGoods),
-        StockItem(name: "Broccoli", quantity: 0.5, unit: .kg, pricePerUnit: 8.0, totalPrice: 4.0, purchaseDate: .now, store: "Lidl", expiresIn: 4, category: .vegetables),
-        StockItem(name: "Bell pepper", quantity: 3, unit: .pcs, pricePerUnit: 3.0, totalPrice: 9.0, purchaseDate: .now.addingTimeInterval(-86400), store: "Biedronka", expiresIn: 7, category: .vegetables),
-        StockItem(name: "Ginger", quantity: 0.1, unit: .kg, pricePerUnit: 30.0, totalPrice: 3.0, purchaseDate: .now.addingTimeInterval(-86400 * 3), store: "Żabka", expiresIn: 12, category: .vegetables),
+        StockItem(name: "Tomatoes", quantity: 2.0, unit: .kg, pricePerUnit: 6.0, totalPrice: 12.0, purchaseDate: .now.addingTimeInterval(-86400), expiresIn: 5, category: "Vegetables"),
+        StockItem(name: "Chicken breast", quantity: 1.5, unit: .kg, pricePerUnit: 18.7, totalPrice: 28.0, purchaseDate: .now.addingTimeInterval(-86400 * 2), expiresIn: 3, category: "Meat & Fish"),
+        StockItem(name: "Basil", quantity: 3, unit: .bunch, pricePerUnit: 3.0, totalPrice: 9.0, purchaseDate: .now, expiresIn: 2, category: "Vegetables"),
+        StockItem(name: "Pasta", quantity: 2, unit: .pack, pricePerUnit: 4.5, totalPrice: 9.0, purchaseDate: .now.addingTimeInterval(-86400 * 5), expiresIn: nil, category: "Dry Goods"),
+        StockItem(name: "Parmesan", quantity: 0.3, unit: .kg, pricePerUnit: 45.0, totalPrice: 13.5, purchaseDate: .now.addingTimeInterval(-86400 * 3), expiresIn: 14, category: "Dairy"),
+        StockItem(name: "Olive oil", quantity: 0.5, unit: .l, pricePerUnit: 24.0, totalPrice: 12.0, purchaseDate: .now.addingTimeInterval(-86400 * 10), expiresIn: nil, category: "Condiments"),
+        StockItem(name: "Garlic", quantity: 4, unit: .pcs, pricePerUnit: 1.2, totalPrice: 4.8, purchaseDate: .now.addingTimeInterval(-86400 * 4), expiresIn: 20, category: "Vegetables"),
     ]
 }
 
