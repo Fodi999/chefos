@@ -169,6 +169,51 @@ final class StockViewModel: ObservableObject {
         Array(Set(items.map(\.name))).sorted()
     }
 
+    // MARK: - Inventory Analysis (what's missing)
+
+    private static let proteinKeywords = ["chicken", "egg", "fish", "meat", "beef", "pork", "turkey", "salmon", "tuna", "shrimp",
+                                           "курица", "яйц", "рыба", "мясо", "говядина", "свинина", "индейка", "лосось", "тунец", "креветк",
+                                           "kurczak", "jajk", "ryba", "mięso", "wołowin", "wieprzow", "indyk", "łosoś",
+                                           "курка", "яйця", "риба", "м'ясо"]
+
+    private static let baseKeywords = ["rice", "pasta", "potato", "bread", "noodle", "flour", "oat", "buckwheat",
+                                        "рис", "паста", "картоф", "хлеб", "лапша", "мука", "овсян", "гречк",
+                                        "ryż", "makaron", "ziemniak", "chleb", "mąka", "owsian", "gryczana",
+                                        "рис", "паста", "картопл", "хліб", "борошно", "вівсян", "гречка"]
+
+    private static let vegetableKeywords = ["tomato", "onion", "carrot", "pepper", "cabbage", "cucumber", "garlic", "broccoli",
+                                             "помидор", "лук", "морков", "перец", "капуст", "огурец", "чеснок", "брокколи",
+                                             "pomidor", "cebul", "marchew", "papryk", "kapust", "ogórek", "czosnek",
+                                             "помідор", "цибул", "морков", "перець", "капуст", "огірок", "часник"]
+
+    var hasProtein: Bool {
+        items.contains { item in Self.proteinKeywords.contains { item.name.lowercased().contains($0) } }
+    }
+
+    var hasBase: Bool {
+        items.contains { item in Self.baseKeywords.contains { item.name.lowercased().contains($0) } }
+    }
+
+    var hasVegetables: Bool {
+        items.contains { item in Self.vegetableKeywords.contains { item.name.lowercased().contains($0) } }
+    }
+
+    /// Category analysis: what types of ingredients the user is missing
+    var missingCategories: [String] {
+        var missing: [String] = []
+        if !hasProtein { missing.append("protein") }
+        if !hasBase { missing.append("base") }
+        if !hasVegetables { missing.append("vegetable") }
+        return missing
+    }
+
+    /// Dominant category of current inventory
+    var inventoryProfile: String {
+        let categories = items.map { $0.category.lowercased() }
+        let counts = Dictionary(grouping: categories) { $0 }.mapValues(\.count)
+        return counts.max(by: { $0.value < $1.value })?.key ?? "mixed"
+    }
+
     /// Food emoji for a category
     static func categoryEmoji(_ category: String) -> String {
         let lower = category.lowercased()
@@ -237,6 +282,34 @@ final class StockViewModel: ObservableObject {
     }
 
     // MARK: - Add Product to Inventory
+
+    /// Quick-add a product by searching catalog by name, then adding with defaults
+    func quickAddProduct(name: String, quantity: Double = 1.0, priceCents: Int = 500, expiryDays: Int = 7) async -> Bool {
+        do {
+            let results = try await api.searchCatalogIngredients(query: name, limit: 5)
+            guard let ingredient = results.first else { return false }
+
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let now = formatter.string(from: Date())
+            let expiry = formatter.string(from: Date().addingTimeInterval(Double(expiryDays) * 86400))
+
+            let request = APIClient.AddInventoryRequest(
+                catalogIngredientId: ingredient.id,
+                pricePerUnitCents: priceCents,
+                quantity: quantity,
+                receivedAt: now,
+                expiresAt: expiry
+            )
+
+            let newItem = try await api.addInventoryProduct(request)
+            items.append(StockItem(from: newItem))
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            return false
+        }
+    }
 
     func addProduct() async {
         guard let ingredient = selectedIngredient else { return }

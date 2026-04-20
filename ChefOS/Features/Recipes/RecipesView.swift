@@ -635,6 +635,8 @@ struct RecipesView: View {
 
     // MARK: - Cook State 2: Insufficient Products
 
+    @State private var quickAddingProduct: String? = nil
+
     private var cookInsufficientState: some View {
         VStack(spacing: 16) {
             // What you have
@@ -667,82 +669,225 @@ struct RecipesView: View {
             .padding(14)
             .glassCard(cornerRadius: 16)
 
-            // Not enough message
-            VStack(spacing: 12) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.orange)
-                Text(l10n.t("cook.notEnough"))
-                    .font(.subheadline.weight(.bold))
-                Text(l10n.t("cook.notEnoughHint"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            // Recommendations
-            VStack(alignment: .leading, spacing: 8) {
+            // 🧠 Smart analysis — WHY not enough
+            VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.caption)
-                        .foregroundStyle(.yellow)
-                    Text(l10n.t("cook.recommend"))
+                    Image(systemName: "brain.head.profile")
                         .font(.caption.weight(.bold))
+                        .foregroundStyle(.cyan)
+                    Text(l10n.t("cook.analysis"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.cyan)
                         .textCase(.uppercase)
                 }
 
-                recommendationRow(emoji: "🥩", text: l10n.t("cook.addProtein"))
-                recommendationRow(emoji: "🍚", text: l10n.t("cook.addBase"))
-                recommendationRow(emoji: "🥕", text: l10n.t("cook.addVegetable"))
+                // What's missing
+                if !stockVM.hasProtein {
+                    analysisRow(icon: "xmark.circle.fill", color: .red, text: l10n.t("cook.noProtein"))
+                } else {
+                    analysisRow(icon: "checkmark.circle.fill", color: .green, text: l10n.t("cook.hasProtein"))
+                }
+                if !stockVM.hasBase {
+                    analysisRow(icon: "xmark.circle.fill", color: .red, text: l10n.t("cook.noBase"))
+                } else {
+                    analysisRow(icon: "checkmark.circle.fill", color: .green, text: l10n.t("cook.hasBase"))
+                }
+                if !stockVM.hasVegetables {
+                    analysisRow(icon: "xmark.circle.fill", color: .red, text: l10n.t("cook.noVegetable"))
+                } else {
+                    analysisRow(icon: "checkmark.circle.fill", color: .green, text: l10n.t("cook.hasVegetable"))
+                }
+
+                // Conclusion
+                let missingCount = stockVM.missingCategories.count
+                HStack(spacing: 8) {
+                    Image(systemName: missingCount > 1 ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(missingCount > 1 ? .orange : .blue)
+                    Text(missingCount > 1 ? l10n.t("cook.cantCookFull") : l10n.t("cook.almostThere"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.primary.opacity(0.7))
+                }
+                .padding(.top, 4)
             }
             .padding(14)
             .glassCard(cornerRadius: 16)
 
-            // Unlock hint
-            HStack(spacing: 8) {
-                Image(systemName: "lock.open.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                Text(l10n.t("cook.unlockHint"))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
+            // 🎯 Quick-add buttons (interactive!)
+            if !stockVM.hasProtein {
+                quickAddSection(
+                    emoji: "🥩",
+                    title: l10n.t("cook.addProtein"),
+                    buttons: [
+                        (l10n.t("cook.chicken"), "chicken"),
+                        (l10n.t("cook.eggs"), "egg"),
+                        (l10n.t("cook.fish"), "fish"),
+                    ]
+                )
             }
-            .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            if !stockVM.hasBase {
+                quickAddSection(
+                    emoji: "🍚",
+                    title: l10n.t("cook.addBase"),
+                    buttons: [
+                        (l10n.t("cook.rice"), "rice"),
+                        (l10n.t("cook.pasta"), "pasta"),
+                        (l10n.t("cook.potato"), "potato"),
+                    ]
+                )
+            }
+            if !stockVM.hasVegetables {
+                quickAddSection(
+                    emoji: "🥕",
+                    title: l10n.t("cook.addVegetable"),
+                    buttons: [
+                        (l10n.t("cook.onion"), "onion"),
+                        (l10n.t("cook.tomato"), "tomato"),
+                        (l10n.t("cook.carrot"), "carrot"),
+                    ]
+                )
+            }
 
-            // Action buttons
+            // 🔒 Unlock effect
             VStack(spacing: 10) {
-                Button {
-                    withAnimation(.snappy(duration: 0.35)) {
-                        viewModel.showStock = true
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary.opacity(0.5))
+                        .symbolEffect(.pulse, options: .repeating)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(l10n.t("cook.recipesLocked"))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.secondary)
+                        Text(String(format: l10n.t("cook.addMoreToUnlock"), max(0, 3 - stockVM.items.count)))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                     }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        stockVM.showAddSheet = true
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "plus.circle.fill")
-                        Text(l10n.t("cook.addProducts"))
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Color.green.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
-                .buttonStyle(PressButtonStyle())
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                    )
+            }
+
+            // ✨ AI fallback — even with few products
+            Button {
+                showCookSuggestions = true
+                Task { await cookVM.loadSuggestions() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles")
+                        .font(.caption.weight(.bold))
+                    Text(l10n.t("cook.tryAnyway"))
+                        .font(.caption.weight(.bold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                )
+            }
+            .buttonStyle(PressButtonStyle())
+
+            // Browse catalog
+            Button {
+                withAnimation(.snappy(duration: 0.35)) {
+                    viewModel.showStock = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    stockVM.showAddSheet = true
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                    Text(l10n.t("cook.browseCatalog"))
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(.green)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Color.green.opacity(0.4), lineWidth: 1.5)
+                )
+            }
+            .buttonStyle(PressButtonStyle())
         }
     }
 
-    private func recommendationRow(emoji: String, text: String) -> some View {
+    private func analysisRow(icon: String, color: Color, text: String) -> some View {
         HStack(spacing: 8) {
-            Text(emoji)
-                .font(.caption)
-            Text("+ " + text)
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundStyle(color)
+            Text(text)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.primary.opacity(0.85))
         }
+    }
+
+    private func quickAddSection(emoji: String, title: String, buttons: [(label: String, query: String)]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text(emoji)
+                    .font(.caption)
+                Text("+ " + title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary.opacity(0.7))
+            }
+
+            FlowLayout(spacing: 6) {
+                ForEach(buttons, id: \.query) { btn in
+                    quickAddButton(label: btn.label, query: btn.query)
+                }
+            }
+        }
+        .padding(14)
+        .glassCard(cornerRadius: 16)
+    }
+
+    private func quickAddButton(label: String, query: String) -> some View {
+        let isAdding = quickAddingProduct == query
+        return Button {
+            Task {
+                quickAddingProduct = query
+                let success = await stockVM.quickAddProduct(name: query)
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    quickAddingProduct = nil
+                }
+                _ = success
+            }
+        } label: {
+            HStack(spacing: 4) {
+                if isAdding {
+                    ProgressView()
+                        .scaleEffect(0.6)
+                } else {
+                    Image(systemName: "plus")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                Text(label)
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(isAdding ? Color.secondary : Color.green)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .strokeBorder(Color.green.opacity(0.4), lineWidth: 1)
+                    .background(Capsule().fill(isAdding ? Color.green.opacity(0.1) : Color.clear))
+            )
+        }
+        .buttonStyle(PressButtonStyle())
+        .disabled(quickAddingProduct != nil)
     }
 
     // MARK: - Cook State 3: Ready (3+ products)
