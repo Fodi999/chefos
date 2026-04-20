@@ -6,6 +6,7 @@ struct CookSuggestionsSheet: View {
     @ObservedObject var vm: CookSuggestionsViewModel
     @EnvironmentObject var l10n: LocalizationService
     @EnvironmentObject var regionService: RegionService
+    @EnvironmentObject var favVM: FavoritesViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -72,6 +73,7 @@ struct CookSuggestionsSheet: View {
             .sheet(item: $vm.selectedDish) { dish in
                 RecipeDetailSheet(dish: dish)
                     .environmentObject(l10n)
+                    .environmentObject(favVM)
             }
         }
     }
@@ -277,6 +279,7 @@ struct CookSuggestionsSheet: View {
 struct RecipeDetailSheet: View {
     let dish: APIClient.SuggestedDish
     @EnvironmentObject var l10n: LocalizationService
+    @EnvironmentObject var favVM: FavoritesViewModel
     @Environment(\.dismiss) private var dismiss
     @StateObject private var shoppingVM = ShoppingListViewModel()
     @State private var showCookMode = false
@@ -326,6 +329,12 @@ struct RecipeDetailSheet: View {
             .navigationTitle(dish.displayName ?? dish.dishNameLocal ?? dish.dishName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { favVM.toggle(dish) } label: {
+                        Image(systemName: favVM.isFavorite(dish.dishName) ? "heart.fill" : "heart")
+                            .foregroundStyle(favVM.isFavorite(dish.dishName) ? .red : .secondary)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
