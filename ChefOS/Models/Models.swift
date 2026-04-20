@@ -180,75 +180,29 @@ struct Recipe: Identifiable {
 }
 
 extension Recipe {
-    static let samples: [Recipe] = [
-        Recipe(
-            title: "Tomato Basil Pasta",
-            calories: 450,
-            protein: 18,
-            servings: 2,
-            ingredients: ["Pasta", "Tomatoes", "Basil", "Parmesan", "Olive oil", "Garlic"],
-            recipeIngredients: [
-                .init(name: "Pasta", quantity: 200, unit: "g"),
-                .init(name: "Tomatoes", quantity: 300, unit: "g"),
-                .init(name: "Basil", quantity: 1, unit: "bunch"),
-                .init(name: "Parmesan", quantity: 30, unit: "g"),
-                .init(name: "Olive oil", quantity: 20, unit: "ml"),
-                .init(name: "Garlic", quantity: 2, unit: "pcs"),
-            ],
-            steps: [
-                "Boil pasta according to package directions.",
-                "Sauté garlic in olive oil until fragrant.",
-                "Add diced tomatoes and cook for 5 minutes.",
-                "Toss pasta with sauce, top with basil and parmesan."
-            ],
-            estimatedCost: 8.20
-        ),
-        Recipe(
-            title: "Greek Salad",
-            calories: 280,
-            protein: 12,
-            servings: 2,
-            ingredients: ["Cucumber", "Tomato", "Red onion", "Feta", "Olives", "Olive oil"],
-            recipeIngredients: [
-                .init(name: "Cucumber", quantity: 1, unit: "pcs"),
-                .init(name: "Tomatoes", quantity: 200, unit: "g"),
-                .init(name: "Red onion", quantity: 1, unit: "pcs"),
-                .init(name: "Feta", quantity: 100, unit: "g"),
-                .init(name: "Olives", quantity: 50, unit: "g"),
-                .init(name: "Olive oil", quantity: 15, unit: "ml"),
-            ],
-            steps: [
-                "Chop all vegetables into bite-size pieces.",
-                "Combine in a bowl.",
-                "Add crumbled feta and olives.",
-                "Drizzle with olive oil and season."
-            ],
-            estimatedCost: 6.50
-        ),
-        Recipe(
-            title: "Chicken Stir-Fry",
-            calories: 520,
-            protein: 42,
-            servings: 2,
-            ingredients: ["Chicken breast", "Broccoli", "Bell pepper", "Soy sauce", "Rice", "Ginger"],
-            recipeIngredients: [
-                .init(name: "Chicken breast", quantity: 400, unit: "g"),
-                .init(name: "Broccoli", quantity: 200, unit: "g"),
-                .init(name: "Bell pepper", quantity: 2, unit: "pcs"),
-                .init(name: "Soy sauce", quantity: 30, unit: "ml"),
-                .init(name: "Rice", quantity: 200, unit: "g"),
-                .init(name: "Ginger", quantity: 10, unit: "g"),
-            ],
-            steps: [
-                "Cook rice according to package directions.",
-                "Slice chicken and vegetables.",
-                "Stir-fry chicken until cooked through.",
-                "Add vegetables and soy sauce, cook 3 minutes.",
-                "Serve over rice."
-            ],
-            estimatedCost: 11.40
+    /// Bridge: create a Recipe from a backend SuggestedDish
+    init(from dish: APIClient.SuggestedDish) {
+        self.init(
+            title: dish.displayName ?? dish.dishNameLocal ?? dish.dishName,
+            calories: dish.perServingKcal,
+            protein: Int(dish.perServingProteinG),
+            servings: max(dish.servings, 1),
+            ingredients: dish.ingredients.map { $0.name },
+            recipeIngredients: dish.ingredients.map { ing in
+                RecipeIngredient(name: ing.name, quantity: Double(ing.grossG), unit: "g")
+            },
+            steps: dish.steps.map { s in
+                var line = s.text
+                if let t = s.timeMin { line += " (\(t) min)" }
+                if let temp = s.tempC { line += " \(temp)°C" }
+                return line
+            },
+            estimatedCost: Double(dish.insight.estimatedCostCents) / 100.0
         )
-    ]
+    }
+
+    /// Empty fallback — no hardcoded demos
+    static let samples: [Recipe] = []
 }
 
 // MARK: Message
@@ -365,15 +319,8 @@ struct StockItem: Identifiable {
 }
 
 extension StockItem {
-    static let samples: [StockItem] = [
-        StockItem(name: "Tomatoes", quantity: 2.0, unit: .kg, pricePerUnit: 6.0, totalPrice: 12.0, purchaseDate: .now.addingTimeInterval(-86400), expiresIn: 5, category: "Vegetables"),
-        StockItem(name: "Chicken breast", quantity: 1.5, unit: .kg, pricePerUnit: 18.7, totalPrice: 28.0, purchaseDate: .now.addingTimeInterval(-86400 * 2), expiresIn: 3, category: "Meat & Fish"),
-        StockItem(name: "Basil", quantity: 3, unit: .bunch, pricePerUnit: 3.0, totalPrice: 9.0, purchaseDate: .now, expiresIn: 2, category: "Vegetables"),
-        StockItem(name: "Pasta", quantity: 2, unit: .pack, pricePerUnit: 4.5, totalPrice: 9.0, purchaseDate: .now.addingTimeInterval(-86400 * 5), expiresIn: nil, category: "Dry Goods"),
-        StockItem(name: "Parmesan", quantity: 0.3, unit: .kg, pricePerUnit: 45.0, totalPrice: 13.5, purchaseDate: .now.addingTimeInterval(-86400 * 3), expiresIn: 14, category: "Dairy"),
-        StockItem(name: "Olive oil", quantity: 0.5, unit: .l, pricePerUnit: 24.0, totalPrice: 12.0, purchaseDate: .now.addingTimeInterval(-86400 * 10), expiresIn: nil, category: "Condiments"),
-        StockItem(name: "Garlic", quantity: 4, unit: .pcs, pricePerUnit: 1.2, totalPrice: 4.8, purchaseDate: .now.addingTimeInterval(-86400 * 4), expiresIn: 20, category: "Vegetables"),
-    ]
+    /// Empty — real data comes from backend
+    static let samples: [StockItem] = []
 }
 
 // MARK: MealPlanDay
@@ -407,11 +354,7 @@ extension MealPlanDay {
     static var today: MealPlanDay {
         MealPlanDay(
             date: .now,
-            meals: [
-                Meal(type: .breakfast, recipe: nil),
-                Meal(type: .lunch, recipe: Recipe.samples[0]),
-                Meal(type: .dinner, recipe: nil)
-            ]
+            meals: Meal.MealType.allCases.map { Meal(type: $0, recipe: nil) }
         )
     }
 }

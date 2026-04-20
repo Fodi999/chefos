@@ -134,7 +134,7 @@ struct PlanView: View {
                                         currency: regionService.currency,
                                         onAdd: {
                                             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                                viewModel.replaceMeal(at: index, with: Recipe.samples.randomElement())
+                                                viewModel.replaceWithRandom(at: index)
                                             }
                                         },
                                         onClear: {
