@@ -19,6 +19,9 @@ struct RecipesView: View {
     @StateObject private var stockVM = StockViewModel()
     @State private var showCookSuggestions = false
     @StateObject private var cookVM = CookSuggestionsViewModel()
+    @StateObject private var shoppingVM = ShoppingListViewModel()
+    @State private var productActionName: String? = nil   // triggers action sheet
+    @State private var showShoppingList = false
 
     var body: some View {
         NavigationStack {
@@ -127,6 +130,45 @@ struct RecipesView: View {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showShoppingList) {
+                ShoppingListSheet(vm: shoppingVM)
+                    .environmentObject(l10n)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+            .confirmationDialog(
+                l10n.t("cook.actionTitle"),
+                isPresented: Binding(
+                    get: { productActionName != nil },
+                    set: { if !$0 { productActionName = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let name = productActionName {
+                    Button(l10n.t("cook.toShoppingList")) {
+                        shoppingVM.add(name: name, note: l10n.t("cook.addedFromCook"))
+                        productActionName = nil
+                    }
+                    Button(l10n.t("cook.toInventory")) {
+                        productActionName = nil
+                        withAnimation(.snappy(duration: 0.35)) {
+                            viewModel.showStock = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            stockVM.catalogSearch = name
+                            stockVM.showAddSheet = true
+                            Task { await stockVM.searchIngredients() }
+                        }
+                    }
+                    Button(l10n.t("general.cancel"), role: .cancel) {
+                        productActionName = nil
+                    }
+                }
+            } message: {
+                if let name = productActionName {
+                    Text(String(format: l10n.t("cook.actionMessage"), name))
+                }
+            }
         }
     }
 
@@ -180,22 +222,50 @@ struct RecipesView: View {
 
     private var stockView: some View {
         VStack(spacing: 14) {
-            // Add product button
-            Button {
-                stockVM.showAddSheet = true
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.body)
-                    Text(l10n.t("recipes.addProduct"))
-                        .font(.subheadline.weight(.semibold))
+            // Action buttons row
+            HStack(spacing: 10) {
+                // Add product button
+                Button {
+                    stockVM.showAddSheet = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.subheadline)
+                        Text(l10n.t("recipes.addProduct"))
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.green.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(Color.green.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .buttonStyle(PressButtonStyle())
+
+                // Shopping list button with badge
+                Button {
+                    showShoppingList = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "cart.fill")
+                            .font(.subheadline)
+                        Text(l10n.t("cook.shoppingList"))
+                            .font(.caption.weight(.semibold))
+                        if shoppingVM.pendingCount > 0 {
+                            Text("\(shoppingVM.pendingCount)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.red, in: Capsule())
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.orange.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(PressButtonStyle())
             }
-            .buttonStyle(PressButtonStyle())
             .staggerIn(appeared: appeared, delay: 0.01)
 
             // 🧠 Smart Insight Block
@@ -635,8 +705,6 @@ struct RecipesView: View {
 
     // MARK: - Cook State 2: Insufficient Products
 
-    @State private var quickAddingProduct: String? = nil
-
     private var cookInsufficientState: some View {
         VStack(spacing: 16) {
             // What you have
@@ -855,39 +923,31 @@ struct RecipesView: View {
     }
 
     private func quickAddButton(label: String, query: String) -> some View {
-        let isAdding = quickAddingProduct == query
+        let inList = shoppingVM.contains(query)
         return Button {
-            Task {
-                quickAddingProduct = query
-                let success = await stockVM.quickAddProduct(name: query)
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    quickAddingProduct = nil
-                }
-                _ = success
+            if inList {
+                // Already in shopping list — visual feedback
+            } else {
+                productActionName = label
             }
         } label: {
             HStack(spacing: 4) {
-                if isAdding {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                } else {
-                    Image(systemName: "plus")
-                        .font(.system(size: 9, weight: .bold))
-                }
+                Image(systemName: inList ? "checkmark" : "plus")
+                    .font(.system(size: 9, weight: .bold))
                 Text(label)
                     .font(.caption.weight(.semibold))
             }
-            .foregroundStyle(isAdding ? Color.secondary : Color.green)
+            .foregroundStyle(inList ? Color.green : Color.primary.opacity(0.8))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .strokeBorder(Color.green.opacity(0.4), lineWidth: 1)
-                    .background(Capsule().fill(isAdding ? Color.green.opacity(0.1) : Color.clear))
+                    .strokeBorder(inList ? Color.green.opacity(0.5) : Color.green.opacity(0.4), lineWidth: 1)
+                    .background(Capsule().fill(inList ? Color.green.opacity(0.15) : Color.clear))
             )
         }
         .buttonStyle(PressButtonStyle())
-        .disabled(quickAddingProduct != nil)
+        .disabled(inList)
     }
 
     // MARK: - Cook State 3: Ready (3+ products)
