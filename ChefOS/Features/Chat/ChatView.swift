@@ -27,18 +27,17 @@ struct ChatView: View {
 
                 VStack(spacing: 0) {
                     // Usage indicator
-                    HStack(spacing: 8) {
+                    HStack(spacing: .spacingS) {
                         Image(systemName: "sparkles")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Color.auroraBlue)
                         Text("\(l10n.t("chat.actionsLeft")) \(usageService.chatsRemaining)")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
+                            .premiumCaption()
                         Spacer()
                         if usageService.purchasedActions > 0 {
                             Text("+\(usageService.purchasedActions) \(l10n.t("chat.purchased"))")
                                 .font(.caption2.weight(.bold))
-                                .foregroundStyle(.cyan)
+                                .foregroundStyle(Color.auroraBlue)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -47,13 +46,13 @@ struct ChatView: View {
 
                     // Soft warning / cost preview banner
                     if !usageService.actionCostPreview.isEmpty {
-                        HStack(spacing: 6) {
+                        HStack(spacing: .spacingS) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.caption2)
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(Color.amberGlow)
                             Text(usageService.actionCostPreview)
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(Color.amberGlow)
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
@@ -109,13 +108,13 @@ struct ChatView: View {
         GeometryReader { geo in
             ZStack {
                 Circle()
-                    .fill(Color.orange.opacity(0.08))
+                    .fill(Color.auroraBlue.opacity(0.08))
                     .frame(width: 260, height: 260)
                     .blur(radius: 80)
                     .offset(x: -geo.size.width * 0.3, y: -geo.size.height * 0.15)
 
                 Circle()
-                    .fill(Color.cyan.opacity(0.06))
+                    .fill(Color.amberGlow.opacity(0.04))
                     .frame(width: 200, height: 200)
                     .blur(radius: 70)
                     .offset(x: geo.size.width * 0.3, y: geo.size.height * 0.25)
@@ -191,16 +190,27 @@ struct MessageBubble: View {
     private func textBubble(_ text: String) -> some View {
         if message.isFromUser {
             Text(text)
-                .padding(12)
+                .padding(.horizontal, .spacingM)
+                .padding(.vertical, 12)
                 .foregroundStyle(.white)
-                .background(LinearGradient.userBubble)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: .orange.opacity(0.45), radius: 12, y: 5)
+                .background {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.auroraBlue)
+                        .shadow(color: Color.auroraBlue.opacity(0.25), radius: 10, x: 0, y: 5)
+                }
         } else {
             Text(text)
-                .padding(12)
+                .padding(.horizontal, .spacingM)
+                .padding(.vertical, 12)
                 .foregroundStyle(Color.white.opacity(0.9))
-                .glassCard(cornerRadius: 20)
+                .background {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color.obsidianPanel.opacity(0.6))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                        )
+                }
         }
     }
 
@@ -212,9 +222,9 @@ struct MessageBubble: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
+                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
             )
-            .shadow(color: .orange.opacity(0.25), radius: 10, y: 4)
+            .shadow(color: Color.obsidianBase.opacity(0.3), radius: 20, y: 10)
     }
 }
 
@@ -271,17 +281,11 @@ struct ThinkingIndicator: View {
             HStack(spacing: 5) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.orange, .pink],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
+                        .fill(Color.auroraBlue)
                         .frame(width: 8, height: 8)
                         .scaleEffect(phase == index ? 1.4 : 0.7)
                         .opacity(phase == index ? 1 : 0.35)
-                        .animation(.easeInOut(duration: 0.35), value: phase)
+                        .animation(.premiumSpring, value: phase)
                 }
             }
             .padding(.horizontal, 12)
@@ -300,16 +304,7 @@ struct ThinkingIndicator: View {
     }
 }
 
-// MARK: - PressButtonStyle
 
-struct PressButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.88 : 1)
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
 
 #Preview {
     ChatView()

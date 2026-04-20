@@ -231,61 +231,58 @@ struct RecipesView: View {
             ForEach([("Stock", l10n.t("recipes.stock")), ("Cook", l10n.t("recipes.cook"))], id: \.0) { mode, label in
                 let isActive = (mode == "Stock" && viewModel.showStock) || (mode == "Cook" && !viewModel.showStock)
                 Button {
-                    withAnimation(.snappy(duration: 0.35)) {
+                    withAnimation(.premiumSpring) {
                         viewModel.showStock = (mode == "Stock")
                     }
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: .spacingS) {
                         Image(systemName: mode == "Stock" ? "shippingbox.fill" : "frying.pan.fill")
-                            .font(.caption)
+                            .font(.system(size: 12, weight: .medium))
                         Text(label)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.system(size: 14, weight: .semibold, design: .default))
                     }
                     .foregroundStyle(isActive ? .white : .white.opacity(0.4))
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, .spacingL)
+                    .padding(.vertical, 10)
                     .background {
                         if isActive {
                             Capsule()
-                                .fill(
-                                    mode == "Stock"
-                                        ? LinearGradient(colors: [.green, Color(red: 0.2, green: 0.7, blue: 0.3)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                        : LinearGradient(colors: [.orange, Color(red: 0.9, green: 0.4, blue: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                )
-                                .shadow(color: (mode == "Stock" ? Color.green : Color.orange).opacity(0.3), radius: 10, y: 3)
+                                .fill(Color.obsidianPanel.opacity(0.6))
+                                .shadow(color: Color.obsidianBase.opacity(0.3), radius: 10, y: 3)
+                                .overlay(Capsule().stroke(Color.white.opacity(0.05), lineWidth: 1))
                         }
                     }
-                    .animation(.snappy(duration: 0.3), value: isActive)
                 }
                 .buttonStyle(PressButtonStyle())
             }
         }
-        .padding(3)
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .padding(4)
+        .background(.ultraThinMaterial.opacity(0.4), in: Capsule())
+        .overlay(Capsule().stroke(Color.white.opacity(0.04), lineWidth: 1))
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
     // MARK: - Stock View
 
     private var stockView: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: .spacingM) {
             // Action buttons row
-            HStack(spacing: 10) {
+            HStack(spacing: .spacingM) {
                 // Add product button
                 Button {
                     stockVM.showAddSheet = true
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: .spacingS) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.subheadline)
+                            .font(.system(size: 14))
                         Text(l10n.t("recipes.addProduct"))
-                            .font(.caption.weight(.semibold))
+                            .font(.system(size: 14, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.auroraBlue)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.green.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .padding(.vertical, 14)
+                    .background(Color.auroraBlue.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.auroraBlue.opacity(0.2), lineWidth: 1))
                 }
                 .buttonStyle(PressButtonStyle())
 
@@ -293,24 +290,25 @@ struct RecipesView: View {
                 Button {
                     showShoppingList = true
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: .spacingS) {
                         Image(systemName: "cart.fill")
-                            .font(.subheadline)
+                            .font(.system(size: 14))
                         Text(l10n.t("cook.shoppingList"))
-                            .font(.caption.weight(.semibold))
+                            .font(.system(size: 14, weight: .semibold))
                         if shoppingVM.pendingCount > 0 {
                             Text("\(shoppingVM.pendingCount)")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.red, in: Capsule())
+                                .background(Color.amberGlow, in: Capsule())
                         }
                     }
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(Color.orange.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .padding(.vertical, 14)
+                    .background(Color.obsidianPanel.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.05), lineWidth: 1))
                 }
                 .buttonStyle(PressButtonStyle())
             }
@@ -412,108 +410,79 @@ struct RecipesView: View {
 
     // MARK: - Smart Insight Block
     private var smartInsightBlock: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: .spacingM) {
             // Header
-            HStack(spacing: 6) {
-                Image(systemName: "brain.head.profile")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.cyan)
+            HStack(spacing: .spacingS) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Color.auroraBlue)
+                    .symbolEffect(.bounce, options: .repeating)
                 Text(l10n.t("recipes.smartInsight"))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.cyan)
-                    .textCase(.uppercase)
+                    .premiumHeader()
+                    .foregroundStyle(Color.auroraBlue)
                 Spacer()
-                // Days of food badge
+                // Action hint / badge
                 if stockVM.estimatedDaysOfFood > 0 {
-                    HStack(spacing: 3) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 9))
-                        Text("~\(stockVM.estimatedDaysOfFood) " + l10n.t("recipes.days"))
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                        Text("~\(stockVM.estimatedDaysOfFood)d")
                     }
-                    .foregroundStyle(.white.opacity(0.7))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Color.auroraBlue.opacity(0.8))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.cyan.opacity(0.2)))
+                    .background(Color.auroraBlue.opacity(0.15), in: Capsule())
                 }
             }
-
-            // Status line — always show something useful
-            HStack(spacing: 8) {
-                Image(systemName: stockVM.urgentItems.isEmpty ? "leaf.fill" : "bolt.fill")
-                    .font(.caption2)
-                    .foregroundStyle(stockVM.urgentItems.isEmpty ? .green : .orange)
-                Text(insightStatusLine)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.primary.opacity(0.85))
-            }
-
-            // Urgent items with emoji
-            ForEach(stockVM.urgentItems.prefix(3)) { item in
-                HStack(spacing: 8) {
-                    Text(StockViewModel.categoryEmoji(item.category))
-                        .font(.caption)
-                    Text(insightExpiryText(item))
-                        .font(.caption)
-                        .foregroundStyle(.primary.opacity(0.9))
-                    Spacer()
-                    Text(String(format: "%.2f %@", item.totalPrice, currencySymbol))
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.red.opacity(0.8))
+            .padding(.bottom, .spacingXS)
+            
+            // Central Metrics Dashboard
+            HStack(spacing: .spacingL) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(l10n.t("recipes.insightStatus"))
+                        .premiumCaption()
+                    Text(insightStatusLine)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
                 }
-            }
-
-            // Waste risk
-            if stockVM.wasteRiskValue > 0 {
-                HStack(spacing: 8) {
-                    Image(systemName: "flame.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                    Text(l10n.t("recipes.insightWaste") + " " + String(format: "%.0f %@", stockVM.wasteRiskValue, currencySymbol))
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.orange)
+                
+                if stockVM.wasteRiskValue > 0 {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 1, height: 35)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(l10n.t("recipes.insightWaste"))
+                            .premiumCaption()
+                        Text(String(format: "%.0f %@", stockVM.wasteRiskValue, currencySymbol))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Color.amberGlow)
+                            .lineLimit(1)
+                    }
                 }
+                Spacer()
             }
-
-            // ✨ Action button — "What to cook?"
+            
+            // Action button
             Button {
                 showCookSuggestions = true
                 Task { await cookVM.loadSuggestions() }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "sparkles")
-                        .font(.caption.weight(.bold))
+                    Image(systemName: "rays")
                     Text(l10n.t("recipes.whatToCook"))
-                        .font(.caption.weight(.bold))
                 }
-                .foregroundStyle(.white)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Color.obsidianBase)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(
-                    LinearGradient(
-                        colors: [.purple, .blue],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                )
+                .padding(.vertical, 12)
+                .background(Color.auroraBlue, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(PressButtonStyle())
         }
-        .padding(14)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(
-                            stockVM.urgentItems.isEmpty
-                                ? Color.cyan.opacity(0.12)
-                                : Color.orange.opacity(0.15),
-                            lineWidth: 1
-                        )
-                }
-        }
+        .padding(.spacingM)
+        .glassCard(cornerRadius: 16)
     }
 
     /// Dynamic status text
@@ -657,31 +626,16 @@ struct RecipesView: View {
     // MARK: - Cook View
 
     private var cookView: some View {
-        VStack(spacing: 14) {
-            if favVM.favorites.isEmpty {
-                // Empty state
-                VStack(spacing: 20) {
-                    Spacer().frame(height: 40)
-
-                    Image(systemName: "heart.slash")
-                        .font(.system(size: 56))
-                        .foregroundStyle(.secondary.opacity(0.4))
-
-                    VStack(spacing: 8) {
-                        Text(l10n.t("cook.noFavorites"))
-                            .font(.title3.weight(.bold))
-                        Text(l10n.t("cook.noFavoritesHint"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                    }
-
-                    Spacer().frame(height: 20)
-                }
-                .frame(maxWidth: .infinity)
+        VStack(spacing: .spacingM) {
+            if stockVM.items.isEmpty {
+                cookEmptyState
+            } else if stockVM.items.count < 3 {
+                cookInsufficientState
             } else {
-                // Group favorites by dishType
+                cookReadyState
+            }
+
+            if !favVM.favorites.isEmpty {
                 favoritesGrouped
             }
         }
@@ -690,59 +644,58 @@ struct RecipesView: View {
     // MARK: - Cook State 1: Empty Inventory
 
     private var cookEmptyState: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: .spacingL) {
             Spacer().frame(height: 20)
 
             Image(systemName: "refrigerator")
                 .font(.system(size: 56))
-                .foregroundStyle(.secondary.opacity(0.4))
+                .foregroundStyle(Color.auroraBlue.opacity(0.3))
                 .symbolEffect(.pulse, options: .repeating)
 
-            VStack(spacing: 8) {
+            VStack(spacing: .spacingS) {
                 Text(l10n.t("cook.noProducts"))
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(.primary)
+                    .premiumHeader()
+                    .foregroundStyle(.white)
                 Text(l10n.t("cook.noProductsHint"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .premiumCaption()
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
             }
 
             VStack(spacing: 10) {
                 Button {
-                    withAnimation(.snappy(duration: 0.35)) {
+                    withAnimation(.premiumSpring) {
                         viewModel.showStock = true
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         stockVM.showAddSheet = true
                     }
                 } label: {
-                    HStack(spacing: 8) {
+                    HStack(spacing: .spacingS) {
                         Image(systemName: "plus.circle.fill")
                             .font(.body)
                         Text(l10n.t("cook.addProducts"))
-                            .font(.subheadline.weight(.semibold))
+                            .font(.system(size: 14, weight: .semibold))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Color.obsidianBase)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.green.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(Color.auroraBlue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .buttonStyle(PressButtonStyle())
             }
 
             // Hint
-            HStack(spacing: 8) {
+            HStack(spacing: .spacingS) {
                 Image(systemName: "lightbulb.fill")
                     .font(.caption)
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(Color.auroraBlue)
                 Text(l10n.t("cook.addHint"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .premiumCaption()
+                    .foregroundStyle(Color.auroraBlue)
             }
             .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Color.auroraBlue.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             Spacer().frame(height: 20)
         }
@@ -751,16 +704,16 @@ struct RecipesView: View {
     // MARK: - Cook State 2: Insufficient Products
 
     private var cookInsufficientState: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: .spacingM) {
             // What you have
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
                     Image(systemName: "shippingbox.fill")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.auroraBlue)
                     Text(l10n.t("cook.youHave"))
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Color.auroraBlue)
                         .textCase(.uppercase)
                 }
 
@@ -770,45 +723,45 @@ struct RecipesView: View {
                             Text(StockViewModel.categoryEmoji(item.category))
                                 .font(.caption)
                             Text(item.name)
-                                .font(.caption.weight(.medium))
+                                .font(.system(size: 13, weight: .medium))
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.orange.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.orange)
+                        .background(Color.obsidianBase, in: Capsule())
+                        .foregroundStyle(.white)
                     }
                 }
             }
-            .padding(14)
+            .padding(.spacingM)
             .glassCard(cornerRadius: 16)
 
             // 🧠 Smart analysis — WHY not enough
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 6) {
-                    Image(systemName: "brain.head.profile")
+                    Image(systemName: "sparkles")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(Color.auroraBlue)
                     Text(l10n.t("cook.analysis"))
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.cyan)
+                        .foregroundStyle(Color.auroraBlue)
                         .textCase(.uppercase)
                 }
 
                 // What's missing
                 if !stockVM.hasProtein {
-                    analysisRow(icon: "xmark.circle.fill", color: .red, text: l10n.t("cook.noProtein"))
+                    analysisRow(icon: "xmark.circle.fill", color: Color.amberGlow, text: l10n.t("cook.noProtein"))
                 } else {
-                    analysisRow(icon: "checkmark.circle.fill", color: .green, text: l10n.t("cook.hasProtein"))
+                    analysisRow(icon: "checkmark.circle.fill", color: Color.auroraBlue, text: l10n.t("cook.hasProtein"))
                 }
                 if !stockVM.hasBase {
-                    analysisRow(icon: "xmark.circle.fill", color: .red, text: l10n.t("cook.noBase"))
+                    analysisRow(icon: "xmark.circle.fill", color: Color.amberGlow, text: l10n.t("cook.noBase"))
                 } else {
-                    analysisRow(icon: "checkmark.circle.fill", color: .green, text: l10n.t("cook.hasBase"))
+                    analysisRow(icon: "checkmark.circle.fill", color: Color.auroraBlue, text: l10n.t("cook.hasBase"))
                 }
                 if !stockVM.hasVegetables {
-                    analysisRow(icon: "xmark.circle.fill", color: .red, text: l10n.t("cook.noVegetable"))
+                    analysisRow(icon: "xmark.circle.fill", color: Color.amberGlow, text: l10n.t("cook.noVegetable"))
                 } else {
-                    analysisRow(icon: "checkmark.circle.fill", color: .green, text: l10n.t("cook.hasVegetable"))
+                    analysisRow(icon: "checkmark.circle.fill", color: Color.auroraBlue, text: l10n.t("cook.hasVegetable"))
                 }
 
                 // Conclusion
@@ -816,14 +769,14 @@ struct RecipesView: View {
                 HStack(spacing: 8) {
                     Image(systemName: missingCount > 1 ? "exclamationmark.triangle.fill" : "info.circle.fill")
                         .font(.caption2)
-                        .foregroundStyle(missingCount > 1 ? .orange : .blue)
+                        .foregroundStyle(missingCount > 1 ? Color.amberGlow : Color.auroraBlue)
                     Text(missingCount > 1 ? l10n.t("cook.cantCookFull") : l10n.t("cook.almostThere"))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.primary.opacity(0.7))
+                        .premiumCaption()
+                        .foregroundStyle(.white)
                 }
                 .padding(.top, 4)
             }
-            .padding(14)
+            .padding(.spacingM)
             .glassCard(cornerRadius: 16)
 
             // 🎯 Quick-add buttons (interactive!)
@@ -894,43 +847,38 @@ struct RecipesView: View {
                 showCookSuggestions = true
                 Task { await cookVM.loadSuggestions() }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: .spacingS) {
                     Image(systemName: "sparkles")
                         .font(.caption.weight(.bold))
                     Text(l10n.t("cook.tryAnyway"))
                         .font(.caption.weight(.bold))
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.obsidianBase)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(
-                    LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                )
+                .background(Color.auroraBlue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             .buttonStyle(PressButtonStyle())
 
             // Browse catalog
             Button {
-                withAnimation(.snappy(duration: 0.35)) {
+                withAnimation(.premiumSpring) {
                     viewModel.showStock = true
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     stockVM.showAddSheet = true
                 }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: .spacingS) {
                     Image(systemName: "plus.circle.fill")
                     Text(l10n.t("cook.browseCatalog"))
                         .font(.subheadline.weight(.semibold))
                 }
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.auroraBlue)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(Color.green.opacity(0.4), lineWidth: 1.5)
-                )
+                .background(Color.obsidianPanel.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.05), lineWidth: 1))
             }
             .buttonStyle(PressButtonStyle())
         }
@@ -973,9 +921,9 @@ struct RecipesView: View {
         let inInventory = existingItem != nil
 
         let iconName: String = inList ? "checkmark" : (inInventory ? "tray.fill" : "plus")
-        let fgColor: Color = inList ? .green : (inInventory ? .cyan : .primary.opacity(0.8))
-        let borderColor: Color = inList ? .green.opacity(0.5) : (inInventory ? .cyan.opacity(0.4) : .green.opacity(0.4))
-        let bgColor: Color = inList ? .green.opacity(0.15) : (inInventory ? .cyan.opacity(0.1) : .clear)
+        let fgColor: Color = inList ? Color.auroraBlue : (inInventory ? Color.white : Color.white.opacity(0.8))
+        let borderColor: Color = inList ? Color.auroraBlue.opacity(0.5) : (inInventory ? Color.white.opacity(0.4) : Color.white.opacity(0.2))
+        let bgColor: Color = inList ? Color.auroraBlue.opacity(0.15) : (inInventory ? Color.white.opacity(0.1) : .clear)
 
         return Button {
             if inList {
@@ -1008,16 +956,16 @@ struct RecipesView: View {
     // MARK: - Cook State 3: Ready (3+ products)
 
     private var cookReadyState: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: .spacingM) {
             // Inventory summary chip
-            HStack(spacing: 8) {
+            HStack(spacing: .spacingS) {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Color.auroraBlue)
                 Text(l10n.t("recipes.basedOnStock"))
                     .font(.subheadline.weight(.bold))
                 Spacer()
                 Text("\(stockVM.items.count) " + l10n.t("recipes.items").lowercased())
-                    .font(.caption.weight(.medium))
+                    .premiumCaption()
                     .foregroundStyle(.secondary)
             }
 
@@ -1026,10 +974,10 @@ struct RecipesView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "leaf.fill")
                         .font(.caption)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.auroraBlue)
                     Text(l10n.t("cook.yourIngredients"))
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Color.auroraBlue)
                         .textCase(.uppercase)
                 }
 
@@ -1043,20 +991,20 @@ struct RecipesView: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .background(Color.green.opacity(0.12), in: Capsule())
-                        .foregroundStyle(.green)
+                        .background(Color.auroraBlue.opacity(0.12), in: Capsule())
+                        .foregroundStyle(Color.auroraBlue)
                     }
                     if stockVM.items.count > 12 {
                         Text("+\(stockVM.items.count - 12)")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
                             .background(Color.white.opacity(0.06), in: Capsule())
                     }
                 }
             }
-            .padding(14)
+            .padding(.spacingM)
             .glassCard(cornerRadius: 16)
 
             // AI Suggestions

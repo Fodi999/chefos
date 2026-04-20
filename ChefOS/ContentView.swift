@@ -57,51 +57,46 @@ struct ContentView: View {
     }
 
     private var header: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: .spacingM) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.blue.opacity(0.8), Color.purple.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.auroraBlue.opacity(0.15))
                     .frame(width: 40, height: 40)
-                    .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Color.auroraBlue.opacity(0.3), lineWidth: 1)
+                    )
 
                 Image(systemName: "sparkles")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
-                    .symbolEffect(.variableColor.iterative.dimInactiveLayers.nonReversing)
+                    .foregroundStyle(Color.auroraBlue)
             }
 
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("ChefOS")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .premiumHeader()
                     .foregroundStyle(.white)
                 Text("Intelligence Engine")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .premiumCaption()
                     .textCase(.uppercase)
-                    .tracking(1.2)
             }
 
             Spacer()
 
             Button(action: {}) {
                 Image(systemName: "line.3.horizontal.decrease.circle")
-                    .font(.title3)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressButtonStyle())
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
+        .padding(.horizontal, .spacingL)
+        .padding(.vertical, .spacingM)
         .background {
             Rectangle()
-                .fill(.ultraThinMaterial)
-                .mask(LinearGradient(colors: [.black, .black, .clear], startPoint: .top, endPoint: .bottom))
+                .fill(.ultraThinMaterial.opacity(0.6))
+                .blur(radius: 5)
+                .mask(LinearGradient(colors: [.black, .black.opacity(0.8), .clear], startPoint: .top, endPoint: .bottom))
                 .ignoresSafeArea()
         }
     }
@@ -140,28 +135,22 @@ private struct DeepObsidianBackground: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.02, green: 0.02, blue: 0.03) // Deep Obsidian
+            Color.obsidianBase
                 .ignoresSafeArea()
 
-            // Subtle ambient glows
+            // Subtle ambient glows (8% Primary, 2% Secondary)
             ZStack {
                 Circle()
-                    .fill(Color(red: 0.1, green: 0.3, blue: 0.8).opacity(0.15))
+                    .fill(Color.auroraBlue.opacity(0.08))
                     .frame(width: 400, height: 400)
                     .offset(x: animate ? 100 : -100, y: animate ? -50 : 50)
-                    .blur(radius: 100)
+                    .blur(radius: 120)
 
                 Circle()
-                    .fill(Color(red: 0.6, green: 0.1, blue: 0.4).opacity(0.1))
+                    .fill(Color.amberGlow.opacity(0.04)) // Very restricted warm accent
                     .frame(width: 350, height: 350)
                     .offset(x: animate ? -120 : 120, y: animate ? 80 : -80)
-                    .blur(radius: 90)
-
-                Circle()
-                    .fill(Color(red: 0.1, green: 0.6, blue: 0.5).opacity(0.12))
-                    .frame(width: 300, height: 300)
-                    .offset(x: animate ? 50 : -50, y: animate ? 120 : -120)
-                    .blur(radius: 110)
+                    .blur(radius: 120)
             }
             .animation(.easeInOut(duration: 12).repeatForever(autoreverses: true), value: animate)
             .onAppear { animate = true }
@@ -177,24 +166,24 @@ private struct GlassComposer: View {
     let onSend: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: .spacingS) {
             // Header Row
-            HStack {
-                HStack(spacing: 4) {
-                    Text("245")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                    Text("Project Requests")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.8))
-                }
+            HStack(spacing: .spacingXS) {
+                Text("245")
+                    .premiumHeader()
+                Text("Project Requests")
+                    .premiumCaption()
                 
                 Spacer()
                 
                 Text("PRO")
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .italic()
+                    .font(.system(size: 10, weight: .black, design: .default))
+                    .foregroundStyle(Color.amberGlow)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.amberGlow.opacity(0.1), in: Capsule())
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, .spacingS)
             .foregroundStyle(.white)
 
             // Input Container
@@ -203,19 +192,19 @@ private struct GlassComposer: View {
                     .textFieldStyle(.plain)
                     .focused($isFocused)
                     .lineLimit(1...5)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, .spacingM)
                     .padding(.vertical, 14)
-                    .background {
+                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(.white)
-                    }
-                    .foregroundStyle(.black)
+                            .stroke(Color.white.opacity(isFocused ? 0.2 : 0.05), lineWidth: 1)
+                    )
+                    .foregroundStyle(.white)
             }
-            .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 5)
 
             // Bottom Actions Row
-            HStack(spacing: 20) {
-                HStack(spacing: 16) {
+            HStack(spacing: .spacingM) {
+                HStack(spacing: .spacingM) {
                     ComposerActionButton(systemName: "sparkles")
                     ComposerActionButton(systemName: "photo.on.rectangle.angled")
                     ComposerActionButton(systemName: "waveform")
@@ -225,34 +214,26 @@ private struct GlassComposer: View {
                 
                 Button(action: onSend) {
                     Image(systemName: "arrow.up")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(canSend ? Color.obsidianBase : .white.opacity(0.5))
+                        .frame(width: 36, height: 36)
                         .background {
                             Circle()
-                                .fill(Color(red: 0.0, green: 0.5, blue: 1.0)) // Precise blue from photo
+                                .fill(canSend ? Color.auroraBlue : Color.white.opacity(0.1))
                         }
-                        .shadow(color: Color.blue.opacity(canSend ? 0.3 : 0), radius: 10, x: 0, y: 5)
+                        .scaleEffect(isFocused ? 1.05 : 1.0)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressButtonStyle())
                 .disabled(!canSend)
-                .opacity(canSend ? 1 : 0.6)
+                .animation(.premiumSpring, value: canSend)
             }
-            .padding(.top, 4)
-            .padding(.horizontal, 4)
+            .padding(.top, .spacingXS)
+            .padding(.horizontal, .spacingXS)
         }
-        .padding(16)
-        .background {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                }
-        }
-        .shadow(color: .black.opacity(0.15), radius: 30, x: 0, y: 15)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 20)
+        .padding(.spacingM)
+        .glassCard(cornerRadius: 24)
+        .padding(.horizontal, .spacingS)
+        .padding(.bottom, .spacingM)
     }
 }
 
@@ -291,31 +272,25 @@ private struct ContentMessageBubble: View {
         HStack(alignment: .bottom, spacing: 12) {
             if isUser { Spacer(minLength: 64) }
 
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
+            VStack(alignment: isUser ? .trailing : .leading, spacing: .spacingXS) {
                 Text(message.text)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(isUser ? .white : .white.opacity(0.95))
-                    .padding(.horizontal, 18)
+                    .font(.system(size: 15, weight: .regular, design: .default))
+                    .foregroundStyle(isUser ? .white : .white.opacity(0.9))
+                    .padding(.horizontal, .spacingM)
                     .padding(.vertical, 12)
                     .background {
                         if isUser {
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(red: 0.1, green: 0.4, blue: 0.9), Color(red: 0.3, green: 0.2, blue: 0.8)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: .blue.opacity(0.2), radius: 10, x: 0, y: 5)
+                                .fill(Color.auroraBlue)
+                                // Only auroraBlue, no gradients, less cheap
+                                .shadow(color: Color.auroraBlue.opacity(0.25), radius: 10, x: 0, y: 5)
                         } else {
                             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(.white.opacity(0.08))
-                                .overlay {
+                                .fill(Color.obsidianPanel.opacity(0.6))
+                                .overlay(
                                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                                }
-                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                                )
                         }
                     }
             }

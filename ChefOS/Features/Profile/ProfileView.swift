@@ -206,12 +206,12 @@ struct ProfileView: View {
         ProfileSection(title: l10n.t("profile.personalInfo"), icon: "person.text.rectangle") {
             ProfileField(l10n.t("profile.age")) {
                 TextField("25", text: $viewModel.ageText)
-                    .keyboardType(.numberPad)
+                    .keyboardType(.numbersAndPunctuation)
                     .multilineTextAlignment(.trailing)
             }
             ProfileField(l10n.t("profile.weight")) {
                 TextField("70", text: $viewModel.weightText)
-                    .keyboardType(.decimalPad)
+                    .keyboardType(.numbersAndPunctuation)
                     .multilineTextAlignment(.trailing)
             }
         }
@@ -248,7 +248,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.targetWeight")) {
                 HStack(spacing: 4) {
                     TextField("65", text: $viewModel.targetWeightText)
-                        .keyboardType(.decimalPad)
+                        .keyboardType(.numbersAndPunctuation)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 60)
                     Text("kg").font(.caption).foregroundStyle(.secondary)
@@ -257,7 +257,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.caloriesDay")) {
                 HStack(spacing: 4) {
                     TextField("2200", text: $viewModel.calorieText)
-                        .keyboardType(.numberPad)
+                        .keyboardType(.numbersAndPunctuation)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 60)
                     Text("kcal").font(.caption).foregroundStyle(.secondary)
@@ -266,7 +266,7 @@ struct ProfileView: View {
             ProfileField(l10n.t("profile.protein")) {
                 HStack(spacing: 4) {
                     TextField("120", text: $viewModel.proteinText)
-                        .keyboardType(.numberPad)
+                        .keyboardType(.numbersAndPunctuation)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 50)
                     Text("g").font(.caption).foregroundStyle(.secondary)
@@ -569,6 +569,9 @@ struct ProfileView: View {
                     .font(.subheadline)
                 Spacer()
                 Picker("", selection: $viewModel.language) {
+                    if viewModel.language.isEmpty {
+                        Text("").tag("")
+                    }
                     Text("🇬🇧 English").tag("en")
                     Text("🇵🇱 Polski").tag("pl")
                     Text("🇷🇺 Русский").tag("ru")
@@ -654,9 +657,6 @@ struct ChipButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                if !emoji.isEmpty {
-                    Text(emoji).font(.caption)
-                }
                 Text(title).font(.caption.weight(isSelected ? .bold : .medium))
             }
             .foregroundStyle(isSelected ? .white : .secondary)
