@@ -139,7 +139,10 @@ struct UserProfile {
     // MARK: AI Summary
 
     var aiSummary: String {
-        let l10n = LocalizationService.shared
+        localizedAiSummary(LocalizationService.shared)
+    }
+
+    func localizedAiSummary(_ l10n: LocalizationService) -> String {
         var lines: [String] = []
         lines.append("\(l10n.t("ai.goal")): \(l10n.t(goal.l10nKey))")
         lines.append("\(l10n.t("ai.calories")): \(calorieTarget) \(l10n.t("ai.kcal")) · \(l10n.t("ai.protein")): \(proteinTarget)\(l10n.t("ai.g"))")

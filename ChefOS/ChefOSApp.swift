@@ -12,7 +12,7 @@ struct ChefOSApp: App {
     @StateObject private var authService = AuthService()
     @StateObject private var regionService = RegionService()
     @StateObject private var usageService = UsageService()
-    @StateObject private var l10n = LocalizationService()
+    @StateObject private var l10n = LocalizationService.shared
 
     var body: some Scene {
         WindowGroup {

@@ -337,7 +337,7 @@ struct ProfileView: View {
 
             Divider().overlay(Color.white.opacity(0.08))
 
-            Text(viewModel.profile.aiSummary)
+            Text(viewModel.profile.localizedAiSummary(l10n))
                 .font(.callout)
                 .foregroundStyle(.white.opacity(0.9))
                 .lineSpacing(5)
