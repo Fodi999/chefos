@@ -3,12 +3,15 @@ import Combine
 
 @MainActor
 final class CookSuggestionsViewModel: ObservableObject {
+    @Published var inventoryInsight: APIClient.InventoryInsight?
     @Published var canCook: [APIClient.SuggestedDish] = []
     @Published var almost: [APIClient.SuggestedDish] = []
     @Published var strategic: [APIClient.SuggestedDish] = []
+    @Published var unlockSuggestions: APIClient.UnlockSuggestions?
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var hasLoaded = false
+    @Published var selectedDish: APIClient.SuggestedDish?
 
     private let api = APIClient.shared
 
@@ -17,9 +20,11 @@ final class CookSuggestionsViewModel: ObservableObject {
         errorMessage = nil
         do {
             let response = try await api.getCookSuggestions()
+            inventoryInsight = response.inventoryInsight
             canCook = response.canCook
             almost = response.almost
             strategic = response.strategic
+            unlockSuggestions = response.suggestions
             hasLoaded = true
         } catch {
             errorMessage = error.localizedDescription

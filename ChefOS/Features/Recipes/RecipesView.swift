@@ -20,8 +20,11 @@ struct RecipesView: View {
     @State private var showCookSuggestions = false
     @StateObject private var cookVM = CookSuggestionsViewModel()
     @StateObject private var shoppingVM = ShoppingListViewModel()
-    @State private var productActionName: String? = nil   // triggers action sheet
+    @State private var productActionName: String? = nil       // new product action sheet
+    @State private var existingProductItem: StockItem? = nil  // existing product action sheet
     @State private var showShoppingList = false
+    @State private var inventoryEditorMode: InventoryEditorMode? = nil
+    @State private var showInventoryEditor = false
 
     var body: some View {
         NavigationStack {
@@ -136,6 +139,19 @@ struct RecipesView: View {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showInventoryEditor) {
+                // Reload inventory after editor closes
+                Task { await stockVM.loadInventory() }
+            } content: {
+                if let editorMode = inventoryEditorMode {
+                    InventoryEditorSheet(mode: editorMode, stockVM: stockVM)
+                        .environmentObject(l10n)
+                        .environmentObject(regionService)
+                        .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
+                }
+            }
+            // Action sheet for NEW product (not in inventory)
             .confirmationDialog(
                 l10n.t("cook.actionTitle"),
                 isPresented: Binding(
@@ -146,19 +162,13 @@ struct RecipesView: View {
             ) {
                 if let name = productActionName {
                     Button(l10n.t("cook.toShoppingList")) {
-                        shoppingVM.add(name: name, note: l10n.t("cook.addedFromCook"))
+                        shoppingVM.add(name: name, note: l10n.t("cook.addedFromCook"), source: .recipeSuggestion)
                         productActionName = nil
                     }
                     Button(l10n.t("cook.toInventory")) {
                         productActionName = nil
-                        withAnimation(.snappy(duration: 0.35)) {
-                            viewModel.showStock = true
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            stockVM.catalogSearch = name
-                            stockVM.showAddSheet = true
-                            Task { await stockVM.searchIngredients() }
-                        }
+                        inventoryEditorMode = .addNew(productName: name)
+                        showInventoryEditor = true
                     }
                     Button(l10n.t("general.cancel"), role: .cancel) {
                         productActionName = nil
@@ -167,6 +177,44 @@ struct RecipesView: View {
             } message: {
                 if let name = productActionName {
                     Text(String(format: l10n.t("cook.actionMessage"), name))
+                }
+            }
+            // Action sheet for EXISTING product (already in inventory)
+            .confirmationDialog(
+                l10n.t("inventory.existingTitle"),
+                isPresented: Binding(
+                    get: { existingProductItem != nil },
+                    set: { if !$0 { existingProductItem = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let item = existingProductItem {
+                    Button(l10n.t("inventory.addBatch")) {
+                        existingProductItem = nil
+                        inventoryEditorMode = .addBatch(
+                            productId: item.productId,
+                            productName: item.name,
+                            defaultUnit: item.unit.displayName
+                        )
+                        showInventoryEditor = true
+                    }
+                    Button(l10n.t("inventory.editCurrent")) {
+                        existingProductItem = nil
+                        inventoryEditorMode = .editExisting(item: item)
+                        showInventoryEditor = true
+                    }
+                    Button(l10n.t("general.cancel"), role: .cancel) {
+                        existingProductItem = nil
+                    }
+                }
+            } message: {
+                if let item = existingProductItem {
+                    Text(String(format: l10n.t("inventory.existingMessage"), item.name))
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .addToShoppingListManual)) { notification in
+                if let name = notification.userInfo?["name"] as? String {
+                    shoppingVM.add(name: name, source: .manual)
                 }
             }
         }
@@ -924,26 +972,36 @@ struct RecipesView: View {
 
     private func quickAddButton(label: String, query: String) -> some View {
         let inList = shoppingVM.contains(query)
+        let existingItem = stockVM.items.first { $0.name.lowercased().contains(query.lowercased()) }
+        let inInventory = existingItem != nil
+
+        let iconName: String = inList ? "checkmark" : (inInventory ? "tray.fill" : "plus")
+        let fgColor: Color = inList ? .green : (inInventory ? .cyan : .primary.opacity(0.8))
+        let borderColor: Color = inList ? .green.opacity(0.5) : (inInventory ? .cyan.opacity(0.4) : .green.opacity(0.4))
+        let bgColor: Color = inList ? .green.opacity(0.15) : (inInventory ? .cyan.opacity(0.1) : .clear)
+
         return Button {
             if inList {
-                // Already in shopping list — visual feedback
+                // noop
+            } else if let existing = existingItem {
+                existingProductItem = existing
             } else {
                 productActionName = label
             }
         } label: {
             HStack(spacing: 4) {
-                Image(systemName: inList ? "checkmark" : "plus")
+                Image(systemName: iconName)
                     .font(.system(size: 9, weight: .bold))
                 Text(label)
                     .font(.caption.weight(.semibold))
             }
-            .foregroundStyle(inList ? Color.green : Color.primary.opacity(0.8))
+            .foregroundStyle(fgColor)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .strokeBorder(inList ? Color.green.opacity(0.5) : Color.green.opacity(0.4), lineWidth: 1)
-                    .background(Capsule().fill(inList ? Color.green.opacity(0.15) : Color.clear))
+                    .strokeBorder(borderColor, lineWidth: 1)
+                    .background(Capsule().fill(bgColor))
             )
         }
         .buttonStyle(PressButtonStyle())

@@ -3,21 +3,31 @@ import Combine
 
 // MARK: - Shopping List Item
 
+enum ShoppingItemSource: String, Codable {
+    case manual
+    case recipeSuggestion = "recipe_suggestion"
+    case cookAnalysis = "cook_analysis"
+}
+
 struct ShoppingItem: Identifiable, Codable {
     let id: UUID
     var name: String
-    var quantity: String   // e.g. "1 kg", "6 pcs"
-    var note: String       // e.g. "for pasta recipe"
+    var quantity: String        // e.g. "1 kg", "6 pcs"
+    var note: String            // e.g. "for pasta recipe"
     var isPurchased: Bool
     var addedAt: Date
+    var source: ShoppingItemSource
+    var productId: String?      // catalog product id, if known
 
-    init(name: String, quantity: String = "", note: String = "", isPurchased: Bool = false) {
+    init(name: String, quantity: String = "", note: String = "", isPurchased: Bool = false, source: ShoppingItemSource = .manual, productId: String? = nil) {
         self.id = UUID()
         self.name = name
         self.quantity = quantity
         self.note = note
         self.isPurchased = isPurchased
         self.addedAt = Date()
+        self.source = source
+        self.productId = productId
     }
 }
 
@@ -35,10 +45,10 @@ final class ShoppingListViewModel: ObservableObject {
 
     // MARK: - CRUD
 
-    func add(name: String, quantity: String = "", note: String = "") {
+    func add(name: String, quantity: String = "", note: String = "", source: ShoppingItemSource = .manual, productId: String? = nil) {
         // Don't add duplicates
         guard !items.contains(where: { $0.name.lowercased() == name.lowercased() && !$0.isPurchased }) else { return }
-        let item = ShoppingItem(name: name, quantity: quantity, note: note)
+        let item = ShoppingItem(name: name, quantity: quantity, note: note, source: source, productId: productId)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             items.insert(item, at: 0)
         }

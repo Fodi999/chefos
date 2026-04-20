@@ -413,15 +413,32 @@ final class APIClient {
     // MARK: - Cook Suggestions (POST /api/cook/suggestions)
 
     struct CookSuggestionsResponse: Codable {
+        let inventoryInsight: InventoryInsight
         let canCook: [SuggestedDish]
         let almost: [SuggestedDish]
         let strategic: [SuggestedDish]
+        let suggestions: UnlockSuggestions
+    }
+
+    struct InventoryInsight: Codable {
+        let daysLeft: Int
+        let atRisk: [String]
+        let wasteRisk: Int
+        let totalIngredients: Int
+    }
+
+    struct UnlockSuggestions: Codable {
+        let missingFrequently: [String]
+        let unlockHints: [String]
     }
 
     struct SuggestedDish: Codable, Identifiable {
         var id: String { dishName }
         let dishName: String
         let dishNameLocal: String?
+        let displayName: String?
+        let dishType: String
+        let complexity: String
         let ingredients: [SuggestedIngredient]
         let missingIngredients: [String]
         let missingCount: Int
@@ -429,14 +446,34 @@ final class APIClient {
         let totalProteinG: Double
         let totalFatG: Double
         let totalCarbsG: Double
+        let perServingKcal: Int
+        let perServingProteinG: Double
+        let perServingFatG: Double
+        let perServingCarbsG: Double
         let servings: Int
+        let steps: [RecipeStep]
         let insight: DishInsight
+        let flavor: FlavorInfo?
+        let adaptation: AdaptationInfo?
+        let warnings: [String]
+        let tags: [String]
+        let allergens: [String]
+    }
+
+    struct RecipeStep: Codable, Identifiable {
+        var id: Int { Int(step) }
+        let step: Int
+        let text: String
+        let timeMin: Int?
+        let tempC: Int?
+        let tip: String?
     }
 
     struct SuggestedIngredient: Codable {
         let name: String
         let slug: String
         let grossG: Double
+        let role: String
         let available: Bool
         let expiringSoon: Bool
     }
@@ -447,6 +484,19 @@ final class APIClient {
         let budgetFriendly: Bool
         let estimatedCostCents: Int
         let priorityScore: Int
+        let reasons: [String]
+    }
+
+    struct FlavorInfo: Codable {
+        let balanceScore: Double
+        let dominant: String?
+        let suggestions: [String]
+    }
+
+    struct AdaptationInfo: Codable {
+        let changed: Bool
+        let strategy: String?
+        let actions: [String]
     }
 
     func getCookSuggestions() async throws -> CookSuggestionsResponse {
