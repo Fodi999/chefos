@@ -208,33 +208,33 @@ struct CookSuggestionsSheet: View {
                 }
             }
 
-            // ── PRIMARY ACTION BUTTON ──
-            if dish.missingCount == 0 {
-                Label(l10n.t("cook.cookNow"), systemImage: "flame.fill")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.green, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            } else {
-                Label(l10n.t("cook.addMissing"), systemImage: "cart.badge.plus")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            // ── OPEN RECIPE BUTTON ──
+            HStack(spacing: 8) {
+                if dish.missingCount == 0 {
+                    Image(systemName: "flame.fill").foregroundStyle(.green)
+                    Text(l10n.t("cook.openRecipe")).font(.subheadline.weight(.bold))
+                } else {
+                    Image(systemName: "book.fill").foregroundStyle(.orange)
+                    Text(l10n.t("cook.openRecipe")).font(.subheadline.weight(.bold))
+                    Spacer()
+                    Text("\(dish.missingCount) ✕")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.orange)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
             }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(
+                (dish.missingCount == 0 ? Color.green : Color.orange).opacity(0.12),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
         }
         .padding(14)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(accentColor.opacity(0.3), lineWidth: 1))
-        .overlay(
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white.opacity(0.35))
-                .padding(.trailing, 14),
-            alignment: .trailing
-        )
         .contentShape(RoundedRectangle(cornerRadius: 16))
     }
 

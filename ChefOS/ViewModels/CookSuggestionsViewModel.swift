@@ -26,8 +26,10 @@ final class CookSuggestionsViewModel: ObservableObject {
             strategic = response.strategic
             unlockSuggestions = response.suggestions
             hasLoaded = true
+            print("🧠 VM loaded: canCook=\(canCook.count), almost=\(almost.count), strategic=\(strategic.count)")
         } catch {
             errorMessage = error.localizedDescription
+            print("🔴 VM error: \(error)")
         }
         isLoading = false
     }

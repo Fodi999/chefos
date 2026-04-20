@@ -433,7 +433,7 @@ final class APIClient {
     }
 
     struct SuggestedDish: Codable, Identifiable {
-        var id: String { dishName }
+        let id: UUID
         let dishName: String
         let dishNameLocal: String?
         let displayName: String?
@@ -458,6 +458,44 @@ final class APIClient {
         let warnings: [String]
         let tags: [String]
         let allergens: [String]
+
+        private enum CodingKeys: String, CodingKey {
+            case dishName, dishNameLocal, displayName, dishType, complexity
+            case ingredients, missingIngredients, missingCount
+            case totalKcal, totalProteinG, totalFatG, totalCarbsG
+            case perServingKcal, perServingProteinG, perServingFatG, perServingCarbsG
+            case servings, steps, insight, flavor, adaptation
+            case warnings, tags, allergens
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = UUID()
+            dishName = try c.decode(String.self, forKey: .dishName)
+            dishNameLocal = try c.decodeIfPresent(String.self, forKey: .dishNameLocal)
+            displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
+            dishType = try c.decode(String.self, forKey: .dishType)
+            complexity = try c.decode(String.self, forKey: .complexity)
+            ingredients = try c.decode([SuggestedIngredient].self, forKey: .ingredients)
+            missingIngredients = try c.decode([String].self, forKey: .missingIngredients)
+            missingCount = try c.decode(Int.self, forKey: .missingCount)
+            totalKcal = try c.decode(Int.self, forKey: .totalKcal)
+            totalProteinG = try c.decode(Double.self, forKey: .totalProteinG)
+            totalFatG = try c.decode(Double.self, forKey: .totalFatG)
+            totalCarbsG = try c.decode(Double.self, forKey: .totalCarbsG)
+            perServingKcal = try c.decode(Int.self, forKey: .perServingKcal)
+            perServingProteinG = try c.decode(Double.self, forKey: .perServingProteinG)
+            perServingFatG = try c.decode(Double.self, forKey: .perServingFatG)
+            perServingCarbsG = try c.decode(Double.self, forKey: .perServingCarbsG)
+            servings = try c.decode(Int.self, forKey: .servings)
+            steps = try c.decode([RecipeStep].self, forKey: .steps)
+            insight = try c.decode(DishInsight.self, forKey: .insight)
+            flavor = try c.decodeIfPresent(FlavorInfo.self, forKey: .flavor)
+            adaptation = try c.decodeIfPresent(AdaptationInfo.self, forKey: .adaptation)
+            warnings = try c.decode([String].self, forKey: .warnings)
+            tags = try c.decode([String].self, forKey: .tags)
+            allergens = try c.decode([String].self, forKey: .allergens)
+        }
     }
 
     struct RecipeStep: Codable, Identifiable {
@@ -524,9 +562,30 @@ final class APIClient {
         request.httpBody = try JSONEncoder().encode([:] as [String: String])
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            let body = String(data: data, encoding: .utf8) ?? "no body"
+            print("❌ cook/suggestions HTTP \(code): \(body.prefix(500))")
             throw URLError(.badServerResponse)
         }
-        return try decoder.decode(CookSuggestionsResponse.self, from: data)
+        // Debug: print raw JSON
+        if let raw = String(data: data, encoding: .utf8) {
+            print("📦 cook/suggestions raw (\(data.count) bytes):")
+            print(raw.prefix(2000))
+        }
+        do {
+            let result = try decoder.decode(CookSuggestionsResponse.self, from: data)
+            print("✅ Parsed: canCook=\(result.canCook.count), almost=\(result.almost.count), strategic=\(result.strategic.count)")
+            for dish in result.canCook + result.almost + result.strategic {
+                print("  🍽 \(dish.dishName) | steps=\(dish.steps.count) | missing=\(dish.missingCount) | ingredients=\(dish.ingredients.count)")
+            }
+            return result
+        } catch {
+            print("❌ Decode error: \(error)")
+            if let raw = String(data: data, encoding: .utf8) {
+                print("📦 Full raw: \(raw.prefix(3000))")
+            }
+            throw error
+        }
     }
 
     // MARK: - Chat Endpoints (RuleBot — POST /public/chat)
