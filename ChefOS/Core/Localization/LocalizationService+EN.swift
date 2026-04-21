@@ -126,6 +126,21 @@ extension LocalizationService {
         "chat.motivation.targets": "🎯 Daily targets: {kcal} kcal, {protein}g protein. I'll help you stay on track!",
         "chat.motivation.allergies": "⚠️ I'll avoid: {list}. Your safety comes first!",
 
+        // Chat cards (structured greeting flow)
+        "chat.goal.loseWeight":    "Lose Weight",
+        "chat.goal.gainMuscle":    "Build Muscle",
+        "chat.goal.gainWeight":    "Gain Weight",
+        "chat.goal.eatHealthier":  "Eat Healthier",
+        "chat.goal.balanced":      "Balanced Nutrition",
+
+        "chat.focus.loseWeight":   "Focus: light, low-calorie dishes",
+        "chat.focus.gainMuscle":   "Focus: high-protein meals",
+        "chat.focus.gainWeight":   "Focus: calorie-dense, nutritious meals",
+        "chat.focus.eatHealthier": "Focus: balanced, wholesome recipes",
+        "chat.focus.balanced":     "Focus: balanced and delicious",
+
+        "profile.years": "y.o.",
+
         // Onboarding
         "onboarding.welcome": "Welcome to ChefOS",
         "onboarding.signIn": "Sign In",

@@ -25,7 +25,13 @@ final class LocalizationService: ObservableObject {
     }
 
     func t(_ key: String) -> String {
-        translations[language]?[key] ?? translations["en"]?[key] ?? key
+        let value = translations[language]?[key] ?? translations["en"]?[key]
+        #if DEBUG
+        if value == nil {
+            print("❗️ Missing localization [\(language)]: \(key)")
+        }
+        #endif
+        return value ?? key
     }
 
     // MARK: - All translations (built from per-language extensions)
