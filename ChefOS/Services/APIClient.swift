@@ -545,6 +545,89 @@ final class APIClient {
         let ingredients: [CatalogIngredientDTO]
     }
 
+    // ───────────────────────────────────────────────────────────────────
+    // Processing states (raw / boiled / steamed / baked / grilled / fried
+    // / smoked / frozen / dried / pickled) — per-state macros, weight loss,
+    // shelf life, storage temperature, texture, notes.
+    // Backed by GET /public/ingredients/:slug/states (public, no auth).
+    // ───────────────────────────────────────────────────────────────────
+    struct IngredientStatesResponse: Decodable {
+        let slug: String
+        let ingredientId: String?
+        let nameEn: String?
+        let nameRu: String?
+        let namePl: String?
+        let nameUk: String?
+        let imageUrl: String?
+        let statesCount: Int?
+        let states: [IngredientStateDTO]
+    }
+
+    struct IngredientStateDTO: Decodable, Identifiable {
+        var id: String { state }
+        let state: String                  // "raw" | "boiled" | ...
+        let stateType: String?             // "natural" | "cooked" | ...
+        let cookingMethod: String?
+        let caloriesPer100g: Double?
+        let proteinPer100g: Double?
+        let fatPer100g: Double?
+        let carbsPer100g: Double?
+        let fiberPer100g: Double?
+        let waterPercent: Double?
+        let shelfLifeHours: Int?
+        let storageTempC: Int?
+        let texture: String?
+        let weightChangePercent: Double?
+        let waterLossPercent: Double?
+        let oilAbsorptionG: Double?
+        let glycemicIndex: Int?
+        let nameSuffixEn: String?
+        let nameSuffixRu: String?
+        let nameSuffixPl: String?
+        let nameSuffixUk: String?
+        let notesEn: String?
+        let notesRu: String?
+        let notesPl: String?
+        let notesUk: String?
+        let dataScore: Double?
+
+        // Explicit CodingKeys — `.convertFromSnakeCase` turns
+        // `calories_per_100g` into `caloriesPer100G` (capital G),
+        // so we must pin the exact post-conversion names.
+        private enum CodingKeys: String, CodingKey {
+            case state, stateType, cookingMethod
+            case caloriesPer100g = "caloriesPer100G"
+            case proteinPer100g  = "proteinPer100G"
+            case fatPer100g      = "fatPer100G"
+            case carbsPer100g    = "carbsPer100G"
+            case fiberPer100g    = "fiberPer100G"
+            case waterPercent, shelfLifeHours, storageTempC, texture
+            case weightChangePercent, waterLossPercent, oilAbsorptionG, glycemicIndex
+            case nameSuffixEn, nameSuffixRu, nameSuffixPl, nameSuffixUk
+            case notesEn, notesRu, notesPl, notesUk
+            case dataScore
+        }
+
+        /// Best localized suffix ("варёный", "boiled", "gotowany"…).
+        func localizedSuffix(_ lang: String) -> String? {
+            switch lang {
+            case "en": return nameSuffixEn ?? nameSuffixRu
+            case "pl": return nameSuffixPl ?? nameSuffixEn
+            case "uk": return nameSuffixUk ?? nameSuffixRu
+            default:   return nameSuffixRu ?? nameSuffixEn
+            }
+        }
+
+        func localizedNotes(_ lang: String) -> String? {
+            switch lang {
+            case "en": return notesEn ?? notesRu
+            case "pl": return notesPl ?? notesEn
+            case "uk": return notesUk ?? notesRu
+            default:   return notesRu ?? notesEn
+            }
+        }
+    }
+
     func getCatalogCategories() async throws -> [CatalogCategoryDTO] {
         // Public endpoint — no JWT required. Language passed via query string.
         let response: CatalogCategoriesResponse = try await publicGet("/catalog/categories?lang=\(currentLang)")
@@ -568,6 +651,14 @@ final class APIClient {
     func getIngredientDetail(slug: String) async throws -> IngredientDetailDTO {
         let encoded = slug.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? slug
         return try await publicGet("/catalog/ingredients/\(encoded)")
+    }
+
+    /// Processing states (raw / boiled / fried / baked / etc.) for an
+    /// ingredient, with weight-change %, shelf life and recalculated macros.
+    /// Backed by `GET /public/ingredients/:slug/states` — slug-only (no UUID).
+    func getIngredientStates(slug: String) async throws -> IngredientStatesResponse {
+        let encoded = slug.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? slug
+        return try await publicGet("/ingredients/\(encoded)/states?lang=\(currentLang)")
     }
 
     /// Best-effort UI language for public endpoints that take `?lang=…`.

@@ -98,6 +98,9 @@ private struct IngredientDetailContent: View {
     let fallbackImageUrl: String?
     @EnvironmentObject var l10n: LocalizationService
 
+    @State private var states: [APIClient.IngredientStateDTO] = []
+    @State private var selectedState: String? = nil
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.md) {
@@ -110,6 +113,7 @@ private struct IngredientDetailContent: View {
                 }
 
                 physicalBadgesSection
+                processingStatesSection
                 macrosSection
                 mineralsSection
                 vitaminsSection
@@ -124,6 +128,24 @@ private struct IngredientDetailContent: View {
                 Spacer(minLength: 40)
             }
             .padding(.vertical, Spacing.md)
+        }
+        .task(id: detail.slug) {
+            await loadStates()
+        }
+    }
+
+    private func loadStates() async {
+        guard !detail.slug.isEmpty else { return }
+        do {
+            let resp = try await APIClient.shared.getIngredientStates(slug: detail.slug)
+            await MainActor.run {
+                self.states = resp.states
+                if self.selectedState == nil {
+                    self.selectedState = resp.states.first?.state
+                }
+            }
+        } catch {
+            // Silent failure — section just won't appear.
         }
     }
 
@@ -224,6 +246,164 @@ private struct IngredientDetailContent: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(color.opacity(0.12), in: Capsule())
+    }
+
+    // MARK: Processing states (raw / boiled / fried / …)
+
+    @ViewBuilder
+    private var processingStatesSection: some View {
+        if !states.isEmpty {
+            SectionCard(title: sectionTitle(.processingStates), icon: "flame.fill", accent: .orange) {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Horizontal pill row
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(states) { s in
+                                statePill(s)
+                            }
+                        }
+                    }
+                    // Selected state details
+                    if let sel = states.first(where: { $0.state == selectedState }) ?? states.first {
+                        stateDetailView(sel)
+                    }
+                }
+            }
+        }
+    }
+
+    private func statePill(_ s: APIClient.IngredientStateDTO) -> some View {
+        let isSelected = (selectedState ?? states.first?.state) == s.state
+        let label = s.localizedSuffix(l10n.language) ?? stateFallbackLabel(s.state)
+        return Button(action: { selectedState = s.state }) {
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(isSelected ? Color.white : AppColors.textPrimary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule().fill(isSelected ? Color.orange : AppColors.textSecondary.opacity(0.10))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func stateDetailView(_ s: APIClient.IngredientStateDTO) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Top metric strip — weight change + shelf + temp
+            HStack(spacing: 8) {
+                if let w = s.weightChangePercent {
+                    let positive = w >= 0
+                    let text = String(format: "%@%.0f%%", positive ? "+" : "", w)
+                    metricChip(
+                        icon: positive ? "arrow.up.right" : "arrow.down.right",
+                        label: weightLabel,
+                        value: text,
+                        color: positive ? .green : .red
+                    )
+                }
+                if let h = s.shelfLifeHours {
+                    metricChip(icon: "clock.fill", label: shelfLabel, value: formatShelf(h), color: .blue)
+                }
+                if let t = s.storageTempC {
+                    metricChip(icon: "thermometer", label: tempLabel, value: "\(t)°C", color: .cyan)
+                }
+            }
+            // Macros row
+            if s.caloriesPer100g != nil || s.proteinPer100g != nil || s.fatPer100g != nil || s.carbsPer100g != nil {
+                VStack(spacing: 0) {
+                    if let v = s.caloriesPer100g { dataRow("kcal", value: format1(v), unit: "") }
+                    if let v = s.proteinPer100g  { dataRow(sectionTitle(.protein), value: format2(v), unit: "g") }
+                    if let v = s.fatPer100g      { dataRow(sectionTitle(.fat),     value: format2(v), unit: "g") }
+                    if let v = s.carbsPer100g    { dataRow(sectionTitle(.carbs),   value: format2(v), unit: "g") }
+                    if let v = s.fiberPer100g    { dataRow(sectionTitle(.fiber),   value: format2(v), unit: "g") }
+                    if let v = s.waterPercent    { dataRow(sectionTitle(.water),   value: format1(v), unit: "%") }
+                    if let v = s.oilAbsorptionG  { dataRow(oilLabel, value: format1(v), unit: "g") }
+                    if let v = s.waterLossPercent { dataRow(waterLossLabel, value: format1(v), unit: "%") }
+                }
+            }
+            // Texture + notes
+            if let tex = s.texture, !tex.isEmpty {
+                tagRow(label: sectionTitle(.texture), value: tex)
+            }
+            if let notes = s.localizedNotes(l10n.language), !notes.isEmpty {
+                Text(notes)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func metricChip(icon: String, label: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 10, weight: .semibold))
+                Text(label).font(.system(size: 10, weight: .medium))
+            }
+            .foregroundStyle(color)
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(AppColors.textPrimary)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func formatShelf(_ hours: Int) -> String {
+        if hours >= 48 {
+            let d = hours / 24
+            return "\(d) \(daysUnit(d))"
+        }
+        return "\(hours) h"
+    }
+
+    private func stateFallbackLabel(_ state: String) -> String {
+        // Fallback if suffix missing — capitalize raw key.
+        return state.prefix(1).uppercased() + state.dropFirst()
+    }
+
+    private var weightLabel: String {
+        switch l10n.language {
+        case "en": return "Weight change"
+        case "pl": return "Zmiana masy"
+        case "uk": return "Зміна ваги"
+        default:   return "Изменение массы"
+        }
+    }
+    private var shelfLabel: String {
+        switch l10n.language {
+        case "en": return "Shelf life"
+        case "pl": return "Trwałość"
+        case "uk": return "Зберігання"
+        default:   return "Хранение"
+        }
+    }
+    private var tempLabel: String {
+        switch l10n.language {
+        case "en": return "Temp"
+        case "pl": return "Temp."
+        case "uk": return "Темп."
+        default:   return "Темп."
+        }
+    }
+    private var oilLabel: String {
+        switch l10n.language {
+        case "en": return "Oil absorbed"
+        case "pl": return "Absorpcja oleju"
+        case "uk": return "Поглинання олії"
+        default:   return "Впитывание масла"
+        }
+    }
+    private var waterLossLabel: String {
+        switch l10n.language {
+        case "en": return "Water loss"
+        case "pl": return "Utrata wody"
+        case "uk": return "Втрата води"
+        default:   return "Потеря воды"
+        }
     }
 
     // MARK: Macros
@@ -804,6 +984,7 @@ private struct DetailFlowLayout: Layout {
 
 private enum SectionKey {
     case macros, minerals, vitamins, culinary, foodProperties, health, sugarProfile, processing, behavior, dietFlags, allergens
+    case processingStates
     case protein, fat, carbs, fiber, sugar, starch, water, calcium, iron, magnesium, phosphorus, potassium, sodium, zinc, copper, manganese, selenium
     case sweetness, acidity, bitterness, umami, aroma, texture
     case gi, gl, smokePoint
@@ -848,6 +1029,10 @@ private extension IngredientDetailContent {
         case (.processing, "pl"):      return "Efekty przetwarzania"
         case (.processing, "uk"):      return "Ефекти обробки"
         case (.processing, _):         return "Эффекты обработки"
+        case (.processingStates, "en"): return "Processing states"
+        case (.processingStates, "pl"): return "Stany przetwarzania"
+        case (.processingStates, "uk"): return "Стани обробки"
+        case (.processingStates, _):    return "Состояния обработки"
         case (.behavior, "en"):        return "Cooking behavior"
         case (.behavior, "pl"):        return "Zachowanie kulinarne"
         case (.behavior, "uk"):        return "Кулінарна поведінка"
