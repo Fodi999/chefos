@@ -31,6 +31,12 @@ final class StockViewModel: ObservableObject {
     @Published var addQuantity = ""
     @Published var addPrice = ""
     @Published var addExpiryDays = "7"
+    /// Purchase date (when the item was bought / received). Defaults to now.
+    @Published var addPurchaseDate: Date = Date()
+    /// Expiry date — recomputed from `addPurchaseDate + addExpiryDays` when the
+    /// user taps a preset chip or changes the day field; can also be picked
+    /// directly via a `DatePicker`.
+    @Published var addExpiryDate: Date = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
     @Published var isSaving = false
 
     // MARK: - Filters
@@ -316,19 +322,27 @@ final class StockViewModel: ObservableObject {
         guard let qty = Double(addQuantity), qty > 0 else { return }
         let price = Double(addPrice.replacingOccurrences(of: ",", with: ".")) ?? 0
         let priceCents = Int(price * 100)
-        let days = Int(addExpiryDays) ?? 7
+
+        // Guard against inverted dates: if the user picked an expiry that is
+        // earlier than the purchase date, clamp it to purchase + 1 day so the
+        // backend receives a valid interval.
+        let purchase = addPurchaseDate
+        let expiry: Date = {
+            if addExpiryDate > purchase { return addExpiryDate }
+            return Calendar.current.date(byAdding: .day, value: 1, to: purchase) ?? purchase
+        }()
 
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let now = formatter.string(from: Date())
-        let expiry = formatter.string(from: Date().addingTimeInterval(Double(days) * 86400))
+        let receivedAt = formatter.string(from: purchase)
+        let expiresAt  = formatter.string(from: expiry)
 
         let request = APIClient.AddInventoryRequest(
             catalogIngredientId: ingredient.id,
             pricePerUnitCents: priceCents,
             quantity: qty,
-            receivedAt: now,
-            expiresAt: expiry
+            receivedAt: receivedAt,
+            expiresAt: expiresAt
         )
 
         isSaving = true
@@ -344,6 +358,41 @@ final class StockViewModel: ObservableObject {
             self.error = error.localizedDescription
         }
         isSaving = false
+    }
+
+    // MARK: - Add-form helpers
+
+    /// Called by the view right after the user picks an ingredient from the
+    /// catalog list. Sets sane defaults for quantity, purchase/expiry dates
+    /// from `defaultShelfLifeDays`, and pre-fills the shelf-life text field.
+    func primeAddForm(for ingredient: APIClient.CatalogIngredientDTO) {
+        let days = ingredient.defaultShelfLifeDays ?? 7
+        selectedIngredient = ingredient
+        addQuantity = "1"
+        addPrice = ""
+        addExpiryDays = "\(days)"
+        addPurchaseDate = Date()
+        addExpiryDate = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
+    }
+
+    /// Keep `addExpiryDate` in sync when the user types a number into the
+    /// shelf-life field.
+    func syncExpiryFromDays() {
+        guard let d = Int(addExpiryDays), d >= 0 else { return }
+        addExpiryDate = Calendar.current.date(byAdding: .day, value: d, to: addPurchaseDate) ?? addPurchaseDate
+    }
+
+    /// Keep `addExpiryDays` text in sync when the user picks a date directly.
+    func syncDaysFromExpiry() {
+        let d = Calendar.current.dateComponents([.day], from: addPurchaseDate, to: addExpiryDate).day ?? 0
+        addExpiryDays = "\(max(d, 0))"
+    }
+
+    /// Quick chips (+3 / +7 / +14 / +30) — bump the expiry date relative to the
+    /// purchase date, and mirror the day count in the text field.
+    func setShelfLifeDays(_ days: Int) {
+        addExpiryDays = "\(days)"
+        addExpiryDate = Calendar.current.date(byAdding: .day, value: days, to: addPurchaseDate) ?? addPurchaseDate
     }
 
     // MARK: - Delete Product
@@ -376,6 +425,8 @@ final class StockViewModel: ObservableObject {
         addQuantity = ""
         addPrice = ""
         addExpiryDays = "7"
+        addPurchaseDate = Date()
+        addExpiryDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
         catalogSearch = ""
         catalogIngredients = []
         selectedCategoryId = nil

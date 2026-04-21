@@ -160,9 +160,7 @@ struct CatalogSearchSheet: View {
     private func ingredientRow(_ ingredient: APIClient.CatalogIngredientDTO) -> some View {
         Button {
             withAnimation(.snappy(duration: 0.3)) {
-                vm.selectedIngredient = ingredient
-                vm.addQuantity = "1"
-                vm.addExpiryDays = "\(ingredient.defaultShelfLifeDays ?? 7)"
+                vm.primeAddForm(for: ingredient)
             }
         } label: {
             HStack(spacing: 12) {
@@ -306,7 +304,61 @@ struct CatalogSearchSheet: View {
 
                     formField(title: l10n.t("recipes.quantity"), text: $vm.addQuantity, icon: "number", keyboard: .decimalPad, suffix: ingredient.defaultUnit)
                     formField(title: l10n.t("recipes.price"), text: $vm.addPrice, icon: "banknote", keyboard: .decimalPad, suffix: currencySymbol)
-                    formField(title: l10n.t("recipes.expiryDays"), text: $vm.addExpiryDays, icon: "calendar", keyboard: .numberPad, suffix: l10n.t("recipes.days"))
+
+                    // Purchase date — native picker
+                    dateField(
+                        title: l10n.t("recipes.purchaseDate"),
+                        icon: "calendar",
+                        date: $vm.addPurchaseDate,
+                        range: ...Date()
+                    )
+                    .onChange(of: vm.addPurchaseDate) { _, _ in
+                        // Keep days count coherent when the user moves the
+                        // purchase date — re-anchor expiry off the new date.
+                        vm.syncExpiryFromDays()
+                    }
+
+                    // Expiry date — native picker + quick chips
+                    dateField(
+                        title: l10n.t("recipes.expiryDate"),
+                        icon: "calendar.badge.exclamationmark",
+                        date: $vm.addExpiryDate,
+                        range: vm.addPurchaseDate...
+                    )
+                    .onChange(of: vm.addExpiryDate) { _, _ in
+                        vm.syncDaysFromExpiry()
+                    }
+
+                    // Shelf-life quick chips + numeric input
+                    HStack(spacing: 10) {
+                        Image(systemName: "clock")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24)
+                        Text(l10n.t("recipes.shelfLife"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        TextField("7", text: $vm.addExpiryDays)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .font(.subheadline.weight(.semibold))
+                            .frame(width: 50)
+                            .onChange(of: vm.addExpiryDays) { _, _ in
+                                vm.syncExpiryFromDays()
+                            }
+                        Text(l10n.t("recipes.days"))
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 44, alignment: .leading)
+                    }
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach([1, 3, 7, 14, 30, 90], id: \.self) { d in
+                                shelfChip(days: d)
+                            }
+                        }
+                    }
                 }
                 .padding(16)
                 .productCard(cornerRadius: 16)
@@ -369,5 +421,83 @@ struct CatalogSearchSheet: View {
                     .frame(width: 44, alignment: .leading)
             }
         }
+    }
+
+    // MARK: - Date field (native DatePicker aligned with formField look)
+
+    @ViewBuilder
+    private func dateField(
+        title: String,
+        icon: String,
+        date: Binding<Date>,
+        range: PartialRangeThrough<Date>
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            DatePicker(
+                "",
+                selection: date,
+                in: range,
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+        }
+    }
+
+    @ViewBuilder
+    private func dateField(
+        title: String,
+        icon: String,
+        date: Binding<Date>,
+        range: PartialRangeFrom<Date>
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            DatePicker(
+                "",
+                selection: date,
+                in: range,
+                displayedComponents: .date
+            )
+            .labelsHidden()
+            .datePickerStyle(.compact)
+        }
+    }
+
+    // MARK: - Shelf-life quick chip
+
+    private func shelfChip(days: Int) -> some View {
+        let isActive = (Int(vm.addExpiryDays) ?? -1) == days
+        return Button {
+            vm.setShelfLifeDays(days)
+        } label: {
+            Text("+\(days) \(l10n.t("recipes.days"))")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(isActive ? .white : .secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background {
+                    if isActive {
+                        Capsule().fill(Color.green.opacity(0.7))
+                    } else {
+                        Capsule().fill(AppColors.surfaceRaised)
+                    }
+                }
+                .overlay(Capsule().stroke(Color.white.opacity(isActive ? 0 : 0.06), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
