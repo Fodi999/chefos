@@ -156,7 +156,9 @@ final class ChatViewModel: ObservableObject {
             let name = recipe.displayName ?? recipe.dishNameLocal ?? recipe.dishName
             NotificationCenter.default.post(name: .chatDidAddRecipeToPlan, object: recipe)
             // Step 3: record the add in chat context so the next turn knows.
-            recordAddedRecipe(name)
+            // IMPORTANT: use `slug` (stable canonical id), NOT `name` —
+            // localized/LLM-rephrased names are unstable across turns.
+            recordAddedRecipe(recipe.slug)
             appendConfirmation(
                 icon: "checkmark.circle.fill",
                 title: l10n.t("chat.action.added.title"),

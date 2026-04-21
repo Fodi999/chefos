@@ -749,6 +749,11 @@ final class APIClient {
     }
 
     struct BackendRecipeCard: Decodable {
+        /// Stable identifier — slugified canonical English `dish_name`.
+        /// Use this (not displayName / dishNameLocal) for state tracking
+        /// like `addedRecipes`, because localized/AI-rephrased names are
+        /// unstable across turns.
+        let slug: String
         let dishName: String
         let dishNameLocal: String?
         let displayName: String?
