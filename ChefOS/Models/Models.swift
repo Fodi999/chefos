@@ -307,6 +307,11 @@ enum ChatCardType {
     case goal(goal: String, focus: String)
     case dailyTargets(kcal: Int, protein: Int)
     case restrictions(items: [String])
+    // Backend response cards
+    case product(APIClient.BackendProductCard)
+    case nutrition(APIClient.BackendNutritionCard)
+    case conversion(APIClient.BackendConversionCard)
+    case recipe(APIClient.BackendRecipeCard)
 }
 
 enum MessageContent {

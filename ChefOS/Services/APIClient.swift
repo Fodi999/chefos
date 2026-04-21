@@ -594,7 +594,7 @@ final class APIClient {
         }
     }
 
-    struct ChatApiResponse: Codable {
+    struct ChatApiResponse: Decodable {
         let text: String
         let intent: String?
         let intents: [String]?
@@ -602,7 +602,7 @@ final class APIClient {
         let suggestions: [ChatSuggestion]?
         let chefTip: String?
         let coachMessage: String?
-        let cards: [ChatCard]?
+        let cards: [BackendCard]?
         let lang: String?
         let timingMs: Int?
         let context: ChatContext?
@@ -614,17 +614,100 @@ final class APIClient {
         let emoji: String?
     }
 
-    struct ChatCard: Codable {
-        let type: String?
-        let slug: String?
-        let name: String?
+    // MARK: - Typed Backend Cards
+
+    struct BackendProductCard: Decodable {
+        let slug: String
+        let name: String
+        let caloriesPer100g: Double
+        let proteinPer100g: Double
+        let fatPer100g: Double
+        let carbsPer100g: Double
         let imageUrl: String?
         let highlight: String?
         let reasonTag: String?
-        let caloriesPer100g: Double?
-        let proteinPer100g: Double?
-        let carbsPer100g: Double?
-        let fatPer100g: Double?
+    }
+
+    struct BackendNutritionCard: Decodable {
+        let name: String
+        let caloriesPer100g: Double
+        let proteinPer100g: Double
+        let fatPer100g: Double
+        let carbsPer100g: Double
+        let imageUrl: String?
+    }
+
+    struct BackendConversionCard: Decodable {
+        let value: Double
+        let from: String
+        let to: String
+        let result: Double
+        let supported: Bool
+    }
+
+    struct BackendRecipeIngredient: Decodable {
+        let name: String
+        let slug: String?
+        let state: String
+        let role: String
+        let grossG: Double
+        let netG: Double
+        let kcal: Int
+        let proteinG: Double
+        let fatG: Double
+        let carbsG: Double
+    }
+
+    struct BackendRecipeStep: Decodable {
+        let step: Int
+        let text: String
+        let timeMin: Int?
+        let tempC: Int?
+        let tip: String?
+    }
+
+    struct BackendRecipeCard: Decodable {
+        let dishName: String
+        let dishNameLocal: String?
+        let displayName: String?
+        let dishType: String?
+        let servings: Int
+        let ingredients: [BackendRecipeIngredient]
+        let steps: [BackendRecipeStep]
+        let totalKcal: Int
+        let perServingKcal: Int
+        let perServingProtein: Double
+        let perServingFat: Double
+        let perServingCarbs: Double
+        let complexity: String
+        let goal: String
+        let allergens: [String]
+        let tags: [String]
+        let appliedConstraints: [String]
+    }
+
+    /// Tagged-union card from the backend `cards[]` array.
+    /// Decoded based on the `"type"` discriminator field.
+    enum BackendCard: Decodable {
+        case product(BackendProductCard)
+        case nutrition(BackendNutritionCard)
+        case conversion(BackendConversionCard)
+        case recipe(BackendRecipeCard)
+        case unknown
+
+        private enum TypeKey: CodingKey { case type }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: TypeKey.self)
+            let type_ = try container.decodeIfPresent(String.self, forKey: .type) ?? "unknown"
+            switch type_ {
+            case "product":    self = .product(try BackendProductCard(from: decoder))
+            case "nutrition":  self = .nutrition(try BackendNutritionCard(from: decoder))
+            case "conversion": self = .conversion(try BackendConversionCard(from: decoder))
+            case "recipe":     self = .recipe(try BackendRecipeCard(from: decoder))
+            default:           self = .unknown
+            }
+        }
     }
 
     func sendChat(input: String, context: ChatContext?, userId: String? = nil) async throws -> ChatApiResponse {

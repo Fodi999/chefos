@@ -159,20 +159,48 @@ final class ChatViewModel: ObservableObject {
                     self.isThinking = false
                 }
 
+                // ── 1. Text reply ────────────────────────────────────────
+                // Always show main text. Append chef_tip / coach_message only
+                // when there are no rich cards (LLM fallback / Unknown intent).
+                let hasCards = !(response.cards ?? []).isEmpty
                 var responseText = response.text
+                if !hasCards {
+                    if let tip = response.chefTip, !tip.isEmpty {
+                        responseText += "\n\n🍳 \(tip)"
+                    }
+                    if let coach = response.coachMessage, !coach.isEmpty {
+                        responseText += "\n\n💬 \(coach)"
+                    }
+                    if let reason = response.reason, !reason.isEmpty {
+                        responseText += "\n\n💡 \(reason)"
+                    }
+                }
 
-                if let tip = response.chefTip {
-                    responseText += "\n\n\(tip)"
-                }
-                if let coach = response.coachMessage {
-                    responseText += "\n\n\(coach)"
-                }
-                if let reason = response.reason {
-                    responseText += "\n\n💡 \(reason)"
+                if !responseText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    withAnimation(.snappy(duration: 0.35)) {
+                        self.messages.append(Message(content: .text(responseText), isFromUser: false))
+                    }
                 }
 
-                withAnimation(.snappy(duration: 0.35)) {
-                    self.messages.append(Message(content: .text(responseText), isFromUser: false))
+                // ── 2. Rich cards (staggered) ────────────────────────────
+                if let cards = response.cards, !cards.isEmpty {
+                    for (i, card) in cards.enumerated() {
+                        let delay: UInt64 = UInt64(i) * 200_000_000
+                        if delay > 0 { try await Task.sleep(nanoseconds: delay) }
+                        let cardType: ChatCardType = {
+                            switch card {
+                            case .product(let p):    return .product(p)
+                            case .nutrition(let n):  return .nutrition(n)
+                            case .conversion(let c): return .conversion(c)
+                            case .recipe(let r):     return .recipe(r)
+                            case .unknown:           return .none
+                            }
+                        }()
+                        if case .none = cardType { continue }
+                        withAnimation(.snappy(duration: 0.35)) {
+                            self.messages.append(Message(content: .text(""), isFromUser: false, cardType: cardType))
+                        }
+                    }
                 }
 
                 if let suggs = response.suggestions, !suggs.isEmpty {
