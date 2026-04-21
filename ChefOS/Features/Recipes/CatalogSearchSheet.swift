@@ -11,6 +11,9 @@ struct CatalogSearchSheet: View {
     @EnvironmentObject var regionService: RegionService
     @Environment(\.dismiss) private var dismiss
 
+    /// Ingredient whose Wikipedia-style detail is currently being shown.
+    @State private var detailIngredient: APIClient.CatalogIngredientDTO?
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -80,6 +83,14 @@ struct CatalogSearchSheet: View {
                     await vm.searchIngredients()
                 }
             }
+        }
+        .sheet(item: $detailIngredient) { ing in
+            IngredientDetailSheet(
+                slug: ing.id,                 // backend accepts UUID or slug
+                fallbackName: ing.name,
+                fallbackImageUrl: ing.imageUrl
+            )
+            .environmentObject(l10n)
         }
     }
 
@@ -191,6 +202,17 @@ struct CatalogSearchSheet: View {
                 }
 
                 Spacer()
+
+                // "Show full data" — opens Wikipedia-style detail sheet.
+                Button {
+                    detailIngredient = ingredient
+                } label: {
+                    Image(systemName: "info.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 4)
 
                 Image(systemName: "plus.circle.fill")
                     .font(.title3)
