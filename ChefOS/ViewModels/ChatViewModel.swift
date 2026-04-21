@@ -159,6 +159,10 @@ final class ChatViewModel: ObservableObject {
             // IMPORTANT: use `slug` (stable canonical id), NOT `name` —
             // localized/LLM-rephrased names are unstable across turns.
             recordAddedRecipe(recipe.slug)
+            // Step 4: telemetry
+            api.sendChatEvent(.actionClicked, userId: userId,
+                cardType: "recipe", cardSlug: recipe.slug,
+                actionType: "add_to_plan", lang: chatContext.lastLang)
             appendConfirmation(
                 icon: "checkmark.circle.fill",
                 title: l10n.t("chat.action.added.title"),
@@ -169,6 +173,9 @@ final class ChatViewModel: ObservableObject {
         case .startCooking(let recipe):
             let name = recipe.displayName ?? recipe.dishNameLocal ?? recipe.dishName
             NotificationCenter.default.post(name: .chatDidRequestCooking, object: recipe)
+            api.sendChatEvent(.actionClicked, userId: userId,
+                cardType: "recipe", cardSlug: recipe.slug,
+                actionType: "start_cooking", lang: chatContext.lastLang)
             appendConfirmation(
                 icon: "flame.fill",
                 title: l10n.t("chat.action.cooking.title"),
@@ -179,6 +186,9 @@ final class ChatViewModel: ObservableObject {
         case .swapIngredient(let recipe, let ingredient):
             // Trigger a new chat turn — user wants an alternative
             let name = recipe.displayName ?? recipe.dishName
+            api.sendChatEvent(.actionClicked, userId: userId,
+                cardType: "recipe", cardSlug: recipe.slug,
+                actionType: "swap_ingredient", lang: chatContext.lastLang)
             let query = l10n.t("chat.action.swap.query")
                 .replacingOccurrences(of: "{ingredient}", with: ingredient)
                 .replacingOccurrences(of: "{recipe}", with: name)
@@ -188,6 +198,9 @@ final class ChatViewModel: ObservableObject {
             NotificationCenter.default.post(name: .chatDidAddToShoppingList, object: product)
             // Step 3: record the add so backend stops re-suggesting it.
             recordAddedProduct(product.slug)
+            api.sendChatEvent(.actionClicked, userId: userId,
+                cardType: "product", cardSlug: product.slug,
+                actionType: "add_to_shopping", lang: chatContext.lastLang)
             appendConfirmation(
                 icon: "cart.fill.badge.plus",
                 title: l10n.t("chat.action.shopping.title"),
@@ -196,6 +209,9 @@ final class ChatViewModel: ObservableObject {
             )
 
         case .showRecipesFor(let product):
+            api.sendChatEvent(.actionClicked, userId: userId,
+                cardType: "product", cardSlug: product.slug,
+                actionType: "show_recipes_for", lang: chatContext.lastLang)
             let query = l10n.t("chat.action.showRecipes.query")
                 .replacingOccurrences(of: "{product}", with: product.name)
             sendSuggestion(query)
@@ -246,6 +262,14 @@ final class ChatViewModel: ObservableObject {
         if chatContext.lastLang == nil || chatContext.lastLang?.isEmpty == true {
             chatContext.lastLang = l10n.language
         }
+
+        // Step 4: telemetry — record user query before we send it.
+        api.sendChatEvent(
+            .querySent,
+            userId: userId,
+            query: input,
+            lang: chatContext.lastLang
+        )
 
         Task { @MainActor in
             do {

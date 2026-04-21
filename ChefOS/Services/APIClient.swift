@@ -889,6 +889,73 @@ final class APIClient {
         }
     }
 
+    // MARK: - Chat Telemetry (Step 4)
+
+    /// Event types accepted by `POST /public/chat/event`. Must match the
+    /// backend whitelist in `chat_event_handler`. Wrong strings are
+    /// rejected with 400 — enum forces compile-time correctness.
+    enum ChatEventType: String, Encodable {
+        case querySent          = "query_sent"
+        case cardShown          = "card_shown"
+        case cardDismissed      = "card_dismissed"
+        case actionClicked      = "action_clicked"
+        case suggestionClicked  = "suggestion_clicked"
+    }
+
+    struct ChatEventRequest: Encodable {
+        let userId: String?
+        let eventType: ChatEventType
+        let sessionId: String?
+        let cardType: String?
+        let cardSlug: String?
+        let actionType: String?
+        let intent: String?
+        let query: String?
+        let lang: String?
+    }
+
+    /// Fire-and-forget telemetry — never throws to the UI. Logs on failure.
+    /// Accepts 202 (normal) and 200; any other status is silently dropped.
+    func sendChatEvent(
+        _ eventType: ChatEventType,
+        userId: String? = nil,
+        sessionId: String? = nil,
+        cardType: String? = nil,
+        cardSlug: String? = nil,
+        actionType: String? = nil,
+        intent: String? = nil,
+        query: String? = nil,
+        lang: String? = nil
+    ) {
+        let body = ChatEventRequest(
+            userId: userId,
+            eventType: eventType,
+            sessionId: sessionId,
+            cardType: cardType,
+            cardSlug: cardSlug,
+            actionType: actionType,
+            intent: intent,
+            query: query,
+            lang: lang
+        )
+
+        // Decouple from caller: always detached task, never blocking UI.
+        Task.detached { [session, encoder, baseURL] in
+            let url = URL(string: baseURL.replacingOccurrences(of: "/api", with: "") + "/public/chat/event")!
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            do {
+                request.httpBody = try encoder.encode(body)
+                _ = try await session.data(for: request)
+            } catch {
+                #if DEBUG
+                print("⚠️ [chat/event] \(eventType.rawValue) dropped: \(error.localizedDescription)")
+                #endif
+            }
+        }
+    }
+
     private static func describe(_ err: DecodingError) -> String {
         switch err {
         case .typeMismatch(let t, let ctx):
