@@ -242,6 +242,8 @@ struct OnboardingView: View {
 
                 authTextField(icon: "lock.fill", placeholder: l10n.t("onboarding.password"), text: $password, isSecure: true)
                     .focused($focusedField, equals: .password)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     .submitLabel(.go)
 
                 if !isLoginMode {
@@ -273,10 +275,13 @@ struct OnboardingView: View {
             // Submit button
             Button {
                 Task {
+                    let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+
                     if isLoginMode {
-                        await authService.loginWithBackend(email: email, password: password)
+                        await authService.loginWithBackend(email: trimmedEmail, password: trimmedPassword)
                     } else {
-                        await authService.registerWithBackend(email: email, password: password, name: name)
+                        await authService.registerWithBackend(email: trimmedEmail, password: trimmedPassword, name: name.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
 
                     if authService.hasRealSession {

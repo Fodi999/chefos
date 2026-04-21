@@ -120,6 +120,30 @@ final class AuthService: ObservableObject {
            let refresh = readKeychain(refreshTokenKey) {
             APIClient.shared.setTokens(access: access, refresh: refresh)
         }
+        // Persist refreshed tokens to keychain so they survive app restarts
+        let atKey = accessTokenKey
+        let rtKey = refreshTokenKey
+        APIClient.shared.onTokensRefreshed = { [weak self] newAccess, newRefresh in
+            self?.saveKeychain(atKey, value: newAccess)
+            self?.saveKeychain(rtKey, value: newRefresh)
+        }
+        // Auto-logout when refresh token is also expired
+        APIClient.shared.onSessionExpired = { [weak self] in
+            self?.logout()
+        }
+    }
+
+    /// Proactively refresh the access token at app launch
+    func refreshIfNeeded() {
+        guard hasRealSession else { return }
+        Task {
+            do {
+                try await APIClient.shared.refreshAccessToken()
+            } catch {
+                // Refresh failed → session is dead, kick to login
+                await MainActor.run { logout() }
+            }
+        }
     }
 
     // MARK: - Backend Auth
@@ -201,6 +225,7 @@ final class AuthService: ObservableObject {
                 self?.isLoading = false
                 if success {
                     self?.restoreSession()
+                    self?.refreshIfNeeded()
                     withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                         self?.state = .authenticated
                         self?.isAuthenticated = true
@@ -226,6 +251,7 @@ final class AuthService: ObservableObject {
             state = .locked
         } else {
             restoreSession()
+            refreshIfNeeded()
             state = .authenticated
             isAuthenticated = true
         }

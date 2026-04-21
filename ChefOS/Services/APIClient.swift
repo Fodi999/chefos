@@ -17,6 +17,12 @@ final class APIClient {
     private var accessToken: String?
     private var refreshToken: String?
 
+    /// Called after a successful token refresh so the caller can persist new tokens
+    var onTokensRefreshed: ((_ access: String, _ refresh: String) -> Void)?
+
+    /// Called when refresh fails and user must re-authenticate
+    var onSessionExpired: (() -> Void)?
+
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
@@ -90,6 +96,7 @@ final class APIClient {
         let body = ["refresh_token": refresh]
         let response: AuthResponse = try await post("/auth/refresh", body: body, authenticated: false)
         setTokens(access: response.accessToken, refresh: response.refreshToken)
+        onTokensRefreshed?(response.accessToken, response.refreshToken)
     }
 
     // MARK: - Usage Endpoints
@@ -646,7 +653,15 @@ final class APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try encoder.encode(body)
+        let data = try encoder.encode(body)
+        request.httpBody = data
+        
+        #if DEBUG
+        if let json = String(data: data, encoding: .utf8) {
+            print("🚀 API POST [\(path)]: \(json)")
+        }
+        #endif
+        
         if authenticated { try attachAuth(&request) }
         return try await execute(request)
     }
@@ -698,14 +713,19 @@ final class APIClient {
         case 200...299:
             return try decoder.decode(T.self, from: data)
         case 401:
-            // Try refresh once
-            if request.value(forHTTPHeaderField: "X-Retry") == nil {
+            // Only try refresh if the request was originally authenticated
+            if request.value(forHTTPHeaderField: "Authorization") != nil,
+               request.value(forHTTPHeaderField: "X-Retry") == nil {
                 try await refreshAccessToken()
                 var retryRequest = request
                 retryRequest.setValue("true", forHTTPHeaderField: "X-Retry")
                 try attachAuth(&retryRequest)
                 return try await execute(retryRequest)
             }
+            if request.url?.path.contains("/auth/login") == true {
+                throw APIError.validation("Invalid email or password")
+            }
+            await MainActor.run { onSessionExpired?() }
             throw APIError.unauthorized
         case 400, 422:
             // Try JSON first, then fall back to plain text
@@ -743,6 +763,7 @@ final class APIClient {
                 try await executeVoid(retryRequest)
                 return
             }
+            await MainActor.run { onSessionExpired?() }
             throw APIError.unauthorized
         default:
             if let errorBody = try? decoder.decode(APIErrorResponse.self, from: data) {
