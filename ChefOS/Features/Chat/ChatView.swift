@@ -381,33 +381,52 @@ struct ProductBotCard: View {
     let card: APIClient.BackendProductCard
     var onAction: ((ChatAction) -> Void)? = nil
     @EnvironmentObject var l10n: LocalizationService
+    @State private var showingDetail = false
 
     var body: some View {
         ChatCard {
             chatCardHeader(icon: "leaf.fill", label: card.highlight ?? "Product", accent: SemanticColors.nutrient(.protein))
             HealthDivider()
 
-            // Hero image — full width, tall
-            ZStack {
-                if let url = card.imageUrl, let u = URL(string: url) {
-                    AsyncImage(url: u) { phase in
-                        if let img = phase.image {
-                            img.resizable().scaledToFill()
-                        } else if phase.error != nil {
-                            productPlaceholderLarge
-                        } else {
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(AppColors.textSecondary.opacity(0.06))
+            // Hero image — full width, tall. Tapping opens the rich detail sheet.
+            ZStack(alignment: .topTrailing) {
+                ZStack {
+                    if let url = card.imageUrl, let u = URL(string: url) {
+                        AsyncImage(url: u) { phase in
+                            if let img = phase.image {
+                                img.resizable().scaledToFill()
+                            } else if phase.error != nil {
+                                productPlaceholderLarge
+                            } else {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background(AppColors.textSecondary.opacity(0.06))
+                            }
                         }
+                    } else {
+                        productPlaceholderLarge
                     }
-                } else {
-                    productPlaceholderLarge
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+                .clipped()
+                .contentShape(Rectangle())
+                .onTapGesture { showingDetail = true }
+
+                // Floating "info" hint
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle.fill")
+                    Text(l10n.t("chat.action.moreInfo"))
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.5))
+                .padding(10)
+                .allowsHitTesting(false)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 180)
-            .clipped()
 
             VStack(alignment: .leading, spacing: 10) {
                 Text(card.name)
@@ -464,10 +483,21 @@ struct ProductBotCard: View {
                     ) {
                         onAction?(.addProductToInventory(card))
                     }
+                    ChatActionButton(
+                        title: l10n.t("chat.action.moreInfo"),
+                        icon: "info.circle",
+                        style: .secondary
+                    ) {
+                        showingDetail = true
+                    }
                 }
                 .padding(.horizontal, Spacing.sm)
                 .padding(.bottom, 10)
             }
+        }
+        .sheet(isPresented: $showingDetail) {
+            IngredientDetailSheet(slug: card.slug, fallbackName: card.name, fallbackImageUrl: card.imageUrl)
+                .environmentObject(l10n)
         }
     }
 

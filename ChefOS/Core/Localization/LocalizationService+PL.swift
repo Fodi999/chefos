@@ -137,6 +137,7 @@ extension LocalizationService {
         "chat.action.swap":           "Zamień",
         "chat.action.addToCart":      "Do koszyka",
         "chat.action.addToInventory": "Do zapasów",
+        "chat.action.moreInfo":       "Szczegóły",
         "chat.action.showRecipes":    "Przepisy",
         "chat.action.steps":          "kroków",
         "chat.action.added.title":    "Dodano do dzisiejszego planu",

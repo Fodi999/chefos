@@ -137,6 +137,7 @@ extension LocalizationService {
         "chat.action.swap":           "Замінити",
         "chat.action.addToCart":      "До кошика",
         "chat.action.addToInventory": "У запаси",
+        "chat.action.moreInfo":       "Детальніше",
         "chat.action.showRecipes":    "Рецепти",
         "chat.action.steps":          "кроків",
         "chat.action.added.title":    "Додано в план на сьогодні",

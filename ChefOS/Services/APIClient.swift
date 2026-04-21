@@ -323,6 +323,224 @@ final class APIClient {
         }
     }
 
+    // ───────────────────────────────────────────────────────────────────
+    // Rich Wikipedia-style ingredient detail — /public/catalog/ingredients/:slug
+    // Mirrors the Rust `NutritionProductDetail`. All fields are optional
+    // because admin-filled tables may be sparse. `.convertFromSnakeCase` on
+    // the shared decoder maps:
+    //   protein_g        → proteinG
+    //   vitamin_b12      → vitaminB12
+    //   glycemic_index   → glycemicIndex
+    //   best_cooking_method_ru → bestCookingMethodRu
+    // so we can use plain Codable without explicit CodingKeys here.
+    // ───────────────────────────────────────────────────────────────────
+    struct IngredientDetailDTO: Decodable {
+        let id: String
+        let slug: String
+        let nameEn: String?
+        let nameRu: String?
+        let namePl: String?
+        let nameUk: String?
+        let productType: String?
+        let unit: String?
+        let imageUrl: String?
+        let descriptionEn: String?
+        let descriptionRu: String?
+        let descriptionPl: String?
+        let descriptionUk: String?
+        let densityGPerMl: Double?
+        let typicalPortionG: Double?
+        let edibleYieldPercent: Double?
+        let shelfLifeDays: Int?
+        let wildFarmed: String?
+        let waterType: String?
+        let sushiGrade: Bool?
+        let substitutionGroup: String?
+        let availabilityMonths: [Bool]?
+
+        let macros: Macros?
+        let vitamins: Vitamins?
+        let minerals: Minerals?
+        let fattyAcids: FattyAcids?
+        let dietFlags: DietFlags?
+        let allergens: Allergens?
+        let foodProperties: FoodProperties?
+        let culinary: Culinary?
+        let culinaryBehavior: CulinaryBehavior?
+        let healthProfile: HealthProfile?
+        let sugarProfile: SugarProfile?
+        let processingEffects: ProcessingEffects?
+
+        struct Macros: Decodable {
+            let caloriesKcal: Double?
+            let proteinG: Double?
+            let fatG: Double?
+            let carbsG: Double?
+            let fiberG: Double?
+            let sugarG: Double?
+            let starchG: Double?
+            let waterG: Double?
+            let alcoholG: Double?
+        }
+        struct Vitamins: Decodable {
+            let vitaminA: Double?
+            let vitaminC: Double?
+            let vitaminD: Double?
+            let vitaminE: Double?
+            let vitaminK: Double?
+            let vitaminB1: Double?
+            let vitaminB2: Double?
+            let vitaminB3: Double?
+            let vitaminB5: Double?
+            let vitaminB6: Double?
+            let vitaminB7: Double?
+            let vitaminB9: Double?
+            let vitaminB12: Double?
+        }
+        struct Minerals: Decodable {
+            let calcium: Double?
+            let iron: Double?
+            let magnesium: Double?
+            let phosphorus: Double?
+            let potassium: Double?
+            let sodium: Double?
+            let zinc: Double?
+            let copper: Double?
+            let manganese: Double?
+            let selenium: Double?
+        }
+        struct FattyAcids: Decodable {
+            let saturatedFat: Double?
+            let monounsaturatedFat: Double?
+            let polyunsaturatedFat: Double?
+            let omega3: Double?
+            let omega6: Double?
+            let epa: Double?
+            let dha: Double?
+        }
+        struct DietFlags: Decodable {
+            let vegan: Bool?
+            let vegetarian: Bool?
+            let keto: Bool?
+            let paleo: Bool?
+            let glutenFree: Bool?
+            let mediterranean: Bool?
+            let lowCarb: Bool?
+        }
+        struct Allergens: Decodable {
+            let milk: Bool?
+            let fish: Bool?
+            let shellfish: Bool?
+            let nuts: Bool?
+            let soy: Bool?
+            let gluten: Bool?
+            let eggs: Bool?
+            let peanuts: Bool?
+            let sesame: Bool?
+            let celery: Bool?
+            let mustard: Bool?
+            let sulfites: Bool?
+            let lupin: Bool?
+            let molluscs: Bool?
+        }
+        struct FoodProperties: Decodable {
+            let glycemicIndex: Double?
+            let glycemicLoad: Double?
+            let ph: Double?
+            let smokePoint: Double?
+            let waterActivity: Double?
+        }
+        struct Culinary: Decodable {
+            let sweetness: Double?
+            let acidity: Double?
+            let bitterness: Double?
+            let umami: Double?
+            let aroma: Double?
+            let texture: String?
+        }
+        struct CulinaryBehavior: Decodable {
+            let behaviors: [CookingBehavior]
+        }
+        struct CookingBehavior: Decodable, Identifiable {
+            var id: String { key }
+            let key: String
+            let type: String
+            let effect: String?
+            let trigger: String?
+            let intensity: Double?
+            let tempThreshold: Double?
+            let targets: [String]?
+            let polarity: String?
+            let domain: String?
+            let pairingScore: Double?
+        }
+        struct HealthProfile: Decodable {
+            let bioactiveCompoundsEn: [String]?
+            let bioactiveCompoundsRu: [String]?
+            let bioactiveCompoundsPl: [String]?
+            let bioactiveCompoundsUk: [String]?
+            let healthEffectsEn: [String]?
+            let healthEffectsRu: [String]?
+            let healthEffectsPl: [String]?
+            let healthEffectsUk: [String]?
+            let contraindicationsEn: [String]?
+            let contraindicationsRu: [String]?
+            let contraindicationsPl: [String]?
+            let contraindicationsUk: [String]?
+            let foodRole: String?
+            let oracScore: Double?
+            let absorptionNotesEn: String?
+            let absorptionNotesRu: String?
+            let absorptionNotesPl: String?
+            let absorptionNotesUk: String?
+        }
+        struct SugarProfile: Decodable {
+            let glucose: Double?
+            let fructose: Double?
+            let sucrose: Double?
+            let lactose: Double?
+            let maltose: Double?
+            let totalSugars: Double?
+            let addedSugars: Double?
+            let sweetnessPerception: Double?
+            let sugarAlcohols: Double?
+        }
+        struct ProcessingEffects: Decodable {
+            let vitaminRetentionPct: Double?
+            let proteinDenatureTemp: Double?
+            let mineralLeachingRisk: String?
+            let bestCookingMethodEn: String?
+            let bestCookingMethodRu: String?
+            let bestCookingMethodPl: String?
+            let bestCookingMethodUk: String?
+            let maillardTemp: Double?
+            let processingNotesEn: String?
+            let processingNotesRu: String?
+            let processingNotesPl: String?
+            let processingNotesUk: String?
+        }
+
+        /// Best localized name for the current language.
+        func localizedName(_ lang: String) -> String {
+            switch lang {
+            case "en": return nameEn ?? nameRu ?? slug
+            case "pl": return namePl ?? nameEn ?? slug
+            case "uk": return nameUk ?? nameRu ?? slug
+            default:   return nameRu ?? nameEn ?? slug
+            }
+        }
+
+        /// Best localized description.
+        func localizedDescription(_ lang: String) -> String? {
+            switch lang {
+            case "en": return descriptionEn ?? descriptionRu
+            case "pl": return descriptionPl ?? descriptionEn
+            case "uk": return descriptionUk ?? descriptionRu
+            default:   return descriptionRu ?? descriptionEn
+            }
+        }
+    }
+
     struct CatalogIngredientsResponse: Codable {
         let ingredients: [CatalogIngredientDTO]
     }
@@ -343,6 +561,13 @@ final class APIClient {
         }
         let response: CatalogIngredientsResponse = try await publicGet(path)
         return response.ingredients
+    }
+
+    /// Full Wikipedia-style nutrition detail for a single ingredient (by slug).
+    /// Backed by `GET /public/catalog/ingredients/:slug` — no auth required.
+    func getIngredientDetail(slug: String) async throws -> IngredientDetailDTO {
+        let encoded = slug.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? slug
+        return try await publicGet("/catalog/ingredients/\(encoded)")
     }
 
     /// Best-effort UI language for public endpoints that take `?lang=…`.
