@@ -667,6 +667,26 @@ final class APIClient {
         let highlight: String?
         let reasonTag: String?
         let actions: [BackendAction]?
+
+        private enum CodingKeys: String, CodingKey {
+            case slug, name
+            case caloriesPer100g, proteinPer100g, fatPer100g, carbsPer100g
+            case imageUrl, highlight, reasonTag, actions
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.slug = (try? c.decode(String.self, forKey: .slug)) ?? ""
+            self.name = (try? c.decode(String.self, forKey: .name)) ?? ""
+            self.caloriesPer100g = (try? c.decode(Double.self, forKey: .caloriesPer100g)) ?? 0
+            self.proteinPer100g  = (try? c.decode(Double.self, forKey: .proteinPer100g))  ?? 0
+            self.fatPer100g      = (try? c.decode(Double.self, forKey: .fatPer100g))      ?? 0
+            self.carbsPer100g    = (try? c.decode(Double.self, forKey: .carbsPer100g))    ?? 0
+            self.imageUrl   = try? c.decode(String.self, forKey: .imageUrl)
+            self.highlight  = try? c.decode(String.self, forKey: .highlight)
+            self.reasonTag  = try? c.decode(String.self, forKey: .reasonTag)
+            self.actions    = try? c.decode([BackendAction].self, forKey: .actions)
+        }
     }
 
     struct BackendNutritionCard: Decodable {
@@ -676,6 +696,20 @@ final class APIClient {
         let fatPer100g: Double
         let carbsPer100g: Double
         let imageUrl: String?
+
+        private enum CodingKeys: String, CodingKey {
+            case name, caloriesPer100g, proteinPer100g, fatPer100g, carbsPer100g, imageUrl
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.name = (try? c.decode(String.self, forKey: .name)) ?? ""
+            self.caloriesPer100g = (try? c.decode(Double.self, forKey: .caloriesPer100g)) ?? 0
+            self.proteinPer100g  = (try? c.decode(Double.self, forKey: .proteinPer100g))  ?? 0
+            self.fatPer100g      = (try? c.decode(Double.self, forKey: .fatPer100g))      ?? 0
+            self.carbsPer100g    = (try? c.decode(Double.self, forKey: .carbsPer100g))    ?? 0
+            self.imageUrl = try? c.decode(String.self, forKey: .imageUrl)
+        }
     }
 
     struct BackendConversionCard: Decodable {
@@ -742,13 +776,34 @@ final class APIClient {
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: TypeKey.self)
             let type_ = try container.decodeIfPresent(String.self, forKey: .type) ?? "unknown"
+            // Resilient: if an individual card fails to decode (schema drift,
+            // missing field, wrong type), fall back to `.unknown` so one bad
+            // card does not invalidate the whole chat response.
             switch type_ {
-            case "product":    self = .product(try BackendProductCard(from: decoder))
-            case "nutrition":  self = .nutrition(try BackendNutritionCard(from: decoder))
-            case "conversion": self = .conversion(try BackendConversionCard(from: decoder))
-            case "recipe":     self = .recipe(try BackendRecipeCard(from: decoder))
-            default:           self = .unknown
+            case "product":
+                if let p = try? BackendProductCard(from: decoder) { self = .product(p) }
+                else { Self.warn(type_, decoder); self = .unknown }
+            case "nutrition":
+                if let n = try? BackendNutritionCard(from: decoder) { self = .nutrition(n) }
+                else { Self.warn(type_, decoder); self = .unknown }
+            case "conversion":
+                if let c = try? BackendConversionCard(from: decoder) { self = .conversion(c) }
+                else { Self.warn(type_, decoder); self = .unknown }
+            case "recipe":
+                if let r = try? BackendRecipeCard(from: decoder) { self = .recipe(r) }
+                else { Self.warn(type_, decoder); self = .unknown }
+            default:
+                #if DEBUG
+                print("⚠️ [BackendCard] unknown card type: \(type_)")
+                #endif
+                self = .unknown
             }
+        }
+
+        private static func warn(_ type_: String, _ decoder: Decoder) {
+            #if DEBUG
+            print("⚠️ [BackendCard] failed to decode card type=\(type_) — degrading to .unknown")
+            #endif
         }
     }
 
