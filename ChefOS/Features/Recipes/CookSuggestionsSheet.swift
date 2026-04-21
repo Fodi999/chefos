@@ -186,7 +186,7 @@ struct CookSuggestionsSheet: View {
     @ViewBuilder
     private func inventoryInsightCard(_ insight: APIClient.InventoryInsight) -> some View {
         HStack(spacing: 0) {
-            insightMetric(icon: "refrigerator.fill", value: "\(insight.totalIngredients)", label: l10n.t("cook.ingredients"), color: .blue)
+            insightMetric(icon: "refrigerator.fill", value: "\(insight.totalIngredients)", label: l10n.t("cook.ingredientsCount"), color: .blue)
             Divider().frame(height: 32).opacity(0.3)
             insightMetric(icon: "calendar.badge.clock", value: "~\(insight.daysLeft)d", label: l10n.t("cook.daysLeft"), color: .cyan)
             Divider().frame(height: 32).opacity(0.3)
@@ -327,7 +327,7 @@ struct CookSuggestionsSheet: View {
             if !dish.steps.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "list.bullet").font(.caption2).foregroundStyle(.secondary)
-                    Text("\(dish.steps.count) \(l10n.t("cook.steps"))").font(.caption2).foregroundStyle(.secondary)
+                    Text("\(dish.steps.count) \(l10n.t("cook.stepsCount"))").font(.caption2).foregroundStyle(.secondary)
                     if let totalTime = dish.steps.compactMap(\.timeMin).reduce(0, +) as Int?, totalTime > 0 {
                         Text("·").foregroundStyle(.quaternary)
                         Image(systemName: "clock").font(.caption2).foregroundStyle(.secondary)
@@ -488,7 +488,7 @@ struct RecipeDetailSheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(l10n.t("cook.cookNow")).font(.subheadline.weight(.bold))
                             if let totalTime = dish.steps.compactMap(\.timeMin).reduce(0, +) as Int?, totalTime > 0 {
-                                Text("~\(totalTime) \(l10n.t("cook.min")) · \(dish.steps.count) \(l10n.t("cook.steps"))")
+                                Text("~\(totalTime) \(l10n.t("cook.min")) · \(dish.steps.count) \(l10n.t("cook.stepsCount"))")
                                     .font(.caption).opacity(0.8)
                             }
                         }
