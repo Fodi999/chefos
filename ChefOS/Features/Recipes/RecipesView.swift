@@ -20,7 +20,7 @@ struct RecipesView: View {
     @StateObject private var stockVM = StockViewModel()
     @State private var showCookSuggestions = false
     @StateObject private var cookVM = CookSuggestionsViewModel()
-    @StateObject private var shoppingVM = ShoppingListViewModel()
+    @EnvironmentObject var shoppingVM: ShoppingListViewModel
     @StateObject private var favVM = FavoritesViewModel()
     @State private var productActionName: String? = nil       // new product action sheet
     @State private var existingProductItem: StockItem? = nil  // existing product action sheet

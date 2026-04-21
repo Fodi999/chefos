@@ -293,6 +293,51 @@ extension Recipe {
         )
     }
 
+    /// Bridge: create a Recipe from a backend chat RecipeCard (from `/public/chat`).
+    /// Used when the chat bot wants to add a recipe to the plan / start cooking flow.
+    init(from card: APIClient.BackendRecipeCard) {
+        self.init(
+            title: card.displayName ?? card.dishNameLocal ?? card.dishName,
+            calories: card.perServingKcal,
+            protein: Int(card.perServingProtein),
+            fat: Int(card.perServingFat),
+            carbs: Int(card.perServingCarbs),
+            servings: max(card.servings, 1),
+            dishType: card.dishType ?? "",
+            complexity: card.complexity,
+            ingredients: card.ingredients.map { $0.name },
+            recipeIngredients: card.ingredients.map { ing in
+                RecipeIngredient(
+                    name: ing.name,
+                    quantity: ing.grossG,
+                    unit: "g",
+                    role: ing.role,
+                    available: true
+                )
+            },
+            richSteps: card.steps.enumerated().map { i, s in
+                RecipeStepDetail(
+                    id: i + 1,
+                    text: s.text,
+                    timeMin: s.timeMin,
+                    tempC: s.tempC,
+                    tip: s.tip
+                )
+            },
+            steps: card.steps.map { s in
+                var line = s.text
+                if let t = s.timeMin { line += " (\(t) min)" }
+                if let temp = s.tempC { line += " \(temp)°C" }
+                return line
+            },
+            estimatedCost: 0,
+            tags: card.tags,
+            warnings: [],
+            missingIngredients: [],
+            sourceDish: nil
+        )
+    }
+
     /// Empty fallback — no hardcoded demos
     static let samples: [Recipe] = []
 }

@@ -416,7 +416,7 @@ struct RecipeDetailSheet: View {
     @EnvironmentObject var l10n: LocalizationService
     @EnvironmentObject var favVM: FavoritesViewModel
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var shoppingVM = ShoppingListViewModel()
+    @EnvironmentObject var shoppingVM: ShoppingListViewModel
     @State private var showCookMode = false
     @State private var showAddedToast = false
     @State private var cookingComplete = false

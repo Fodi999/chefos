@@ -8,7 +8,7 @@ struct FavoriteDishDetailSheetView: View {
     @EnvironmentObject var l10n: LocalizationService
     @EnvironmentObject var favVM: FavoritesViewModel
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var shoppingVM = ShoppingListViewModel()
+    @EnvironmentObject var shoppingVM: ShoppingListViewModel
     @State private var showAddedToast = false
 
     var body: some View {
