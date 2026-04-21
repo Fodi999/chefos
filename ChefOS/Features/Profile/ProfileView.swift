@@ -17,6 +17,13 @@ struct ProfileView: View {
     @State private var showPhotoPicker = false
     @State private var avatarImage: UIImage?
 
+    // ── Number editor sheets ────────────────────────────────────
+    @State private var showAgeEditor          = false
+    @State private var showWeightEditor       = false
+    @State private var showTargetWeightEditor = false
+    @State private var showCaloriesEditor     = false
+    @State private var showProteinEditor      = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -190,15 +197,34 @@ struct ProfileView: View {
 
     private var personalInfoCard: some View {
         ProfileSection(title: l10n.t("profile.personalInfo"), icon: "person.text.rectangle") {
-            ProfileField(l10n.t("profile.age")) {
-                TextField("25", text: $viewModel.ageText)
-                    .keyboardType(.numbersAndPunctuation)
-                    .multilineTextAlignment(.trailing)
+            NumberPickerRow(
+                label: l10n.t("profile.age"),
+                value: Int(viewModel.ageText) ?? 25,
+                unit: l10n.t("profile.years")
+            ) { showAgeEditor = true }
+            .sheet(isPresented: $showAgeEditor) {
+                NumberPickerSheet(
+                    title: l10n.t("profile.age"),
+                    unit: l10n.t("profile.years"),
+                    range: 10...100,
+                    initial: Int(viewModel.ageText) ?? 25
+                ) { v in viewModel.ageText = "\(v)" }
             }
-            ProfileField(l10n.t("profile.weight")) {
-                TextField("70", text: $viewModel.weightText)
-                    .keyboardType(.numbersAndPunctuation)
-                    .multilineTextAlignment(.trailing)
+
+            HealthDivider()
+
+            NumberPickerRow(
+                label: l10n.t("profile.weight"),
+                value: Int(viewModel.weightText) ?? 70,
+                unit: "kg"
+            ) { showWeightEditor = true }
+            .sheet(isPresented: $showWeightEditor) {
+                NumberPickerSheet(
+                    title: l10n.t("profile.weight"),
+                    unit: "kg",
+                    range: 30...250,
+                    initial: Int(viewModel.weightText) ?? 70
+                ) { v in viewModel.weightText = "\(v)" }
             }
         }
     }
@@ -231,32 +257,52 @@ struct ProfileView: View {
 
             Divider().overlay(Color.white.opacity(0.04))
 
-            ProfileField(l10n.t("profile.targetWeight")) {
-                HStack(spacing: 4) {
-                    TextField("65", text: $viewModel.targetWeightText)
-                        .keyboardType(.numbersAndPunctuation)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 60)
-                    Text("kg").font(.caption).foregroundStyle(.secondary)
-                }
+            NumberPickerRow(
+                label: l10n.t("profile.targetWeight"),
+                value: Int(viewModel.targetWeightText) ?? 70,
+                unit: "kg"
+            ) { showTargetWeightEditor = true }
+            .sheet(isPresented: $showTargetWeightEditor) {
+                NumberPickerSheet(
+                    title: l10n.t("profile.targetWeight"),
+                    unit: "kg",
+                    range: 30...250,
+                    initial: Int(viewModel.targetWeightText) ?? 70
+                ) { v in viewModel.targetWeightText = "\(v)" }
             }
-            ProfileField(l10n.t("profile.caloriesDay")) {
-                HStack(spacing: 4) {
-                    TextField("2200", text: $viewModel.calorieText)
-                        .keyboardType(.numbersAndPunctuation)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 60)
-                    Text("kcal").font(.caption).foregroundStyle(.secondary)
-                }
+
+            HealthDivider()
+
+            NumberPickerRow(
+                label: l10n.t("profile.caloriesDay"),
+                value: Int(viewModel.calorieText) ?? 2200,
+                unit: "kcal"
+            ) { showCaloriesEditor = true }
+            .sheet(isPresented: $showCaloriesEditor) {
+                NumberPickerSheet(
+                    title: l10n.t("profile.caloriesDay"),
+                    unit: "kcal",
+                    range: 1000...5000,
+                    step: 50,
+                    initial: Int(viewModel.calorieText) ?? 2200
+                ) { v in viewModel.calorieText = "\(v)" }
             }
-            ProfileField(l10n.t("profile.protein")) {
-                HStack(spacing: 4) {
-                    TextField("120", text: $viewModel.proteinText)
-                        .keyboardType(.numbersAndPunctuation)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 50)
-                    Text("g").font(.caption).foregroundStyle(.secondary)
-                }
+
+            HealthDivider()
+
+            NumberPickerRow(
+                label: l10n.t("profile.protein"),
+                value: Int(viewModel.proteinText) ?? 120,
+                unit: "g"
+            ) { showProteinEditor = true }
+            .sheet(isPresented: $showProteinEditor) {
+                NumberPickerSheet(
+                    title: l10n.t("profile.protein"),
+                    unit: "g",
+                    range: 20...400,
+                    step: 5,
+                    initial: Int(viewModel.proteinText) ?? 120
+                ) { v in viewModel.proteinText = "\(v)" }
             }
         }
     }
@@ -815,6 +861,129 @@ extension View {
             .opacity(appeared ? 1 : 0)
             .offset(y: appeared ? 0 : 12)
             .animation(.easeOut(duration: 0.4).delay(delay), value: appeared)
+    }
+}
+
+// MARK: - NumberPickerRow
+// Full-width tappable row — tap anywhere to open the editor sheet.
+
+struct NumberPickerRow: View {
+    let label: String
+    let value: Int
+    var unit: String = ""
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                Text(label)
+                    .font(.subheadline)
+                    .foregroundStyle(AppColors.textSecondary)
+                Spacer()
+                HStack(alignment: .lastTextBaseline, spacing: 4) {
+                    Text("\(value)")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppColors.textPrimary)
+                    if !unit.isEmpty {
+                        Text(unit)
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(AppColors.textSecondary)
+                    }
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(AppColors.textSecondary.opacity(0.5))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 14)
+            .contentShape(Rectangle())          // entire row is tappable
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - NumberPickerSheet
+// Apple Health–style sheet: large title + wheel picker + Done toolbar button.
+
+struct NumberPickerSheet: View {
+    let title: String
+    var unit: String = ""
+    let range: ClosedRange<Int>
+    var step: Int = 1
+    let initial: Int
+    let onSave: (Int) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selection: Int
+
+    private var values: [Int] { stride(from: range.lowerBound, through: range.upperBound, by: step).map { $0 } }
+
+    init(title: String, unit: String = "", range: ClosedRange<Int>, step: Int = 1, initial: Int, onSave: @escaping (Int) -> Void) {
+        self.title = title
+        self.unit = unit
+        self.range = range
+        self.step = step
+        self.initial = initial
+        self.onSave = onSave
+        // Snap initial value to the nearest step
+        let clamped = min(max(initial, range.lowerBound), range.upperBound)
+        let snapped = range.lowerBound + ((clamped - range.lowerBound + step / 2) / step) * step
+        _selection = State(initialValue: snapped)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Live preview of selected value
+                VStack(spacing: 4) {
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
+                        Text("\(selection)")
+                            .font(.system(size: 64, weight: .bold, design: .rounded))
+                            .foregroundStyle(AppColors.textPrimary)
+                            .contentTransition(.numericText())
+                        if !unit.isEmpty {
+                            Text(unit)
+                                .font(.system(size: 24, weight: .regular))
+                                .foregroundStyle(AppColors.textSecondary)
+                                .padding(.bottom, 8)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, 32)
+                .padding(.bottom, 16)
+
+                // Wheel picker
+                Picker(title, selection: $selection) {
+                    ForEach(values, id: \.self) { v in
+                        Text("\(v)").tag(v)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(maxWidth: .infinity)
+
+                Spacer()
+            }
+            .background(AppColors.background.ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        onSave(selection)
+                        dismiss()
+                    }
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(AppColors.accent)
+                }
+            }
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 }
 
