@@ -24,7 +24,7 @@ final class ChatViewModel: ObservableObject {
     private let userId: String?
 
     init() {
-        userId = AuthService.readCurrentUserId()
+        userId = nil
         messages = [
             Message(content: .text(l10n.t("chat.welcome")), isFromUser: false)
         ]
@@ -204,6 +204,20 @@ final class ChatViewModel: ObservableObject {
             appendConfirmation(
                 icon: "cart.fill.badge.plus",
                 title: l10n.t("chat.action.shopping.title"),
+                subtitle: product.name,
+                tint: .success
+            )
+
+        case .addProductToInventory(let product):
+            // Broadcast → RecipesView/StockViewModel handles quick-add.
+            NotificationCenter.default.post(name: .chatDidAddToInventory, object: product)
+            recordAddedProduct(product.slug)
+            api.sendChatEvent(.actionClicked, userId: userId,
+                cardType: "product", cardSlug: product.slug,
+                actionType: "add_to_inventory", lang: chatContext.lastLang)
+            appendConfirmation(
+                icon: "tray.and.arrow.down.fill",
+                title: l10n.t("chat.action.inventory.title"),
                 subtitle: product.name,
                 tint: .success
             )

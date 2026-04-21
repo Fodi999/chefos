@@ -310,6 +310,17 @@ final class APIClient {
         let caloriesPer100g: Double?
         let seasons: [String]
         let imageUrl: String?
+
+        // `.convertFromSnakeCase` correctly handles most fields
+        // (`category_id` → `categoryId`), BUT breaks on digit boundaries:
+        // `calories_per_100g` → `caloriesPer100G` (capital G). Pin the
+        // POST-transformation key for that field only; let the strategy
+        // handle the rest.
+        private enum CodingKeys: String, CodingKey {
+            case id, name, allergens, seasons
+            case categoryId, defaultUnit, defaultShelfLifeDays, imageUrl
+            case caloriesPer100g = "caloriesPer100G"
+        }
     }
 
     struct CatalogIngredientsResponse: Codable {
@@ -317,20 +328,44 @@ final class APIClient {
     }
 
     func getCatalogCategories() async throws -> [CatalogCategoryDTO] {
-        let response: CatalogCategoriesResponse = try await get("/catalog/categories")
+        // Public endpoint — no JWT required. Language passed via query string.
+        let response: CatalogCategoriesResponse = try await publicGet("/catalog/categories?lang=\(currentLang)")
         return response.categories
     }
 
     func searchCatalogIngredients(query: String? = nil, categoryId: String? = nil, limit: Int = 50) async throws -> [CatalogIngredientDTO] {
-        var path = "/catalog/ingredients?limit=\(limit)"
+        var path = "/catalog/ingredients?lang=\(currentLang)&limit=\(limit)"
         if let q = query, !q.isEmpty {
             path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? q)"
         }
         if let catId = categoryId {
             path += "&category_id=\(catId)"
         }
-        let response: CatalogIngredientsResponse = try await get(path)
+        let response: CatalogIngredientsResponse = try await publicGet(path)
         return response.ingredients
+    }
+
+    /// Best-effort UI language for public endpoints that take `?lang=…`.
+    private var currentLang: String {
+        let code = Locale.current.language.languageCode?.identifier.lowercased() ?? "ru"
+        switch code {
+        case "en", "pl", "uk", "ru": return code
+        case "ua": return "uk"
+        default:   return "ru"
+        }
+    }
+
+    /// Plain GET against `/public/…` — no Authorization header, no refresh.
+    /// Used for catalog browse (anonymous users).
+    private func publicGet<T: Decodable>(_ path: String) async throws -> T {
+        let url = URL(string: baseURL.replacingOccurrences(of: "/api", with: "") + "/public" + path)!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIError.networkError
+        }
+        return try decoder.decode(T.self, from: data)
     }
 
     // MARK: - Inventory Endpoints
@@ -691,22 +726,56 @@ final class APIClient {
 
         private enum CodingKeys: String, CodingKey {
             case slug, name
-            case caloriesPer100g, proteinPer100g, fatPer100g, carbsPer100g
+            // NOTE: the shared decoder has `.convertFromSnakeCase`, which
+            // maps `calories_per_100g` → `caloriesPer100G` (capital G,
+            // because "100g" is treated as a non-alphabetic prefix + 'g').
+            // Our Swift property names use lowercase `g`, so we pin the
+            // POST-transformation key here.
+            case caloriesPer100g = "caloriesPer100G"
+            case proteinPer100g  = "proteinPer100G"
+            case fatPer100g      = "fatPer100G"
+            case carbsPer100g    = "carbsPer100G"
             case imageUrl, highlight, reasonTag, actions
         }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
-            self.slug = (try? c.decode(String.self, forKey: .slug)) ?? ""
-            self.name = (try? c.decode(String.self, forKey: .name)) ?? ""
-            self.caloriesPer100g = (try? c.decode(Double.self, forKey: .caloriesPer100g)) ?? 0
-            self.proteinPer100g  = (try? c.decode(Double.self, forKey: .proteinPer100g))  ?? 0
-            self.fatPer100g      = (try? c.decode(Double.self, forKey: .fatPer100g))      ?? 0
-            self.carbsPer100g    = (try? c.decode(Double.self, forKey: .carbsPer100g))    ?? 0
-            self.imageUrl   = try? c.decode(String.self, forKey: .imageUrl)
-            self.highlight  = try? c.decode(String.self, forKey: .highlight)
-            self.reasonTag  = try? c.decode(String.self, forKey: .reasonTag)
-            self.actions    = try? c.decode([BackendAction].self, forKey: .actions)
+            let slug   = (try? c.decode(String.self, forKey: .slug)) ?? ""
+            let name   = (try? c.decode(String.self, forKey: .name)) ?? ""
+
+            // Decode nutrition fields with per-field diagnostics.
+            func decDouble(_ key: CodingKeys) -> Double {
+                do { return try c.decode(Double.self, forKey: key) }
+                catch {
+                    #if DEBUG
+                    print("⚠️ [BackendProductCard] '\(slug)' missing \(key.stringValue): \(error)")
+                    #endif
+                    return 0
+                }
+            }
+            let kcal  = decDouble(.caloriesPer100g)
+            let prot  = decDouble(.proteinPer100g)
+            let fat   = decDouble(.fatPer100g)
+            let carbs = decDouble(.carbsPer100g)
+            let imgUrl    = try? c.decode(String.self, forKey: .imageUrl)
+            let highlight = try? c.decode(String.self, forKey: .highlight)
+            let reasonTag = try? c.decode(String.self, forKey: .reasonTag)
+            let actions   = try? c.decode([BackendAction].self, forKey: .actions)
+
+            self.slug            = slug
+            self.name            = name
+            self.caloriesPer100g = kcal
+            self.proteinPer100g  = prot
+            self.fatPer100g      = fat
+            self.carbsPer100g    = carbs
+            self.imageUrl        = imgUrl
+            self.highlight       = highlight
+            self.reasonTag       = reasonTag
+            self.actions         = actions
+
+            #if DEBUG
+            print("🧩 [BackendProductCard] \(name) kcal=\(kcal) P=\(prot) F=\(fat) C=\(carbs) img=\(imgUrl ?? "nil")")
+            #endif
         }
     }
 
@@ -719,7 +788,13 @@ final class APIClient {
         let imageUrl: String?
 
         private enum CodingKeys: String, CodingKey {
-            case name, caloriesPer100g, proteinPer100g, fatPer100g, carbsPer100g, imageUrl
+            case name, imageUrl
+            // `.convertFromSnakeCase` produces `caloriesPer100G` for
+            // `calories_per_100g` — pin the post-transform key.
+            case caloriesPer100g = "caloriesPer100G"
+            case proteinPer100g  = "proteinPer100G"
+            case fatPer100g      = "fatPer100G"
+            case carbsPer100g    = "carbsPer100G"
         }
 
         init(from decoder: Decoder) throws {
@@ -752,6 +827,16 @@ final class APIClient {
         let proteinPer100g: Double?
         let fatPer100g: Double?
         let carbsPer100g: Double?
+
+        // Explicit CodingKeys pin the post-`.convertFromSnakeCase`
+        // names (e.g. `calories_per_100g` → `caloriesPer100G`).
+        private enum CodingKeys: String, CodingKey {
+            case state, label, weightChangePercent, waterLossPercent, oilAbsorptionG
+            case caloriesPer100g = "caloriesPer100G"
+            case proteinPer100g  = "proteinPer100G"
+            case fatPer100g      = "fatPer100G"
+            case carbsPer100g    = "carbsPer100G"
+        }
     }
 
     struct BackendCookingLossCard: Decodable {
@@ -762,7 +847,8 @@ final class APIClient {
         let rows: [BackendCookingLossRow]
 
         private enum CodingKeys: String, CodingKey {
-            case slug, name, rawCaloriesPer100g, imageUrl, rows
+            case slug, name, rows, imageUrl
+            case rawCaloriesPer100g = "rawCaloriesPer100G"
         }
 
         init(from decoder: Decoder) throws {

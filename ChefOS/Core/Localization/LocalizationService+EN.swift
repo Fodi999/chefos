@@ -148,11 +148,13 @@ extension LocalizationService {
         "chat.action.cook":           "Start Cooking",
         "chat.action.swap":           "Swap",
         "chat.action.addToCart":      "Add to Cart",
+        "chat.action.addToInventory": "Add to Stock",
         "chat.action.showRecipes":    "Show Recipes",
         "chat.action.steps":          "steps",
         "chat.action.added.title":    "Added to today's plan",
         "chat.action.cooking.title":  "Ready to cook",
         "chat.action.shopping.title": "Added to shopping list",
+        "chat.action.inventory.title": "Added to stock",
         "chat.action.swap.query":     "Suggest an alternative to {ingredient} in {recipe}",
         "chat.action.showRecipes.query": "Show me recipes with {product}",
 
@@ -458,6 +460,7 @@ extension LocalizationService {
         "dishType.grill": "Grill", "dishType.pasta": "Pasta", "dishType.stir_fry": "Stir Fry",
         "dishType.breakfast": "Breakfast", "dishType.snack": "Snack", "dishType.dessert": "Dessert",
         "dishType.main_course": "Main Course", "dishType.side_dish": "Side Dish",
+        "dishType.default": "Dish",
 
         // Complexity
         "complexity.easy": "Easy", "complexity.medium": "Medium", "complexity.hard": "Hard",

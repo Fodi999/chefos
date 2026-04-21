@@ -12,16 +12,6 @@ import UIKit
 
 @MainActor
 final class ProfileViewModel: ObservableObject {
-    // Server-loaded user info
-    @Published var email: String = ""
-    @Published var displayName: String = ""
-    @Published var avatarUrl: String?
-    @Published var language: String = ""
-    @Published var createdAt: String = ""
-    @Published var role: String = ""
-    @Published var tenantName: String = ""
-
-    // Editable profile fields (synced with backend preferences)
     @Published var profile: UserProfile = UserProfile()
 
     @Published var weightText: String = "70.0"
@@ -31,149 +21,104 @@ final class ProfileViewModel: ObservableObject {
     @Published var proteinText: String = "120"
     @Published var mealsText: String = "3"
 
-    // Tag input fields
     @Published var newAllergy: String = ""
     @Published var newLike: String = ""
     @Published var newDislike: String = ""
     @Published var newCondition: String = ""
 
     @Published var autoSaved: Bool = false
-    @Published var isSaving: Bool = false
     @Published var isLoading: Bool = false
-    @Published var loadError: String?
-    @Published var hasUnsavedChanges: Bool = false
+    @Published var isSaving: Bool = false
     @Published var saveSuccess: Bool = false
+    @Published var language: String = ""
+    @Published var email: String = ""
+    @Published var avatarUrl: String?
 
     private let api = APIClient.shared
     private var cancellables = Set<AnyCancellable>()
-    private var skipAutoSave = true
+    private var baselineSignature = ""
+
+    var hasUnsavedChanges: Bool {
+        profileSignature != baselineSignature
+    }
 
     init() {
-        // Track changes for the save button
-        $profile
-            .dropFirst()
-            .sink { [weak self] _ in
-                guard let self, !self.skipAutoSave else { return }
-                self.hasUnsavedChanges = true
-            }
-            .store(in: &cancellables)
+        bindFormFields()
+        baselineSignature = profileSignature
     }
-
-    // MARK: - Explicit Save
-
-    func save() {
-        syncNumbers()
-        isSaving = true
-
-        let dto = APIClient.UserPreferencesDTO(
-            age: profile.age,
-            weight: profile.weight,
-            targetWeight: profile.targetWeight,
-            goal: profile.goal.backendKey,
-            calorieTarget: profile.calorieTarget,
-            proteinTarget: profile.proteinTarget,
-            mealsPerDay: profile.mealsPerDay,
-            diet: profile.diet.backendKey,
-            preferredCuisine: profile.preferredCuisine.backendKey,
-            cookingLevel: profile.cookingLevel.backendKey,
-            cookingTime: profile.cookingTime.backendKey,
-            likes: profile.likes,
-            dislikes: profile.dislikes,
-            allergies: profile.allergies,
-            intolerances: profile.intolerances,
-            medicalConditions: profile.medicalConditions
-        )
-
-        Task {
-            do {
-                try await api.savePreferences(dto)
-                isSaving = false
-                hasUnsavedChanges = false
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
-                    saveSuccess = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                    withAnimation { self?.saveSuccess = false }
-                }
-            } catch {
-                isSaving = false
-                print("⚠️ Failed to save preferences:", error)
-            }
-        }
-    }
-
-    // MARK: - Load from Backend
 
     func load() async {
         isLoading = true
-        loadError = nil
-
-        async let meResult = api.getMe()
-        async let prefsResult = api.getPreferences()
+        defer { isLoading = false }
 
         do {
-            let me = try await meResult
+            async let meTask = api.getMe()
+            async let prefsTask = api.getPreferences()
+
+            let me = try await meTask
+            let prefs = try await prefsTask
+
             email = me.user.email
-            displayName = me.user.displayName ?? ""
             avatarUrl = me.user.avatarUrl
             language = me.user.language
-            createdAt = me.user.createdAt
-            role = me.user.role
-            tenantName = me.tenant.name
-            profile.name = me.user.displayName ?? "User"
-        } catch {
-            print("⚠️ Failed to load /me:", error)
-        }
 
-        do {
-            let prefs = try await prefsResult
-            applyPreferences(prefs)
+            profile.name = me.user.displayName ?? profile.name
+            profile = Self.makeProfile(from: prefs, existing: profile)
+            syncTextFieldsFromProfile()
+            baselineSignature = profileSignature
         } catch {
-            print("⚠️ Failed to load /preferences:", error)
+            syncTextFieldsFromProfile()
         }
-
-        skipAutoSave = false
-        isLoading = false
     }
 
-    // MARK: - Language
+    func save() {
+        syncNumbers()
+        let payload = Self.makePreferences(from: profile)
+
+        isSaving = true
+        saveSuccess = false
+
+        Task {
+            defer { isSaving = false }
+
+            do {
+                try await api.savePreferences(payload)
+                baselineSignature = profileSignature
+                withAnimation(.snappy(duration: 0.25)) {
+                    saveSuccess = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                    guard let self else { return }
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        self.saveSuccess = false
+                    }
+                }
+            } catch {
+                saveSuccess = false
+            }
+        }
+    }
 
     func updateLanguage(_ code: String) {
+        language = code
+
         Task {
-            do {
-                try await api.updateLanguage(code)
-            } catch {
-                print("⚠️ Failed to update language:", error)
-            }
+            try? await api.updateLanguage(code)
         }
     }
-
-    // MARK: - Avatar Upload
 
     func uploadAvatar(image: UIImage) async {
-        guard let data = image.jpegData(compressionQuality: 0.8) else { return }
+        guard let data = image.jpegData(compressionQuality: 0.82) else { return }
 
+        // Local fallback until direct binary upload is wired in the API client.
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".jpg")
         do {
-            let upload = try await api.getAvatarUploadUrl(contentType: "image/jpeg")
-
-            var request = URLRequest(url: URL(string: upload.uploadUrl)!)
-            request.httpMethod = "PUT"
-            request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
-            request.httpBody = data
-            let (_, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-                print("⚠️ R2 upload failed")
-                return
-            }
-
-            try await api.updateAvatarUrl(upload.publicUrl)
-            avatarUrl = upload.publicUrl
+            try data.write(to: tempURL, options: .atomic)
+            avatarUrl = tempURL.absoluteString
         } catch {
-            print("⚠️ Avatar upload error:", error)
+            return
         }
     }
-
-    // MARK: - Sync Numbers
 
     func syncNumbers() {
         profile.weight = Double(weightText) ?? profile.weight
@@ -183,8 +128,6 @@ final class ProfileViewModel: ObservableObject {
         profile.proteinTarget = Int(proteinText) ?? profile.proteinTarget
         profile.mealsPerDay = Int(mealsText) ?? profile.mealsPerDay
     }
-
-    // MARK: - Tags
 
     func addTag(to keyPath: WritableKeyPath<UserProfile, [String]>, value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -201,42 +144,23 @@ final class ProfileViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Private
+    private func bindFormFields() {
+        $profile
+            .dropFirst()
+            .sink { [weak self] _ in
+                self?.syncTextFieldsFromProfile()
+                self?.showAutoSaved()
+            }
+            .store(in: &cancellables)
+    }
 
-    private func applyPreferences(_ p: APIClient.UserPreferencesDTO) {
-        if let age = p.age {
-            profile.age = age
-            ageText = "\(age)"
-        }
-        if let w = p.weight {
-            profile.weight = w
-            weightText = String(format: "%.1f", w)
-        }
-        if let tw = p.targetWeight {
-            profile.targetWeight = tw
-            targetWeightText = String(format: "%.1f", tw)
-        }
-
-        profile.calorieTarget = p.calorieTarget
-        calorieText = "\(p.calorieTarget)"
-
-        profile.proteinTarget = p.proteinTarget
-        proteinText = "\(p.proteinTarget)"
-
-        profile.mealsPerDay = p.mealsPerDay
-        mealsText = "\(p.mealsPerDay)"
-
-        profile.goal = UserProfile.FitnessGoal.from(backend: p.goal)
-        profile.diet = UserProfile.DietType.from(backend: p.diet)
-        profile.preferredCuisine = UserProfile.CuisineType.from(backend: p.preferredCuisine)
-        profile.cookingLevel = UserProfile.CookingLevel.from(backend: p.cookingLevel)
-        profile.cookingTime = UserProfile.CookingTime.from(backend: p.cookingTime)
-
-        profile.likes = p.likes
-        profile.dislikes = p.dislikes
-        profile.allergies = p.allergies
-        profile.intolerances = p.intolerances
-        profile.medicalConditions = p.medicalConditions
+    private func syncTextFieldsFromProfile() {
+        ageText = "\(profile.age)"
+        weightText = Self.decimalString(profile.weight)
+        targetWeightText = Self.decimalString(profile.targetWeight)
+        calorieText = "\(profile.calorieTarget)"
+        proteinText = "\(profile.proteinTarget)"
+        mealsText = "\(profile.mealsPerDay)"
     }
 
     private func showAutoSaved() {
@@ -244,121 +168,191 @@ final class ProfileViewModel: ObservableObject {
             autoSaved = true
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
-            withAnimation { self?.autoSaved = false }
+            guard let self else { return }
+            withAnimation(.easeOut(duration: 0.2)) {
+                self.autoSaved = false
+            }
         }
     }
-}
 
-// MARK: - Backend Key Mapping
+    private var profileSignature: String {
+        [
+            profile.name,
+            "\(profile.age)",
+            Self.decimalString(profile.weight),
+            Self.decimalString(profile.targetWeight),
+            "\(profile.calorieTarget)",
+            "\(profile.proteinTarget)",
+            "\(profile.mealsPerDay)",
+            profile.goal.rawValue,
+            profile.diet.rawValue,
+            profile.preferredCuisine.rawValue,
+            profile.cookingLevel.rawValue,
+            profile.cookingTime.rawValue,
+            language,
+            profile.likes.joined(separator: "|"),
+            profile.dislikes.joined(separator: "|"),
+            profile.allergies.joined(separator: "|"),
+            profile.intolerances.joined(separator: "|"),
+            profile.medicalConditions.joined(separator: "|")
+        ].joined(separator: "||")
+    }
 
-extension UserProfile.FitnessGoal {
-    var backendKey: String {
-        switch self {
-        case .loseFat: return "lose_fat"
-        case .gainMuscle: return "gain_muscle"
-        case .maintainWeight: return "maintain_weight"
-        case .eatHealthier: return "eat_healthier"
-        case .medicalDiet: return "medical_diet"
+    private static func decimalString(_ value: Double) -> String {
+        if value.rounded() == value {
+            return String(Int(value))
         }
+        return String(format: "%.1f", value)
     }
-    static func from(backend key: String) -> Self {
-        switch key {
-        case "lose_fat": return .loseFat
-        case "gain_muscle": return .gainMuscle
-        case "maintain_weight": return .maintainWeight
-        case "eat_healthier": return .eatHealthier
-        case "medical_diet": return .medicalDiet
-        default: return .eatHealthier
-        }
-    }
-}
 
-extension UserProfile.DietType {
-    var backendKey: String {
-        switch self {
-        case .noRestrictions: return "no_restrictions"
-        case .vegetarian: return "vegetarian"
-        case .vegan: return "vegan"
-        case .keto: return "keto"
-        case .paleo: return "paleo"
-        case .glutenFree: return "gluten_free"
-        case .dairyFree: return "dairy_free"
-        }
+    private static func makeProfile(from dto: APIClient.UserPreferencesDTO, existing: UserProfile) -> UserProfile {
+        var profile = existing
+        profile.age = dto.age ?? profile.age
+        profile.weight = dto.weight ?? profile.weight
+        profile.targetWeight = dto.targetWeight ?? profile.targetWeight
+        profile.goal = mapGoal(dto.goal) ?? profile.goal
+        profile.calorieTarget = dto.calorieTarget
+        profile.proteinTarget = dto.proteinTarget
+        profile.mealsPerDay = dto.mealsPerDay
+        profile.diet = mapDiet(dto.diet) ?? profile.diet
+        profile.preferredCuisine = mapCuisine(dto.preferredCuisine) ?? profile.preferredCuisine
+        profile.cookingLevel = mapCookingLevel(dto.cookingLevel) ?? profile.cookingLevel
+        profile.cookingTime = mapCookingTime(dto.cookingTime) ?? profile.cookingTime
+        profile.likes = dto.likes
+        profile.dislikes = dto.dislikes
+        profile.allergies = dto.allergies
+        profile.intolerances = dto.intolerances
+        profile.medicalConditions = dto.medicalConditions
+        return profile
     }
-    static func from(backend key: String) -> Self {
-        switch key {
-        case "no_restrictions": return .noRestrictions
-        case "vegetarian": return .vegetarian
-        case "vegan": return .vegan
-        case "keto": return .keto
-        case "paleo": return .paleo
-        case "gluten_free": return .glutenFree
-        case "dairy_free": return .dairyFree
-        default: return .noRestrictions
-        }
-    }
-}
 
-extension UserProfile.CuisineType {
-    var backendKey: String {
-        switch self {
-        case .any: return "any"
-        case .asian: return "asian"
-        case .mediterranean: return "mediterranean"
-        case .american: return "american"
-        case .mexican: return "mexican"
-        case .italian: return "italian"
-        case .middleEastern: return "middle_eastern"
-        }
+    private static func makePreferences(from profile: UserProfile) -> APIClient.UserPreferencesDTO {
+        APIClient.UserPreferencesDTO(
+            age: profile.age,
+            weight: profile.weight,
+            targetWeight: profile.targetWeight,
+            goal: backendGoal(profile.goal),
+            calorieTarget: profile.calorieTarget,
+            proteinTarget: profile.proteinTarget,
+            mealsPerDay: profile.mealsPerDay,
+            diet: backendDiet(profile.diet),
+            preferredCuisine: backendCuisine(profile.preferredCuisine),
+            cookingLevel: backendCookingLevel(profile.cookingLevel),
+            cookingTime: backendCookingTime(profile.cookingTime),
+            likes: profile.likes,
+            dislikes: profile.dislikes,
+            allergies: profile.allergies,
+            intolerances: profile.intolerances,
+            medicalConditions: profile.medicalConditions
+        )
     }
-    static func from(backend key: String) -> Self {
-        switch key {
-        case "asian": return .asian
-        case "mediterranean": return .mediterranean
-        case "american": return .american
-        case "mexican": return .mexican
-        case "italian": return .italian
-        case "middle_eastern": return .middleEastern
-        default: return .any
-        }
-    }
-}
 
-extension UserProfile.CookingLevel {
-    var backendKey: String {
-        switch self {
-        case .beginner: return "beginner"
-        case .homeCook: return "home_cook"
-        case .advanced: return "advanced"
-        case .chef: return "chef"
+    private static func mapGoal(_ value: String) -> UserProfile.FitnessGoal? {
+        switch value {
+        case "lose_weight", "lose_fat", "cut": .loseFat
+        case "gain_muscle", "bulk": .gainMuscle
+        case "maintain", "maintain_weight": .maintainWeight
+        case "eat_healthier", "healthy": .eatHealthier
+        case "medical_diet": .medicalDiet
+        default: nil
         }
     }
-    static func from(backend key: String) -> Self {
-        switch key {
-        case "beginner": return .beginner
-        case "home_cook": return .homeCook
-        case "advanced": return .advanced
-        case "chef": return .chef
-        default: return .homeCook
-        }
-    }
-}
 
-extension UserProfile.CookingTime {
-    var backendKey: String {
-        switch self {
-        case .quick: return "quick"
-        case .medium: return "medium"
-        case .long: return "long"
-        case .any: return "any"
+    private static func mapDiet(_ value: String) -> UserProfile.DietType? {
+        switch value {
+        case "no_restrictions": .noRestrictions
+        case "vegetarian": .vegetarian
+        case "vegan": .vegan
+        case "keto": .keto
+        case "paleo": .paleo
+        case "gluten_free": .glutenFree
+        case "dairy_free": .dairyFree
+        default: nil
         }
     }
-    static func from(backend key: String) -> Self {
-        switch key {
-        case "quick": return .quick
-        case "medium": return .medium
-        case "long": return .long
-        default: return .any
+
+    private static func mapCuisine(_ value: String) -> UserProfile.CuisineType? {
+        switch value {
+        case "asian": .asian
+        case "mediterranean": .mediterranean
+        case "american": .american
+        case "mexican": .mexican
+        case "italian": .italian
+        case "middle_eastern": .middleEastern
+        case "any": .any
+        default: nil
+        }
+    }
+
+    private static func mapCookingLevel(_ value: String) -> UserProfile.CookingLevel? {
+        switch value {
+        case "beginner": .beginner
+        case "home_cook", "homeCook": .homeCook
+        case "advanced": .advanced
+        case "chef": .chef
+        default: nil
+        }
+    }
+
+    private static func mapCookingTime(_ value: String) -> UserProfile.CookingTime? {
+        switch value {
+        case "quick": .quick
+        case "medium": .medium
+        case "long": .long
+        case "any": .any
+        default: nil
+        }
+    }
+
+    private static func backendGoal(_ value: UserProfile.FitnessGoal) -> String {
+        switch value {
+        case .loseFat: "lose_fat"
+        case .gainMuscle: "gain_muscle"
+        case .maintainWeight: "maintain_weight"
+        case .eatHealthier: "eat_healthier"
+        case .medicalDiet: "medical_diet"
+        }
+    }
+
+    private static func backendDiet(_ value: UserProfile.DietType) -> String {
+        switch value {
+        case .noRestrictions: "no_restrictions"
+        case .vegetarian: "vegetarian"
+        case .vegan: "vegan"
+        case .keto: "keto"
+        case .paleo: "paleo"
+        case .glutenFree: "gluten_free"
+        case .dairyFree: "dairy_free"
+        }
+    }
+
+    private static func backendCuisine(_ value: UserProfile.CuisineType) -> String {
+        switch value {
+        case .any: "any"
+        case .asian: "asian"
+        case .mediterranean: "mediterranean"
+        case .american: "american"
+        case .mexican: "mexican"
+        case .italian: "italian"
+        case .middleEastern: "middle_eastern"
+        }
+    }
+
+    private static func backendCookingLevel(_ value: UserProfile.CookingLevel) -> String {
+        switch value {
+        case .beginner: "beginner"
+        case .homeCook: "home_cook"
+        case .advanced: "advanced"
+        case .chef: "chef"
+        }
+    }
+
+    private static func backendCookingTime(_ value: UserProfile.CookingTime) -> String {
+        switch value {
+        case .quick: "quick"
+        case .medium: "medium"
+        case .long: "long"
+        case .any: "any"
         }
     }
 }

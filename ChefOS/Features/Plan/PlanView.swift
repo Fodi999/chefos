@@ -18,189 +18,217 @@ struct PlanView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppColors.background
-                    .ignoresSafeArea()
-
-                ScrollView {
-                    VStack(spacing: 20) {
-                        // MARK: Day | Week toggle
-                        PlanHeader(
-                            showingWeek: viewModel.showWeekView,
-                            dayLabel: l10n.t("plan.day"),
-                            weekLabel: l10n.t("plan.week"),
-                            onSelect: { viewModel.showWeekView = $0 }
-                        )
-                        .staggerIn(appeared: appeared, delay: 0)
-
-                        // MARK: Calendar Strip
-                        DaySelector(
-                            days: viewModel.weekDays.enumerated().map { index, day in
-                                DayCellModel(
-                                    id: index,
-                                    dayLetter: viewModel.dayLetter(for: day.date),
-                                    dayNumber: viewModel.dayNumber(for: day.date),
-                                    isSelected: index == viewModel.selectedDayIndex,
-                                    isToday: viewModel.isToday(day.date),
-                                    hasMeals: day.meals.contains { $0.recipe != nil }
-                                )
-                            },
-                            onSelect: { viewModel.selectDay($0) }
-                        )
-                        .staggerIn(appeared: appeared, delay: 0.03)
-
-                        if viewModel.showWeekView {
-                            weekOverview
-                                .staggerIn(appeared: appeared, delay: 0.06)
-                        } else {
-                            // MARK: Usage
-                            UsageBanner(
-                                icon: "sparkles",
-                                text: l10n.t("plan.generationsLeft"),
-                                remaining: usageService.plansRemaining,
-                                total: UsageService.DailyLimits.plans,
-                                color: .orange
-                            )
-                            .staggerIn(appeared: appeared, delay: 0.05)
-
-                            // MARK: Status Group — warnings / savings merged into one card
-                            let hasCostPreview = !usageService.actionCostPreview.isEmpty
-                            let saved = viewModel.budgetTarget - viewModel.totalCost
-                            let hasSavings = viewModel.totalCost > 0 && viewModel.budgetTarget > 0 && saved > 0
-                            let isOverBudget = viewModel.totalCost > viewModel.budgetTarget && viewModel.budgetTarget > 0
-
-                            if hasCostPreview || hasSavings || isOverBudget {
-                                GroupCard {
-                                    if hasCostPreview {
-                                        statusRow(
-                                            icon: "exclamationmark.triangle.fill",
-                                            text: usageService.actionCostPreview,
-                                            trailing: "\(l10n.t("plan.resetsIn")) \(usageService.timeUntilReset)",
-                                            accent: AppColors.warning
-                                        )
-                                    }
-                                    if hasCostPreview && hasSavings { HealthDivider() }
-                                    if hasSavings {
-                                        statusRow(
-                                            icon: "leaf.fill",
-                                            text: "\(l10n.t("plan.saves")) \(Int(saved)) \(regionService.currency) \(l10n.t("plan.today"))",
-                                            accent: AppColors.success
-                                        )
-                                    }
-                                    if isOverBudget && usageService.canOptimize() {
-                                        if hasCostPreview || hasSavings { HealthDivider() }
-                                        Button {
-                                            usageService.requestAction("optimization", canPerform: usageService.canOptimize()) {
-                                                usageService.useOptimize()
-                                                viewModel.optimizeDay()
-                                            }
-                                        } label: {
-                                            statusRow(
-                                                icon: "wand.and.stars",
-                                                text: l10n.t("plan.overBudget"),
-                                                trailing: "Optimize →",
-                                                accent: AppColors.accent
-                                            )
-                                        }
-                                        .buttonStyle(PressButtonStyle())
-                                    }
-                                }
-                                .transition(.move(edge: .top).combined(with: .opacity))
-                                .staggerIn(appeared: appeared, delay: 0.06)
-                            }
-
-                            // MARK: Smart Plan + Optimize
-                            HStack(spacing: 10) {
-                                smartPlanButton
-                                optimizeButton
-                            }
-                            .staggerIn(appeared: appeared, delay: 0.07)
-
-                            // MARK: Daily Stats
-                            SectionHeader(l10n.t("plan.highlights"))
-                            PlanSummaryCard(summary: planSummary)
-                                .staggerIn(appeared: appeared, delay: 0.09)
-
-                            // MARK: AI Insight
-                            insightCard
-                                .staggerIn(appeared: appeared, delay: 0.12)
-
-                            // MARK: Meals
-                            SectionHeader(l10n.t("plan.meals"))
-                            VStack(spacing: 10) {
-                                ForEach(Array(viewModel.selectedDay.meals.enumerated()), id: \.element.id) { index, meal in
-                                    MealRow(
-                                        meal: meal,
-                                        isLoading: viewModel.isGenerating || viewModel.isOptimizing,
-                                        isExpanded: expandedMealId == meal.id,
-                                        currency: regionService.currency,
-                                        favVM: favVM,
-                                        onAdd: {
-                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                                viewModel.replaceWithRandom(at: index)
-                                            }
-                                        },
-                                        onClear: {
-                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                                                viewModel.clearMeal(at: index)
-                                                if expandedMealId == meal.id { expandedMealId = nil }
-                                            }
-                                        },
-                                        onTap: {
-                                            withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
-                                                expandedMealId = (expandedMealId == meal.id) ? nil : meal.id
-                                            }
-                                        }
-                                    )
-                                    .staggerIn(appeared: appeared, delay: 0.15 + Double(index) * 0.05)
-                                }
-                            }
-
-                            // MARK: Day Shopping Summary
-                            dayShoppingSummary
-                                .staggerIn(appeared: appeared, delay: 0.3)
-                        }
-                    }
-                    .padding()
-                    .padding(.bottom, 80)
-                }
-            }
+            screenContent
             .navigationTitle(l10n.t("plan.title"))
             .toolbarBackground(AnyShapeStyle(AppColors.surface), for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        withAnimation(.snappy(duration: 0.4)) {
-                            viewModel.clearDay()
-                        }
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary.opacity(0.4))
-                    }
-                    .buttonStyle(PressButtonStyle())
-                }
-            }
+            .toolbar { toolbarContent }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.5)) {
                     appeared = true
                 }
             }
-            .overlay(alignment: .top) {
-                if viewModel.showSuccessBanner {
-                    successBanner
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .padding(.top, 8)
-                }
-                if viewModel.showAddedToPlanBanner {
-                    addedToPlanBanner
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                        .padding(.top, 8)
-                }
-            }
+            .overlay(alignment: .top) { overlayBanners }
             .sheet(isPresented: $usageService.showPaywall) {
                 PaywallView()
             }
+        }
+    }
+
+    private var screenContent: some View {
+        ZStack {
+            AppColors.background
+                .ignoresSafeArea()
+
+            ScrollView {
+                scrollContent
+            }
+        }
+    }
+
+    private var scrollContent: some View {
+        VStack(spacing: 20) {
+            PlanHeader(
+                showingWeek: viewModel.showWeekView,
+                dayLabel: l10n.t("plan.day"),
+                weekLabel: l10n.t("plan.week"),
+                onSelect: { viewModel.showWeekView = $0 }
+            )
+            .staggerIn(appeared: appeared, delay: 0)
+
+            DaySelector(
+                days: viewModel.weekDays.enumerated().map { index, day in
+                    DayCellModel(
+                        id: index,
+                        dayLetter: viewModel.dayLetter(for: day.date),
+                        dayNumber: viewModel.dayNumber(for: day.date),
+                        isSelected: index == viewModel.selectedDayIndex,
+                        isToday: viewModel.isToday(day.date),
+                        hasMeals: day.meals.contains { $0.recipe != nil }
+                    )
+                },
+                onSelect: { viewModel.selectDay($0) }
+            )
+            .staggerIn(appeared: appeared, delay: 0.03)
+
+            if viewModel.showWeekView {
+                weekOverview
+                    .staggerIn(appeared: appeared, delay: 0.06)
+            } else {
+                dayViewContent
+            }
+        }
+        .padding()
+        .padding(.bottom, 80)
+    }
+
+    private var dayViewContent: some View {
+        VStack(spacing: 20) {
+            UsageBanner(
+                icon: "sparkles",
+                text: l10n.t("plan.generationsLeft"),
+                remaining: usageService.plansRemaining,
+                total: UsageService.DailyLimits.plans,
+                color: .orange
+            )
+            .staggerIn(appeared: appeared, delay: 0.05)
+
+            statusGroupCard
+
+            HStack(spacing: 10) {
+                smartPlanButton
+                optimizeButton
+            }
+            .staggerIn(appeared: appeared, delay: 0.07)
+
+            SectionHeader(l10n.t("plan.highlights"))
+            PlanSummaryCard(summary: planSummary)
+                .staggerIn(appeared: appeared, delay: 0.09)
+
+            insightCard
+                .staggerIn(appeared: appeared, delay: 0.12)
+
+            SectionHeader(l10n.t("plan.meals"))
+            mealsList
+
+            dayShoppingSummary
+                .staggerIn(appeared: appeared, delay: 0.3)
+        }
+    }
+
+    @ViewBuilder
+    private var statusGroupCard: some View {
+        let hasCostPreview = !usageService.actionCostPreview.isEmpty
+        let saved = viewModel.budgetTarget - viewModel.totalCost
+        let hasSavings = viewModel.totalCost > 0 && viewModel.budgetTarget > 0 && saved > 0
+        let isOverBudget = viewModel.totalCost > viewModel.budgetTarget && viewModel.budgetTarget > 0
+
+        if hasCostPreview || hasSavings || isOverBudget {
+            GroupCard {
+                if hasCostPreview {
+                    statusRow(
+                        icon: "exclamationmark.triangle.fill",
+                        text: usageService.actionCostPreview,
+                        trailing: "\(l10n.t("plan.resetsIn")) \(usageService.timeUntilReset)",
+                        accent: AppColors.warning
+                    )
+                }
+                if hasCostPreview && hasSavings { HealthDivider() }
+                if hasSavings {
+                    statusRow(
+                        icon: "leaf.fill",
+                        text: "\(l10n.t("plan.saves")) \(Int(saved)) \(regionService.currency) \(l10n.t("plan.today"))",
+                        accent: AppColors.success
+                    )
+                }
+                if isOverBudget && usageService.canOptimize() {
+                    if hasCostPreview || hasSavings { HealthDivider() }
+                    Button {
+                        usageService.requestAction("optimization", canPerform: usageService.canOptimize()) {
+                            usageService.useOptimize()
+                            viewModel.optimizeDay()
+                        }
+                    } label: {
+                        statusRow(
+                            icon: "wand.and.stars",
+                            text: l10n.t("plan.overBudget"),
+                            trailing: "Optimize ->",
+                            accent: AppColors.accent
+                        )
+                    }
+                    .buttonStyle(PressButtonStyle())
+                }
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .staggerIn(appeared: appeared, delay: 0.06)
+        }
+    }
+
+    private var mealsList: some View {
+        VStack(spacing: 10) {
+            ForEach(dayMealEntries, id: \.meal.id) { entry in
+                mealRow(entry.meal, index: entry.index)
+                    .staggerIn(appeared: appeared, delay: 0.15 + Double(entry.index) * 0.05)
+            }
+        }
+    }
+
+    private var dayMealEntries: [(index: Int, meal: Meal)] {
+        Array(viewModel.selectedDay.meals.enumerated()).map { (index: $0.offset, meal: $0.element) }
+    }
+
+    private func mealRow(_ meal: Meal, index: Int) -> some View {
+        MealRow(
+            meal: meal,
+            isLoading: viewModel.isGenerating || viewModel.isOptimizing,
+            isExpanded: expandedMealId == meal.id,
+            currency: regionService.currency,
+            favVM: favVM,
+            onAdd: {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    viewModel.replaceWithRandom(at: index)
+                }
+            },
+            onClear: {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    viewModel.clearMeal(at: index)
+                    if expandedMealId == meal.id { expandedMealId = nil }
+                }
+            },
+            onTap: {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+                    expandedMealId = (expandedMealId == meal.id) ? nil : meal.id
+                }
+            }
+        )
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                withAnimation(.snappy(duration: 0.4)) {
+                    viewModel.clearDay()
+                }
+            } label: {
+                Image(systemName: "trash")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary.opacity(0.4))
+            }
+            .buttonStyle(PressButtonStyle())
+        }
+    }
+
+    @ViewBuilder
+    private var overlayBanners: some View {
+        if viewModel.showSuccessBanner {
+            successBanner
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.top, 8)
+        }
+        if viewModel.showAddedToPlanBanner {
+            addedToPlanBanner
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.top, 8)
         }
     }
 

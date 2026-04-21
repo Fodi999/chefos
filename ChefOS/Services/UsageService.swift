@@ -9,7 +9,8 @@ import Combine
 
 // MARK: - Backend Client Protocol (source of truth)
 
-/// Backend = source of truth. UserDefaults = offline cache only.
+/// Replace with real network client for production.
+/// UserDefaults is ONLY a local cache; the backend is the source of truth.
 protocol UsageBackendClient {
     func fetchPurchasedActions() async throws -> Int
     func recordPurchase(actions: Int, receiptData: Data?) async throws -> Int
@@ -28,64 +29,11 @@ struct DailyUsageSnapshot {
 struct UsageResponse {
     var allowed: Bool
     var remaining: Int
-    var purchasedActionsLeft: Int
-    var warning: Bool
-    var reason: String?
     var message: String?
-    // Full usage snapshot from server
-    var plansLeft: Int
-    var recipesLeft: Int
-    var scansLeft: Int
-    var optimizeLeft: Int
-    var chatsLeft: Int
 }
 
-/// Real backend client — calls Rust/Axum API
-final class LiveUsageBackend: UsageBackendClient {
-    private let api = APIClient.shared
-
-    func fetchPurchasedActions() async throws -> Int {
-        let response = try await api.getUsageToday()
-        return response.purchasedActions
-    }
-
-    func recordPurchase(actions: Int, receiptData: Data?) async throws -> Int {
-        let response = try await api.recordPurchase(actions: actions, receiptId: nil)
-        return response.purchasedActions
-    }
-
-    func fetchDailyUsage() async throws -> DailyUsageSnapshot {
-        let r = try await api.getUsageToday()
-        // Convert "remaining" back to "used" for local state
-        return .init(
-            plansUsed: r.dailyLimits.plans - r.plansLeft,
-            recipesUsed: r.dailyLimits.recipes - r.recipesLeft,
-            scansUsed: r.dailyLimits.scans - r.scansLeft,
-            optimizeUsed: r.dailyLimits.optimize - r.optimizeLeft,
-            chatsUsed: r.dailyLimits.chats - r.chatsLeft
-        )
-    }
-
-    func recordAction(type: String) async throws -> UsageResponse {
-        let r = try await api.performAction(type)
-        return .init(
-            allowed: r.allowed,
-            remaining: r.remainingFree,
-            purchasedActionsLeft: r.purchasedActionsLeft,
-            warning: r.warning,
-            reason: r.reason,
-            message: r.message,
-            plansLeft: r.usage.plansLeft,
-            recipesLeft: r.usage.recipesLeft,
-            scansLeft: r.usage.scansLeft,
-            optimizeLeft: r.usage.optimizeLeft,
-            chatsLeft: r.usage.chatsLeft
-        )
-    }
-}
-
-/// Offline fallback — UserDefaults cache (used when no network)
-final class OfflineUsageBackend: UsageBackendClient {
+/// Stub backend — replace with real API client
+final class StubUsageBackend: UsageBackendClient {
     func fetchPurchasedActions() async throws -> Int { UserDefaults.standard.integer(forKey: "chefos_purchased_actions") }
     func recordPurchase(actions: Int, receiptData: Data?) async throws -> Int {
         let current = UserDefaults.standard.integer(forKey: "chefos_purchased_actions")
@@ -94,10 +42,7 @@ final class OfflineUsageBackend: UsageBackendClient {
         return newTotal
     }
     func fetchDailyUsage() async throws -> DailyUsageSnapshot { .init(plansUsed: 0, recipesUsed: 0, scansUsed: 0, optimizeUsed: 0, chatsUsed: 0) }
-    func recordAction(type: String) async throws -> UsageResponse {
-        .init(allowed: true, remaining: 99, purchasedActionsLeft: 0, warning: false, reason: nil, message: nil,
-              plansLeft: 99, recipesLeft: 99, scansLeft: 99, optimizeLeft: 99, chatsLeft: 99)
-    }
+    func recordAction(type: String) async throws -> UsageResponse { .init(allowed: true, remaining: 99) }
 }
 
 // MARK: - Services/Usage
@@ -165,7 +110,7 @@ final class UsageService: ObservableObject {
 
     let backend: UsageBackendClient
 
-    init(backend: UsageBackendClient = LiveUsageBackend()) {
+    init(backend: UsageBackendClient = StubUsageBackend()) {
         self.backend = backend
         // Load cached state
         purchasedActions = UserDefaults.standard.integer(forKey: purchasedKey)
@@ -188,6 +133,7 @@ final class UsageService: ObservableObject {
 
     private func checkCalendarDayReset() {
         let calendar = Calendar.current
+        let now = Date()
 
         if let lastReset = UserDefaults.standard.object(forKey: resetKey) as? Date {
             if !calendar.isDateInToday(lastReset) {
@@ -233,37 +179,22 @@ final class UsageService: ObservableObject {
 
     func grantWelcomeBonus() {
         guard !welcomeBonusGranted else { return }
-        // Optimistic
         welcomeBonusGranted = true
         purchasedActions += 20
         UserDefaults.standard.set(true, forKey: welcomeBonusKey)
         savePurchasedCache()
-        // Server sync
-        Task { @MainActor in
-            _ = try? await APIClient.shared.grantWelcomeBonus()
-        }
     }
 
-    // MARK: - Backend Sync (full state from server)
+    // MARK: - Backend Sync
 
     private func syncWithBackend() {
         Task { @MainActor in
             do {
-                // Pull full state from server
-                let serverUsage = try await backend.fetchDailyUsage()
                 let serverActions = try await backend.fetchPurchasedActions()
-
-                self.dailyPlansUsed = serverUsage.plansUsed
-                self.dailyRecipesUsed = serverUsage.recipesUsed
-                self.dailyScansUsed = serverUsage.scansUsed
-                self.dailyOptimizeUsed = serverUsage.optimizeUsed
-                self.dailyChatsUsed = serverUsage.chatsUsed
                 self.purchasedActions = serverActions
-
-                self.persistDailyUsage()
                 self.savePurchasedCache()
             } catch {
-                // Offline — keep cached values
+                // Offline — use cached value (already loaded)
             }
         }
     }
@@ -353,7 +284,7 @@ final class UsageService: ObservableObject {
         dailyChatsUsed < DailyLimits.chats || purchasedActions >= ActionCost.aiChat
     }
 
-    // MARK: - Consume (optimistic local + server sync)
+    // MARK: - Consume
 
     func useGeneratePlan() {
         totalGenerates += 1
@@ -364,7 +295,6 @@ final class UsageService: ObservableObject {
             savePurchasedCache()
         }
         persistDailyUsage()
-        syncAction("generate_plan")
     }
 
     func useCreateRecipe() {
@@ -375,7 +305,6 @@ final class UsageService: ObservableObject {
             savePurchasedCache()
         }
         persistDailyUsage()
-        syncAction("create_recipe")
     }
 
     func useScanReceipt() {
@@ -386,7 +315,6 @@ final class UsageService: ObservableObject {
             savePurchasedCache()
         }
         persistDailyUsage()
-        syncAction("scan_receipt")
     }
 
     func useOptimize() {
@@ -397,7 +325,6 @@ final class UsageService: ObservableObject {
             savePurchasedCache()
         }
         persistDailyUsage()
-        syncAction("optimize_day")
     }
 
     func useChat() {
@@ -408,28 +335,6 @@ final class UsageService: ObservableObject {
             savePurchasedCache()
         }
         persistDailyUsage()
-        syncAction("ai_chat")
-    }
-
-    /// Fire-and-forget server sync after local optimistic update
-    private func syncAction(_ type: String) {
-        Task { @MainActor in
-            do {
-                let response = try await backend.recordAction(type: type)
-                // Reconcile ALL state from server usage snapshot
-                let limits = DailyLimits.self
-                self.dailyPlansUsed = limits.plans - response.plansLeft
-                self.dailyRecipesUsed = limits.recipes - response.recipesLeft
-                self.dailyScansUsed = limits.scans - response.scansLeft
-                self.dailyOptimizeUsed = limits.optimize - response.optimizeLeft
-                self.dailyChatsUsed = limits.chats - response.chatsLeft
-                self.purchasedActions = response.purchasedActionsLeft
-                self.persistDailyUsage()
-                self.savePurchasedCache()
-            } catch {
-                // Offline — local state is already updated
-            }
-        }
     }
 
     // MARK: - Purchase (server-first)

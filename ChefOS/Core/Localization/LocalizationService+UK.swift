@@ -136,11 +136,13 @@ extension LocalizationService {
         "chat.action.cook":           "Почати готувати",
         "chat.action.swap":           "Замінити",
         "chat.action.addToCart":      "До кошика",
+        "chat.action.addToInventory": "У запаси",
         "chat.action.showRecipes":    "Рецепти",
         "chat.action.steps":          "кроків",
         "chat.action.added.title":    "Додано в план на сьогодні",
         "chat.action.cooking.title":  "Готові готувати",
         "chat.action.shopping.title": "Додано до списку покупок",
+        "chat.action.inventory.title": "Додано у запаси",
         "chat.action.swap.query":     "Запропонуй заміну для {ingredient} у {recipe}",
         "chat.action.showRecipes.query": "Покажи рецепти з {product}",
 

@@ -136,11 +136,13 @@ extension LocalizationService {
         "chat.action.cook":           "Начать готовить",
         "chat.action.swap":           "Заменить",
         "chat.action.addToCart":      "В корзину",
+        "chat.action.addToInventory": "В запасы",
         "chat.action.showRecipes":    "Рецепты",
         "chat.action.steps":          "шагов",
         "chat.action.added.title":    "Добавлено в план на сегодня",
         "chat.action.cooking.title":  "Готовы готовить",
         "chat.action.shopping.title": "Добавлено в список покупок",
+        "chat.action.inventory.title": "Добавлено в запасы",
         "chat.action.swap.query":     "Предложи замену для {ingredient} в {recipe}",
         "chat.action.showRecipes.query": "Покажи рецепты с {product}",
 
@@ -441,6 +443,7 @@ extension LocalizationService {
         "dishType.grill": "Гриль", "dishType.pasta": "Паста", "dishType.stir_fry": "Жарка",
         "dishType.breakfast": "Завтрак", "dishType.snack": "Перекус", "dishType.dessert": "Десерт",
         "dishType.main_course": "Основное блюдо", "dishType.side_dish": "Гарнир",
+        "dishType.default": "Блюдо",
 
         // Complexity
         "complexity.easy": "Легко", "complexity.medium": "Средне", "complexity.hard": "Сложно",

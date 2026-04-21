@@ -375,6 +375,7 @@ enum ChatAction {
     case startCooking(APIClient.BackendRecipeCard)
     case swapIngredient(recipe: APIClient.BackendRecipeCard, ingredient: String)
     case addProductToShopping(APIClient.BackendProductCard)
+    case addProductToInventory(APIClient.BackendProductCard)
     case showRecipesFor(product: APIClient.BackendProductCard)
 }
 
@@ -407,6 +408,7 @@ extension ChatAction {
 extension Notification.Name {
     static let chatDidAddRecipeToPlan   = Notification.Name("chat.addRecipeToPlan")
     static let chatDidAddToShoppingList = Notification.Name("chat.addToShoppingList")
+    static let chatDidAddToInventory    = Notification.Name("chat.addToInventory")
     static let chatDidRequestCooking    = Notification.Name("chat.requestCooking")
 }
 

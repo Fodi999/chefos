@@ -8,7 +8,6 @@ import Combine
 
 // MARK: - ViewModels/Plan
 
-@MainActor
 final class PlanViewModel: ObservableObject {
     @Published var weekDays: [MealPlanDay] = []
     @Published var selectedDayIndex: Int = 0
@@ -21,11 +20,6 @@ final class PlanViewModel: ObservableObject {
     @Published var addedToPlanTitle: String = ""
     @Published var addedToPlanSlot: String = ""
 
-    /// Cached backend dishes — real data from cook/suggestions
-    @Published var availableRecipes: [Recipe] = []
-    @Published var inventoryInsight: APIClient.InventoryInsight?
-    @Published var apiError: String?
-
     // Targets from profile (hardcoded for now)
     let calorieTarget: Int = 2200
     let proteinTarget: Int = 140
@@ -33,8 +27,6 @@ final class PlanViewModel: ObservableObject {
 
     /// Currency symbol — read from RegionService.shared
     var currency: String { RegionService.shared.currency }
-
-    private let api = APIClient.shared
 
     var selectedDay: MealPlanDay {
         guard weekDays.indices.contains(selectedDayIndex) else { return .empty }
@@ -74,39 +66,36 @@ final class PlanViewModel: ObservableObject {
 
     var budgetStatus: (key: String, args: [String], color: Color) {
         let diff = budgetTarget - totalCost
-        if totalCost == 0 { return ("plan.noMealsYet", [], .secondary) }
-        if diff >= 0 { return ("plan.withinBudget", [], .green) }
-        return ("plan.overBudgetBy", [String(format: "%.0f", abs(diff)), currency], .red)
+        if totalCost == 0 { return ("No meals yet", [], .secondary) }
+        if diff >= 0 { return ("Within budget", [], .green) }
+        return ("Over budget by \(String(format: "%.0f", abs(diff))) \(currency)", [], .red)
     }
 
     // MARK: AI Insight
 
     var insight: (icon: String, key: String, args: [String], color: Color) {
         if filledCount == 0 {
-            if availableRecipes.isEmpty {
-                return ("sparkles", "plan.hint.loadRecipes", [], .orange)
-            }
-            return ("sparkles", "plan.hint.generateDay", [], .orange)
+            return ("sparkles", "Tap Smart Plan to generate your day", [], .orange)
         }
         let calDiff = calorieTarget - totalCalories
         let protDiff = proteinTarget - totalProtein
 
         if filledCount == 3 && abs(calDiff) < 200 && abs(protDiff) < 20 {
-            return ("hand.thumbsup.fill", "plan.hint.balanced", [], .green)
+            return ("hand.thumbsup.fill", "Balanced day — looking great!", [], .green)
         }
         if protDiff > 30 {
-            return ("bolt.fill", "plan.hint.lowProtein", ["\(protDiff)"], .cyan)
+            return ("bolt.fill", "You're \(protDiff)g under your protein goal", [], .cyan)
         }
         if calDiff < -200 {
-            return ("exclamationmark.triangle.fill", "plan.hint.overCalories", ["\(abs(calDiff))"], .red)
+            return ("exclamationmark.triangle.fill", "Over calorie target by \(abs(calDiff)) kcal", [], .red)
         }
         if totalCost > budgetTarget {
-            return ("banknote.fill", "plan.hint.overBudget", [String(format: "%.0f", totalCost - budgetTarget), currency], .red)
+            return ("banknote.fill", "Over budget by \(String(format: "%.0f", totalCost - budgetTarget)) \(currency) — try cheaper options", [], .red)
         }
         if filledCount < 3 {
-            return ("fork.knife", "plan.hint.emptySlots", ["\(3 - filledCount)"], .secondary)
+            return ("fork.knife", "\(3 - filledCount) meal\(filledCount == 2 ? "" : "s") still empty", [], .secondary)
         }
-        return ("checkmark.seal.fill", "plan.hint.onTrack", [], .green)
+        return ("checkmark.seal.fill", "On track for today's goals", [], .green)
     }
 
     // MARK: Week summary
@@ -145,13 +134,14 @@ final class PlanViewModel: ObservableObject {
 
     private func generateWeek() {
         let today = Date.now
-        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) ?? today
+        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today))!
         weekDays = (0..<7).map { offset in
-            let date = calendar.date(byAdding: .day, value: offset, to: startOfWeek) ?? today
+            let date = calendar.date(byAdding: .day, value: offset, to: startOfWeek)!
+            let isToday = calendar.isDateInToday(date)
             return MealPlanDay(
                 date: date,
                 meals: Meal.MealType.allCases.map { type in
-                    Meal(type: type, recipe: nil)
+                    Meal(type: type, recipe: (isToday && type == .lunch) ? Recipe.samples.first : nil)
                 }
             )
         }
@@ -159,8 +149,6 @@ final class PlanViewModel: ObservableObject {
     }
 
     func selectDay(_ index: Int) {
-        guard weekDays.indices.contains(index) else { return }
-
         withAnimation(.snappy(duration: 0.35)) {
             selectedDayIndex = index
         }
@@ -178,106 +166,38 @@ final class PlanViewModel: ObservableObject {
 
     func autoFill() {
         guard weekDays.indices.contains(selectedDayIndex) else { return }
-        let usedTitles = weekDays[selectedDayIndex].meals.compactMap { $0.recipe?.title }
-        var used = usedTitles
         for i in weekDays[selectedDayIndex].meals.indices where weekDays[selectedDayIndex].meals[i].recipe == nil {
-            let mealType = weekDays[selectedDayIndex].meals[i].type
-            let recipe = pickRecipe(for: mealType, excluding: used)
-            weekDays[selectedDayIndex].meals[i].recipe = recipe
-            if let t = recipe?.title { used.append(t) }
-        }
-    }
-
-    /// Fetch real recipes from cook/suggestions API
-    func fetchRecipes() async {
-        do {
-            let response = try await api.getCookSuggestions()
-            let allDishes = response.canCook + response.almost + response.strategic
-            availableRecipes = allDishes.map { Recipe(from: $0) }
-            inventoryInsight = response.inventoryInsight
-            apiError = nil
-            print("📋 Plan: loaded \(availableRecipes.count) recipes from backend")
-        } catch {
-            apiError = error.localizedDescription
-            print("🔴 Plan: failed to fetch recipes: \(error)")
-        }
-    }
-
-    /// Pick a recipe suited for a meal type, avoiding duplicates within the day
-    private func pickRecipe(for mealType: Meal.MealType, excluding used: [String]) -> Recipe? {
-        let pool = availableRecipes.filter { !used.contains($0.title) }
-        guard !pool.isEmpty else { return availableRecipes.randomElement() }
-
-        switch mealType {
-        case .breakfast:
-            return pool.sorted(by: { $0.calories < $1.calories }).first
-        case .lunch:
-            return pool.sorted(by: { $0.protein > $1.protein }).first
-        case .dinner:
-            let sorted = pool.sorted(by: { abs($0.calories - 500) < abs($1.calories - 500) })
-            return sorted.first
+            weekDays[selectedDayIndex].meals[i].recipe = Recipe.samples.randomElement()
         }
     }
 
     func generateDay() {
-        let idx = selectedDayIndex
-        guard weekDays.indices.contains(idx) else {
-            isGenerating = false
-            return
-        }
-
         isGenerating = true
         revealedMealIndex = -1
+        let idx = selectedDayIndex
+        guard weekDays.indices.contains(idx) else { return }
 
-        Task {
-            if availableRecipes.isEmpty {
-                await fetchRecipes()
-            }
-
-            guard !availableRecipes.isEmpty else {
-                self.isGenerating = false
-                return
-            }
-
-            var usedTitles: [String] = []
-            guard self.weekDays.indices.contains(idx) else {
-                self.isGenerating = false
-                return
-            }
-
-            for i in weekDays[idx].meals.indices {
-                guard self.weekDays.indices.contains(idx),
-                      self.weekDays[idx].meals.indices.contains(i) else {
-                    self.isGenerating = false
-                    return
-                }
-
-                let mealType = weekDays[idx].meals[i].type
-                let recipe = pickRecipe(for: mealType, excluding: usedTitles)
-                if let r = recipe { usedTitles.append(r.title) }
-
-                try? await Task.sleep(nanoseconds: 400_000_000)
-
-                guard self.weekDays.indices.contains(idx),
-                      self.weekDays[idx].meals.indices.contains(i) else {
-                    self.isGenerating = false
-                    return
-                }
-
+        // Staggered reveal: each meal appears one by one
+        for i in weekDays[idx].meals.indices {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8 + Double(i) * 0.4) { [weak self] in
+                guard let self, self.weekDays.indices.contains(idx) else { return }
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                    self.weekDays[idx].meals[i].recipe = recipe
+                    self.weekDays[idx].meals[i].recipe = Recipe.samples.randomElement()
                     self.revealedMealIndex = i
                 }
-
+                // After last meal → finish
                 if i == self.weekDays[idx].meals.count - 1 {
-                    try? await Task.sleep(nanoseconds: 300_000_000)
-                    withAnimation(.snappy(duration: 0.4)) {
-                        self.isGenerating = false
-                        self.showSuccessBanner = true
-                    }
-                    try? await Task.sleep(nanoseconds: 2_500_000_000)
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        self.showSuccessBanner = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.snappy(duration: 0.4)) {
+                            self.isGenerating = false
+                            self.showSuccessBanner = true
+                        }
+                        // Auto-hide banner
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                self.showSuccessBanner = false
+                            }
+                        }
                     }
                 }
             }
@@ -292,72 +212,32 @@ final class PlanViewModel: ObservableObject {
     }
 
     func optimizeDay() {
-        let idx = selectedDayIndex
-        guard weekDays.indices.contains(idx) else { return }
+        guard weekDays.indices.contains(selectedDayIndex) else { return }
         isOptimizing = true
-
-        Task {
-            await fetchRecipes()
-
-            try? await Task.sleep(nanoseconds: 500_000_000)
-
-            guard !availableRecipes.isEmpty else {
-                withAnimation { self.isOptimizing = false }
-                return
-            }
-
-            let balanced = availableRecipes.sorted {
-                let ratio0 = Double($0.protein) / max(Double($0.calories), 1)
-                let ratio1 = Double($1.protein) / max(Double($1.calories), 1)
-                return ratio0 > ratio1
-            }
-
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self else { return }
             withAnimation(.snappy(duration: 0.5)) {
-                guard self.weekDays.indices.contains(idx) else {
-                    self.isOptimizing = false
-                    return
-                }
-
-                for i in self.weekDays[idx].meals.indices {
+                let balanced = Recipe.samples.sorted { abs($0.protein - 40) < abs($1.protein - 40) }
+                for i in self.weekDays[self.selectedDayIndex].meals.indices {
                     let pick = balanced[i % balanced.count]
-                    self.weekDays[idx].meals[i].recipe = pick
+                    self.weekDays[self.selectedDayIndex].meals[i].recipe = pick
                 }
                 self.isOptimizing = false
                 self.showSuccessBanner = true
             }
-
-            try? await Task.sleep(nanoseconds: 2_500_000_000)
-            withAnimation(.easeOut(duration: 0.3)) {
-                self.showSuccessBanner = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    self.showSuccessBanner = false
+                }
             }
         }
     }
 
-    /// Replace a single meal with a random real recipe from backend
     func replaceWithRandom(at index: Int) {
         guard weekDays.indices.contains(selectedDayIndex),
               weekDays[selectedDayIndex].meals.indices.contains(index) else { return }
 
-        let mealType = weekDays[selectedDayIndex].meals[index].type
-        let usedTitles = weekDays[selectedDayIndex].meals.compactMap { $0.recipe?.title }
-
-        if availableRecipes.isEmpty {
-            Task {
-                await fetchRecipes()
-                let recipe = pickRecipe(for: mealType, excluding: usedTitles)
-                guard self.weekDays.indices.contains(self.selectedDayIndex),
-                      self.weekDays[self.selectedDayIndex].meals.indices.contains(index) else { return }
-
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                    self.weekDays[self.selectedDayIndex].meals[index].recipe = recipe
-                }
-            }
-        } else {
-            let recipe = pickRecipe(for: mealType, excluding: usedTitles)
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                weekDays[selectedDayIndex].meals[index].recipe = recipe
-            }
-        }
+        weekDays[selectedDayIndex].meals[index].recipe = Recipe.samples.randomElement()
     }
 
     func dayLetter(for date: Date) -> String {

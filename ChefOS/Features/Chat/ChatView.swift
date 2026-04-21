@@ -386,32 +386,36 @@ struct ProductBotCard: View {
         ChatCard {
             chatCardHeader(icon: "leaf.fill", label: card.highlight ?? "Product", accent: SemanticColors.nutrient(.protein))
             HealthDivider()
-            HStack(spacing: 12) {
-                // Image or placeholder
-                Group {
-                    if let url = card.imageUrl, let u = URL(string: url) {
-                        AsyncImage(url: u) { phase in
-                            if let img = phase.image {
-                                img.resizable().scaledToFill()
-                            } else {
-                                productPlaceholder
-                            }
-                        }
-                    } else {
-                        productPlaceholder
-                    }
-                }
-                .frame(width: 60, height: 60)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(card.name)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppColors.textPrimary)
-                    macroRow(card: card)
+            // Hero image — full width, tall
+            ZStack {
+                if let url = card.imageUrl, let u = URL(string: url) {
+                    AsyncImage(url: u) { phase in
+                        if let img = phase.image {
+                            img.resizable().scaledToFill()
+                        } else if phase.error != nil {
+                            productPlaceholderLarge
+                        } else {
+                            ProgressView()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .background(AppColors.textSecondary.opacity(0.06))
+                        }
+                    }
+                } else {
+                    productPlaceholderLarge
                 }
-                Spacer()
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: 180)
+            .clipped()
+
+            VStack(alignment: .leading, spacing: 10) {
+                Text(card.name)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(AppColors.textPrimary)
+                macroRow(card: card)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, 12)
 
@@ -449,23 +453,39 @@ struct ProductBotCard: View {
                 }
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, 10)
+
+                // Secondary row: "Add to stock" — always available so the
+                // user can drop a product straight into inventory from chat.
+                HStack(spacing: 8) {
+                    ChatActionButton(
+                        title: l10n.t("chat.action.addToInventory"),
+                        icon: "tray.and.arrow.down.fill",
+                        style: .secondary
+                    ) {
+                        onAction?(.addProductToInventory(card))
+                    }
+                }
+                .padding(.horizontal, Spacing.sm)
+                .padding(.bottom, 10)
             }
         }
     }
 
     private func productActionTitle(_ a: ChatAction) -> String {
         switch a {
-        case .addProductToShopping: return l10n.t("chat.action.addToCart")
-        case .showRecipesFor:       return l10n.t("chat.action.showRecipes")
-        default:                    return ""
+        case .addProductToShopping:  return l10n.t("chat.action.addToCart")
+        case .addProductToInventory: return l10n.t("chat.action.addToInventory")
+        case .showRecipesFor:        return l10n.t("chat.action.showRecipes")
+        default:                     return ""
         }
     }
 
     private func productActionIcon(_ a: ChatAction) -> String {
         switch a {
-        case .addProductToShopping: return "cart.badge.plus"
-        case .showRecipesFor:       return "fork.knife"
-        default:                    return "questionmark"
+        case .addProductToShopping:  return "cart.badge.plus"
+        case .addProductToInventory: return "tray.and.arrow.down.fill"
+        case .showRecipesFor:        return "fork.knife"
+        default:                     return "questionmark"
         }
     }
 
@@ -475,6 +495,16 @@ struct ProductBotCard: View {
             .foregroundStyle(AppColors.textSecondary)
             .frame(width: 60, height: 60)
             .background(AppColors.textSecondary.opacity(0.08), in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
+    }
+
+    private var productPlaceholderLarge: some View {
+        ZStack {
+            AppColors.textSecondary.opacity(0.08)
+            Image(systemName: "fork.knife")
+                .font(.system(size: 42, weight: .light))
+                .foregroundStyle(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func macroRow(card: APIClient.BackendProductCard) -> some View {
@@ -487,14 +517,17 @@ struct ProductBotCard: View {
     }
 
     private func macroPill(value: Double, unit: String, color: Color) -> some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 3) {
             Text(String(format: "%.0f", value))
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
                 .foregroundStyle(color)
             Text(unit)
-                .font(.system(size: 10))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(AppColors.textSecondary)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(color.opacity(0.10), in: Capsule())
     }
 }
 

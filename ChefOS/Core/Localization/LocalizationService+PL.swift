@@ -136,11 +136,13 @@ extension LocalizationService {
         "chat.action.cook":           "Zacznij gotować",
         "chat.action.swap":           "Zamień",
         "chat.action.addToCart":      "Do koszyka",
+        "chat.action.addToInventory": "Do zapasów",
         "chat.action.showRecipes":    "Przepisy",
         "chat.action.steps":          "kroków",
         "chat.action.added.title":    "Dodano do dzisiejszego planu",
         "chat.action.cooking.title":  "Gotowi do gotowania",
         "chat.action.shopping.title": "Dodano do listy zakupów",
+        "chat.action.inventory.title": "Dodano do zapasów",
         "chat.action.swap.query":     "Zaproponuj zamiennik {ingredient} w {recipe}",
         "chat.action.showRecipes.query": "Pokaż przepisy z {product}",
 
@@ -441,6 +443,7 @@ extension LocalizationService {
         "dishType.grill": "Grill", "dishType.pasta": "Makaron", "dishType.stir_fry": "Smażone",
         "dishType.breakfast": "Śniadanie", "dishType.snack": "Przekąska", "dishType.dessert": "Deser",
         "dishType.main_course": "Danie główne", "dishType.side_dish": "Dodatek",
+        "dishType.default": "Danie",
 
         // Complexity
         "complexity.easy": "Łatwe", "complexity.medium": "Średnie", "complexity.hard": "Trudne",

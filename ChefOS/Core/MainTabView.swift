@@ -11,6 +11,7 @@ struct MainTabView: View {
     @State private var selectedTab: Tab = .recipes
     @StateObject private var planViewModel = PlanViewModel()
     @StateObject private var shoppingViewModel = ShoppingListViewModel()
+    @StateObject private var stockViewModel = StockViewModel()
     @EnvironmentObject var l10n: LocalizationService
 
     enum Tab: String {
@@ -65,6 +66,14 @@ struct MainTabView: View {
                 source: .manual,
                 productId: card.slug
             )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .chatDidAddToInventory)) { note in
+            guard let card = note.object as? APIClient.BackendProductCard else { return }
+            // Quick-add: look up the catalog ingredient by name and push
+            // a default 1-unit, 7-day batch into inventory.
+            Task { @MainActor in
+                _ = await stockViewModel.quickAddProduct(name: card.name)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .chatDidRequestCooking)) { note in
             guard let card = note.object as? APIClient.BackendRecipeCard else { return }

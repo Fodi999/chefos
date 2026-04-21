@@ -36,6 +36,11 @@ final class LocalizationService: ObservableObject {
 
     // MARK: - All translations (built from per-language extensions)
     private var translations: [String: [String: String]] {
-        ["en": Self.en, "ru": Self.ru, "pl": Self.pl, "uk": Self.uk]
+        [
+            "en": LocalizationService.en,
+            "ru": LocalizationService.ru,
+            "pl": LocalizationService.pl,
+            "uk": LocalizationService.uk
+        ]
     }
 }

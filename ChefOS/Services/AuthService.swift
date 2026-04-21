@@ -29,37 +29,32 @@ final class AuthService: ObservableObject {
 
     @Published var state: AuthState = .onboarding
 
-    // MARK: - Keychain Keys
+    // MARK: - Keychain
 
-    private let accessTokenKey = "com.chefos.access_token"
-    private let refreshTokenKey = "com.chefos.refresh_token"
-    private let userIdKey = "com.chefos.user_id"
-
-    // Legacy key for migration
-    private let legacyTokenKey = "com.chefos.auth_token"
+    private let tokenKey = "com.chefos.auth_token"
 
     var hasToken: Bool {
-        readKeychain(accessTokenKey) != nil
+        readToken() != nil
     }
 
-    // MARK: - Keychain Helpers
-
-    private func saveKeychain(_ key: String, value: String) {
-        let data = Data(value.utf8)
+    func saveToken(_ token: String) {
+        let data = Data(token.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
+            kSecAttrAccount as String: tokenKey,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
+        // Delete old
         SecItemDelete(query as CFDictionary)
+        // Add new
         SecItemAdd(query as CFDictionary, nil)
     }
 
-    private func readKeychain(_ key: String) -> String? {
+    func readToken() -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
+            kSecAttrAccount as String: tokenKey,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -69,118 +64,53 @@ final class AuthService: ObservableObject {
         return String(data: data, encoding: .utf8)
     }
 
-    private func deleteKeychain(_ key: String) {
+    var hasRealSession: Bool {
+        guard let token = readToken() else { return false }
+        return !token.isEmpty
+    }
+
+    func deleteToken() {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key
+            kSecAttrAccount as String: tokenKey
         ]
         SecItemDelete(query as CFDictionary)
     }
 
-    // Public accessor for userId
-    func readUserId() -> String? { readKeychain(userIdKey) }
-
-    /// Static accessor — reads userId from keychain without an instance
-    static func readCurrentUserId() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: "com.chefos.user_id",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
-    }
-
-    // Legacy compat
-    func saveToken(_ token: String) { saveKeychain(accessTokenKey, value: token) }
-    func readToken() -> String? { readKeychain(accessTokenKey) }
-    func deleteToken() {
-        deleteKeychain(accessTokenKey)
-        deleteKeychain(refreshTokenKey)
-        deleteKeychain(userIdKey)
-        deleteKeychain(legacyTokenKey)
-    }
-
-    // MARK: - Store JWT Tokens from API
-
-    private func storeAuthTokens(access: String, refresh: String, userId: String) {
-        saveKeychain(accessTokenKey, value: access)
-        saveKeychain(refreshTokenKey, value: refresh)
-        saveKeychain(userIdKey, value: userId)
-        // Wire into APIClient
-        APIClient.shared.setTokens(access: access, refresh: refresh)
-    }
-
-    /// Restore tokens into APIClient on app launch
-    func restoreSession() {
-        if let access = readKeychain(accessTokenKey),
-           let refresh = readKeychain(refreshTokenKey) {
-            APIClient.shared.setTokens(access: access, refresh: refresh)
-        }
-        // Persist refreshed tokens to keychain so they survive app restarts
-        let atKey = accessTokenKey
-        let rtKey = refreshTokenKey
-        APIClient.shared.onTokensRefreshed = { [weak self] newAccess, newRefresh in
-            self?.saveKeychain(atKey, value: newAccess)
-            self?.saveKeychain(rtKey, value: newRefresh)
-        }
-        // Auto-logout when refresh token is also expired
-        APIClient.shared.onSessionExpired = { [weak self] in
-            self?.logout()
-        }
-    }
-
-    /// Proactively refresh the access token at app launch
-    func refreshIfNeeded() {
-        guard hasRealSession else { return }
-        Task {
-            do {
-                try await APIClient.shared.refreshAccessToken()
-            } catch {
-                // Refresh failed → session is dead, kick to login
-                await MainActor.run { logout() }
-            }
-        }
-    }
-
-    // MARK: - Backend Auth
-
-    func registerWithBackend(email: String, password: String, name: String) async {
-        await MainActor.run { isLoading = true; error = nil }
-        do {
-            let response = try await APIClient.shared.register(email: email, password: password, name: name)
-            await MainActor.run {
-                storeAuthTokens(access: response.accessToken, refresh: response.refreshToken, userId: response.userId)
-                isLoading = false
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error.localizedDescription
-                isLoading = false
-            }
-        }
-    }
-
-    func loginWithBackend(email: String, password: String) async {
-        await MainActor.run { isLoading = true; error = nil }
-        do {
-            let response = try await APIClient.shared.login(email: email, password: password)
-            await MainActor.run {
-                storeAuthTokens(access: response.accessToken, refresh: response.refreshToken, userId: response.userId)
-                isLoading = false
-            }
-        } catch {
-            await MainActor.run {
-                self.error = error.localizedDescription
-                isLoading = false
-            }
-        }
-    }
-
     // MARK: - Biometrics
+
+    @MainActor
+    func loginWithBackend(email: String, password: String) async {
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+
+        guard !email.isEmpty, !password.isEmpty else {
+            error = "Email and password are required."
+            return
+        }
+
+        saveToken(UUID().uuidString)
+    }
+
+    @MainActor
+    func registerWithBackend(email: String, password: String, name: String) async {
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            error = "Name is required."
+            return
+        }
+
+        guard !email.isEmpty, !password.isEmpty else {
+            error = "Email and password are required."
+            return
+        }
+
+        saveToken(UUID().uuidString)
+    }
 
     func checkBiometricType() {
         let context = LAContext()
@@ -224,8 +154,6 @@ final class AuthService: ObservableObject {
             DispatchQueue.main.async {
                 self?.isLoading = false
                 if success {
-                    self?.restoreSession()
-                    self?.refreshIfNeeded()
                     withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                         self?.state = .authenticated
                         self?.isAuthenticated = true
@@ -244,27 +172,26 @@ final class AuthService: ObservableObject {
 
         let hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "chefos_onboarded")
 
-        if !hasCompletedOnboarding || !hasRealSession {
-            // No onboarding completed or no real JWT → must authenticate
+        if !hasCompletedOnboarding {
             state = .onboarding
-        } else if biometricType != .none && UserDefaults.standard.bool(forKey: "chefos_biometrics_enabled") {
+        } else if hasToken && biometricType != .none {
             state = .locked
         } else {
-            restoreSession()
-            refreshIfNeeded()
+            // No biometric or no token — skip to app
             state = .authenticated
             isAuthenticated = true
         }
     }
 
     func completeOnboarding(enableBiometrics: Bool) {
+        // Generate a local session token
+        let token = UUID().uuidString
+        saveToken(token)
         UserDefaults.standard.set(true, forKey: "chefos_onboarded")
 
         if enableBiometrics {
             UserDefaults.standard.set(true, forKey: "chefos_biometrics_enabled")
         }
-
-        restoreSession()
 
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
             state = .authenticated
@@ -273,9 +200,9 @@ final class AuthService: ObservableObject {
     }
 
     func skipBiometrics() {
+        let token = UUID().uuidString
+        saveToken(token)
         UserDefaults.standard.set(true, forKey: "chefos_onboarded")
-
-        restoreSession()
 
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
             state = .authenticated
@@ -283,15 +210,8 @@ final class AuthService: ObservableObject {
         }
     }
 
-    /// Whether we have real backend tokens (not just "pending")
-    var hasRealSession: Bool {
-        guard let token = readKeychain(accessTokenKey) else { return false }
-        return token != "pending" && token.count > 50 // JWTs are long
-    }
-
     func logout() {
         deleteToken()
-        APIClient.shared.clearTokens()
         UserDefaults.standard.set(false, forKey: "chefos_onboarded")
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
             state = .onboarding
