@@ -59,13 +59,6 @@ struct ChatView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    // Context card — visible only when no messages yet
-                    if viewModel.messages.isEmpty {
-                        assistantContextCard
-                            .padding(.horizontal, 16)
-                            .padding(.top, 8)
-                    }
-
                     messageList
 
                     SmartComposer(
@@ -113,67 +106,6 @@ struct ChatView: View {
         EmptyView()
     }
 
-    // MARK: Assistant Context Card (shown on empty state)
-
-    private var assistantContextCard: some View {
-        GroupCard {
-            // Row 1 — role
-            HStack(spacing: 12) {
-                Image(systemName: "sparkles")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(AppColors.primary)
-                    .frame(width: 36, height: 36)
-                    .background(AppColors.primary.opacity(0.12), in: Circle())
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("ChefOS Assistant")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(AppColors.textPrimary)
-                    Text("Recipes · Nutrition · Planning")
-                        .font(.system(size: 13))
-                        .foregroundStyle(AppColors.textSecondary)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, 12)
-
-            HealthDivider()
-
-            // Row 2 — daily usage
-            HStack(spacing: 10) {
-                Image(systemName: "message.fill")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppColors.primary)
-                    .frame(width: 20)
-                Text("Chats today")
-                    .font(.subheadline)
-                    .foregroundStyle(AppColors.textPrimary)
-                Spacer()
-                Text("\(usageService.chatsRemaining) left")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(usageService.chatsRemaining > 2 ? AppColors.success : AppColors.warning)
-            }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, 12)
-
-            HealthDivider()
-
-            // Row 3 — tip
-            HStack(spacing: 10) {
-                Image(systemName: "camera.viewfinder")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(AppColors.textSecondary)
-                    .frame(width: 20)
-                Text("Scan a receipt or photo for instant analysis")
-                    .font(.subheadline)
-                    .foregroundStyle(AppColors.textSecondary)
-                Spacer()
-            }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, 12)
-        }
-    }
-
     // MARK: Message List
 
     private var messageList: some View {
@@ -211,22 +143,58 @@ struct ChatView: View {
 }
 
 // MARK: - MessageBubble
+// Routes each message to the correct visual representation.
 
 struct MessageBubble: View {
     let message: Message
 
     var body: some View {
-        HStack {
+        // Structured AI cards — full width, no bubble indentation
+        switch message.cardType {
+        case .greeting(let name):
+            GreetingCard(name: name)
+                .padding(.horizontal)
+        case .goal(let goal, let focus):
+            GoalCard(goal: goal, focus: focus)
+                .padding(.horizontal)
+        case .dailyTargets(let kcal, let protein):
+            DailyTargetsCard(kcal: kcal, protein: protein)
+                .padding(.horizontal)
+        case .restrictions(let items):
+            RestrictionsCard(items: items)
+                .padding(.horizontal)
+        case .none:
+            // Standard bubble (user message or plain AI reply)
+            plainBubble
+        }
+    }
+
+    private var plainBubble: some View {
+        HStack(alignment: .top) {
             if message.isFromUser { Spacer(minLength: 60) }
 
             Group {
                 switch message.content {
                 case .text(let text):
-                    textBubble(text)
+                    Text(text)
+                        .appStyle(.body)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, 11)
+                        .foregroundStyle(message.isFromUser ? .white : AppColors.textPrimary)
+                        .background(
+                            message.isFromUser
+                                ? AnyShapeStyle(AppColors.primary)
+                                : AnyShapeStyle(AppColors.surface),
+                            in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                        )
                 case .recipeCard(let recipe):
                     RecipeCardBubble(recipe: recipe)
                 case .image(let uiImage):
-                    imageBubble(uiImage)
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: 220, maxHeight: 260)
+                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
                 }
             }
 
@@ -234,36 +202,156 @@ struct MessageBubble: View {
         }
         .padding(.horizontal)
     }
+}
 
-    @ViewBuilder
-    private func textBubble(_ text: String) -> some View {
-        Text(text)
-            .appStyle(.body)
-            .padding(.horizontal, .spacingM)
-            .padding(.vertical, 12)
-            .foregroundStyle(message.isFromUser ? .white : AppColors.textPrimary)
-            .background {
-                if message.isFromUser {
-                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                        .fill(AppColors.primary)
-                } else {
-                    AppCard(style: .solid, cornerRadius: Radius.md) { EmptyView() }
+// MARK: - ChatCard (base container)
+
+private struct ChatCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
+    }
+}
+
+// MARK: - GreetingCard
+
+struct GreetingCard: View {
+    let name: String
+
+    var body: some View {
+        ChatCard {
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 44, height: 44)
+                    .background(AppColors.primary.opacity(0.12), in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(name.isEmpty ? "Hello!" : "Hello, \(name)")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(AppColors.textPrimary)
+                    Text("ChefOS · Your personal chef AI")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppColors.textSecondary)
                 }
             }
+            .padding(Spacing.sm)
+        }
+    }
+}
+
+// MARK: - GoalCard
+
+struct GoalCard: View {
+    let goal: String
+    let focus: String
+
+    var body: some View {
+        ChatCard {
+            chatCardHeader(icon: "target", label: "Goal", accent: AppColors.accent)
+            HealthDivider()
+            VStack(alignment: .leading, spacing: 4) {
+                Text(goal)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppColors.textPrimary)
+                Text(focus)
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 12)
+        }
+    }
+}
+
+// MARK: - DailyTargetsCard
+
+struct DailyTargetsCard: View {
+    let kcal: Int
+    let protein: Int
+
+    var body: some View {
+        ChatCard {
+            chatCardHeader(icon: "chart.bar.fill", label: "Today's Targets", accent: SemanticColors.nutrient(.calories))
+            HealthDivider()
+            HStack(spacing: 0) {
+                targetCell(value: "\(kcal)", unit: "kcal", label: "Calories",
+                           accent: SemanticColors.nutrient(.calories))
+                Divider().frame(height: 44)
+                targetCell(value: "\(protein)", unit: "g", label: "Protein",
+                           accent: SemanticColors.nutrient(.protein))
+            }
+            .padding(.vertical, 4)
+        }
     }
 
-    private func imageBubble(_ uiImage: UIImage) -> some View {
-        Image(uiImage: uiImage)
-            .resizable()
-            .scaledToFill()
-            .frame(maxWidth: 220, maxHeight: 260)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
-            )
-            .shadow(color: Color.obsidianBase.opacity(0.3), radius: 20, y: 10)
+    private func targetCell(value: String, unit: String, label: String, accent: Color) -> some View {
+        VStack(spacing: 3) {
+            HStack(alignment: .lastTextBaseline, spacing: 3) {
+                Text(value)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(accent)
+                Text(unit)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(AppColors.textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
     }
+}
+
+// MARK: - RestrictionsCard
+
+struct RestrictionsCard: View {
+    let items: [String]
+
+    var body: some View {
+        ChatCard {
+            chatCardHeader(icon: "exclamationmark.shield.fill", label: "Restrictions", accent: AppColors.warning)
+            HealthDivider()
+            FlowLayout(spacing: 6) {
+                ForEach(items, id: \.self) { item in
+                    Text(item)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(AppColors.warning)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(AppColors.warning.opacity(0.1), in: Capsule())
+                }
+            }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 12)
+        }
+    }
+}
+
+// MARK: - Card section header helper
+
+@ViewBuilder
+private func chatCardHeader(icon: String, label: String, accent: Color) -> some View {
+    HStack(spacing: 8) {
+        Image(systemName: icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(accent)
+        Text(label.uppercased())
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(AppColors.textSecondary)
+            .tracking(0.5)
+    }
+    .padding(.horizontal, Spacing.sm)
+    .padding(.top, 12)
+    .padding(.bottom, 6)
 }
 
 // MARK: - RecipeCardBubble
@@ -280,16 +368,15 @@ struct RecipeCardBubble: View {
                 Spacer()
                 Image(systemName: "fork.knife.circle.fill")
                     .font(.title3)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(AppColors.accent)
             }
 
-            Divider()
-                .overlay(Color.white.opacity(0.1))
+            HealthDivider()
 
             HStack {
                 Label("\(recipe.calories) kcal", systemImage: "flame.fill")
                     .font(.subheadline)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(SemanticColors.nutrient(.calories))
                 Spacer()
                 Text("\(recipe.ingredients.count) \(l10n.t("chat.ingredients"))")
                     .font(.caption)
@@ -301,9 +388,10 @@ struct RecipeCardBubble: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
         }
-        .padding()
+        .padding(Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .productCard(cornerRadius: 20)
+        .background(AppColors.surface)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
     }
 }
 
@@ -312,23 +400,23 @@ struct RecipeCardBubble: View {
 struct ThinkingIndicator: View {
     @State private var phase: Int = 0
     @EnvironmentObject var l10n: LocalizationService
-    private let timer = Timer.publish(every: 0.35, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
 
     var body: some View {
         HStack(spacing: 8) {
             HStack(spacing: 5) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
-                        .fill(Color.auroraBlue)
-                        .frame(width: 8, height: 8)
-                        .scaleEffect(phase == index ? 1.4 : 0.7)
-                        .opacity(phase == index ? 1 : 0.35)
-                        .animation(.premiumSpring, value: phase)
+                        .fill(AppColors.primary)
+                        .frame(width: 7, height: 7)
+                        .scaleEffect(phase == index ? 1.35 : 0.7)
+                        .opacity(phase == index ? 1 : 0.3)
+                        .animation(.easeInOut(duration: 0.25), value: phase)
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .productCard(cornerRadius: 16)
+            .background(AppColors.surface, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
 
             Text(l10n.t("chat.thinking"))
                 .font(.footnote.weight(.medium))
@@ -336,13 +424,12 @@ struct ThinkingIndicator: View {
 
             Spacer()
         }
+        .padding(.horizontal)
         .onReceive(timer) { _ in
             phase = (phase + 1) % 3
         }
     }
 }
-
-
 
 #Preview {
     ChatView()
@@ -350,3 +437,4 @@ struct ThinkingIndicator: View {
         .environmentObject(LocalizationService())
         .preferredColorScheme(.dark)
 }
+

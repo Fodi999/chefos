@@ -299,6 +299,16 @@ extension Recipe {
 
 // MARK: Message
 
+/// Structured card types emitted by the AI greeting flow.
+/// Plain AI/user replies use `.none`.
+enum ChatCardType {
+    case none
+    case greeting(name: String)
+    case goal(goal: String, focus: String)
+    case dailyTargets(kcal: Int, protein: Int)
+    case restrictions(items: [String])
+}
+
 enum MessageContent {
     case text(String)
     case recipeCard(Recipe)
@@ -309,6 +319,7 @@ struct Message: Identifiable {
     let id = UUID()
     let content: MessageContent
     let isFromUser: Bool
+    var cardType: ChatCardType = .none
     let timestamp: Date = .now
 }
 

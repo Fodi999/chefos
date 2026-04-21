@@ -38,26 +38,43 @@ final class ChatViewModel: ObservableObject {
     private func loadPersonalizedGreeting() async {
         guard userId != nil else { return }
         do {
-            // Fetch name + preferences in parallel
             async let meResult = api.getMe()
             async let prefsResult = api.getPreferences()
-
             let me = try await meResult
             let prefs = try await prefsResult
-
             let name = me.user.displayName ?? ""
-            let greeting = buildPersonalizedGreeting(prefs, userName: name)
-            if !greeting.isEmpty {
-                // Replace the generic welcome with personalized one
-                if !messages.isEmpty {
-                    messages[0] = Message(
-                        content: .text(l10n.t("chat.welcomePersonal")
-                            .replacingOccurrences(of: "{name}", with: name.isEmpty ? "" : name)),
-                        isFromUser: false
-                    )
-                }
+
+            // Replace generic welcome with structured greeting cards (staggered)
+            messages.removeAll()
+
+            // Card 1 — greeting (immediate)
+            withAnimation(.snappy(duration: 0.35)) {
+                messages.append(Message(content: .text(""), isFromUser: false,
+                                        cardType: .greeting(name: name)))
+            }
+
+            // Card 2 — goal
+            try await Task.sleep(nanoseconds: 500_000_000)
+            withAnimation(.snappy(duration: 0.35)) {
+                messages.append(Message(content: .text(""), isFromUser: false,
+                                        cardType: .goal(goal: goalDisplayName(prefs.goal),
+                                                        focus: goalFocus(prefs.goal))))
+            }
+
+            // Card 3 — targets
+            try await Task.sleep(nanoseconds: 400_000_000)
+            withAnimation(.snappy(duration: 0.35)) {
+                messages.append(Message(content: .text(""), isFromUser: false,
+                                        cardType: .dailyTargets(kcal: prefs.calorieTarget,
+                                                                protein: prefs.proteinTarget)))
+            }
+
+            // Card 4 — restrictions (only if allergies exist)
+            if !prefs.allergies.isEmpty {
+                try await Task.sleep(nanoseconds: 400_000_000)
                 withAnimation(.snappy(duration: 0.35)) {
-                    messages.append(Message(content: .text(greeting), isFromUser: false))
+                    messages.append(Message(content: .text(""), isFromUser: false,
+                                            cardType: .restrictions(items: prefs.allergies)))
                 }
             }
         } catch {
@@ -65,40 +82,28 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
+    private func goalDisplayName(_ goal: String) -> String {
+        switch goal {
+        case "lose_weight", "low_calorie", "cut":    return l10n.t("chat.goal.loseWeight")
+        case "gain_muscle", "high_protein", "bulk":  return l10n.t("chat.goal.gainMuscle")
+        case "gain_weight", "mass":                  return l10n.t("chat.goal.gainWeight")
+        case "eat_healthier":                        return l10n.t("chat.goal.eatHealthier")
+        default:                                     return l10n.t("chat.goal.balanced")
+        }
+    }
+
+    private func goalFocus(_ goal: String) -> String {
+        switch goal {
+        case "lose_weight", "low_calorie", "cut":    return l10n.t("chat.focus.loseWeight")
+        case "gain_muscle", "high_protein", "bulk":  return l10n.t("chat.focus.gainMuscle")
+        case "gain_weight", "mass":                  return l10n.t("chat.focus.gainWeight")
+        case "eat_healthier":                        return l10n.t("chat.focus.eatHealthier")
+        default:                                     return l10n.t("chat.focus.balanced")
+        }
+    }
+
     private func buildPersonalizedGreeting(_ p: APIClient.UserPreferencesDTO, userName: String) -> String {
-        var parts: [String] = []
-
-        // Goal motivation
-        switch p.goal {
-        case "lose_weight", "low_calorie", "cut":
-            parts.append(l10n.t("chat.motivation.loseWeight"))
-        case "gain_muscle", "high_protein", "bulk":
-            parts.append(l10n.t("chat.motivation.gainMuscle"))
-        case "gain_weight", "mass":
-            parts.append(l10n.t("chat.motivation.gainWeight"))
-        case "eat_healthier":
-            parts.append(l10n.t("chat.motivation.eatHealthier"))
-        default:
-            parts.append(l10n.t("chat.motivation.balanced"))
-        }
-
-        // Diet reminder
-        if p.diet != "no_restrictions" && !p.diet.isEmpty {
-            let dietName = p.diet.replacingOccurrences(of: "_", with: " ").capitalized
-            parts.append(l10n.t("chat.motivation.diet").replacingOccurrences(of: "{diet}", with: dietName))
-        }
-
-        // Calorie / protein targets
-        parts.append(l10n.t("chat.motivation.targets")
-            .replacingOccurrences(of: "{kcal}", with: "\(p.calorieTarget)")
-            .replacingOccurrences(of: "{protein}", with: "\(p.proteinTarget)"))
-
-        // Allergies warning
-        if !p.allergies.isEmpty {
-            parts.append(l10n.t("chat.motivation.allergies").replacingOccurrences(of: "{list}", with: p.allergies.joined(separator: ", ")))
-        }
-
-        return parts.joined(separator: "\n")
+        return "" // legacy — no longer called
     }
 
     func send() {
