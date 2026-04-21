@@ -607,12 +607,26 @@ final class APIClient {
         let intents: [String]?
         let reason: String?
         let suggestions: [ChatSuggestion]?
+        /// Step 3.5 "Guidance": complementary cards block rendered as a
+        /// separate section below main cards (e.g. Fish → Vegetable side).
+        /// Never replaces `cards` — always additional.
+        let suggestionBlock: SuggestionBlock?
         let chefTip: String?
         let coachMessage: String?
         let cards: [BackendCard]?
         let lang: String?
         let timingMs: Int?
         let context: ChatContext?
+    }
+
+    /// Complementary recommendation block — paired with primary cards.
+    struct SuggestionBlock: Decodable {
+        /// Localized heading: "Add a side", "Добавь гарнир", …
+        let title: String
+        /// Category slug of the suggested items ("vegetable", "fruit", …).
+        let category: String
+        /// Cards in the side block — same shape as primary `cards`.
+        let items: [BackendCard]
     }
 
     struct ChatSuggestion: Codable {
