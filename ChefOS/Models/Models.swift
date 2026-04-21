@@ -377,6 +377,31 @@ enum ChatAction {
     case showRecipesFor(product: APIClient.BackendProductCard)
 }
 
+extension ChatAction {
+    /// Map a typed backend action onto the local `ChatAction`, carrying the
+    /// full card payload so the handler has all needed context.
+    /// Returns nil for `.unknown` — forward-compat with new server-side actions.
+    static func from(backend: APIClient.BackendAction,
+                     recipe: APIClient.BackendRecipeCard? = nil,
+                     product: APIClient.BackendProductCard? = nil) -> ChatAction? {
+        switch backend {
+        case .addToPlan:
+            return recipe.map { .addRecipeToPlan($0) }
+        case .startCooking:
+            return recipe.map { .startCooking($0) }
+        case .swapIngredient(_, let slug):
+            guard let r = recipe else { return nil }
+            return .swapIngredient(recipe: r, ingredient: slug)
+        case .addToShopping:
+            return product.map { .addProductToShopping($0) }
+        case .showRecipesFor:
+            return product.map { .showRecipesFor(product: $0) }
+        case .unknown:
+            return nil
+        }
+    }
+}
+
 // Cross-ViewModel notifications (chat → plan / shopping)
 extension Notification.Name {
     static let chatDidAddRecipeToPlan   = Notification.Name("chat.addRecipeToPlan")

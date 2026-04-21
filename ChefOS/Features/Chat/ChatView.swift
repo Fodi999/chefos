@@ -416,24 +416,53 @@ struct ProductBotCard: View {
             if onAction != nil {
                 HealthDivider()
                 HStack(spacing: 8) {
-                    ChatActionButton(
-                        title: l10n.t("chat.action.addToCart"),
-                        icon: "cart.badge.plus",
-                        style: .primary
-                    ) {
-                        onAction?(.addProductToShopping(card))
-                    }
-                    ChatActionButton(
-                        title: l10n.t("chat.action.showRecipes"),
-                        icon: "fork.knife",
-                        style: .secondary
-                    ) {
-                        onAction?(.showRecipesFor(product: card))
+                    // Prefer backend-driven actions; fall back to defaults
+                    // while servers roll out the new schema.
+                    let backend = (card.actions ?? []).compactMap { ChatAction.from(backend: $0, product: card) }
+                    if !backend.isEmpty {
+                        ForEach(Array(backend.enumerated()), id: \.offset) { i, action in
+                            ChatActionButton(
+                                title: productActionTitle(action),
+                                icon:  productActionIcon(action),
+                                style: i == 0 ? .primary : .secondary
+                            ) { onAction?(action) }
+                        }
+                    } else {
+                        ChatActionButton(
+                            title: l10n.t("chat.action.addToCart"),
+                            icon: "cart.badge.plus",
+                            style: .primary
+                        ) {
+                            onAction?(.addProductToShopping(card))
+                        }
+                        ChatActionButton(
+                            title: l10n.t("chat.action.showRecipes"),
+                            icon: "fork.knife",
+                            style: .secondary
+                        ) {
+                            onAction?(.showRecipesFor(product: card))
+                        }
                     }
                 }
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, 10)
             }
+        }
+    }
+
+    private func productActionTitle(_ a: ChatAction) -> String {
+        switch a {
+        case .addProductToShopping: return l10n.t("chat.action.addToCart")
+        case .showRecipesFor:       return l10n.t("chat.action.showRecipes")
+        default:                    return ""
+        }
+    }
+
+    private func productActionIcon(_ a: ChatAction) -> String {
+        switch a {
+        case .addProductToShopping: return "cart.badge.plus"
+        case .showRecipesFor:       return "fork.knife"
+        default:                    return "questionmark"
         }
     }
 
@@ -679,24 +708,53 @@ struct RecipeBotCard: View {
             if onAction != nil {
                 HealthDivider()
                 HStack(spacing: 8) {
-                    ChatActionButton(
-                        title: l10n.t("chat.action.addToPlan"),
-                        icon: "calendar.badge.plus",
-                        style: .primary
-                    ) {
-                        onAction?(.addRecipeToPlan(card))
-                    }
-                    ChatActionButton(
-                        title: l10n.t("chat.action.cook"),
-                        icon: "flame.fill",
-                        style: .secondary
-                    ) {
-                        onAction?(.startCooking(card))
+                    let backend = (card.actions ?? []).compactMap { ChatAction.from(backend: $0, recipe: card) }
+                    if !backend.isEmpty {
+                        ForEach(Array(backend.enumerated()), id: \.offset) { i, action in
+                            ChatActionButton(
+                                title: recipeActionTitle(action),
+                                icon:  recipeActionIcon(action),
+                                style: i == 0 ? .primary : .secondary
+                            ) { onAction?(action) }
+                        }
+                    } else {
+                        ChatActionButton(
+                            title: l10n.t("chat.action.addToPlan"),
+                            icon: "calendar.badge.plus",
+                            style: .primary
+                        ) {
+                            onAction?(.addRecipeToPlan(card))
+                        }
+                        ChatActionButton(
+                            title: l10n.t("chat.action.cook"),
+                            icon: "flame.fill",
+                            style: .secondary
+                        ) {
+                            onAction?(.startCooking(card))
+                        }
                     }
                 }
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, 10)
             }
+        }
+    }
+
+    private func recipeActionTitle(_ a: ChatAction) -> String {
+        switch a {
+        case .addRecipeToPlan: return l10n.t("chat.action.addToPlan")
+        case .startCooking:    return l10n.t("chat.action.cook")
+        case .swapIngredient:  return l10n.t("chat.action.swap")
+        default:               return ""
+        }
+    }
+
+    private func recipeActionIcon(_ a: ChatAction) -> String {
+        switch a {
+        case .addRecipeToPlan: return "calendar.badge.plus"
+        case .startCooking:    return "flame.fill"
+        case .swapIngredient:  return "arrow.triangle.2.circlepath"
+        default:               return "questionmark"
         }
     }
 

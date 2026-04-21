@@ -130,6 +130,7 @@ extension LocalizationService {
         // Chat action buttons
         "chat.action.addToPlan":      "Добавить в план",
         "chat.action.cook":           "Начать готовить",
+        "chat.action.swap":           "Заменить",
         "chat.action.addToCart":      "В корзину",
         "chat.action.showRecipes":    "Рецепты",
         "chat.action.steps":          "шагов",

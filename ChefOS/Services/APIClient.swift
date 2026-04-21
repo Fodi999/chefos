@@ -616,6 +616,46 @@ final class APIClient {
 
     // MARK: - Typed Backend Cards
 
+    /// Typed user-invokable action attached to a backend card.
+    /// Tagged union matching the Rust `Action` enum on `/public/chat`.
+    enum BackendAction: Decodable {
+        case addToPlan(recipeId: String)
+        case startCooking(recipeId: String)
+        case swapIngredient(recipeId: String, ingredientSlug: String)
+        case addToShopping(productSlug: String)
+        case showRecipesFor(productSlug: String)
+        case unknown
+
+        private enum CodingKeys: String, CodingKey {
+            case type
+            case recipeId
+            case ingredientSlug
+            case productSlug
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            let type_ = (try? c.decode(String.self, forKey: .type)) ?? ""
+            switch type_ {
+            case "add_to_plan":
+                self = .addToPlan(recipeId: (try? c.decode(String.self, forKey: .recipeId)) ?? "")
+            case "start_cooking":
+                self = .startCooking(recipeId: (try? c.decode(String.self, forKey: .recipeId)) ?? "")
+            case "swap_ingredient":
+                self = .swapIngredient(
+                    recipeId: (try? c.decode(String.self, forKey: .recipeId)) ?? "",
+                    ingredientSlug: (try? c.decode(String.self, forKey: .ingredientSlug)) ?? ""
+                )
+            case "add_to_shopping":
+                self = .addToShopping(productSlug: (try? c.decode(String.self, forKey: .productSlug)) ?? "")
+            case "show_recipes_for":
+                self = .showRecipesFor(productSlug: (try? c.decode(String.self, forKey: .productSlug)) ?? "")
+            default:
+                self = .unknown
+            }
+        }
+    }
+
     struct BackendProductCard: Decodable {
         let slug: String
         let name: String
@@ -626,6 +666,7 @@ final class APIClient {
         let imageUrl: String?
         let highlight: String?
         let reasonTag: String?
+        let actions: [BackendAction]?
     }
 
     struct BackendNutritionCard: Decodable {
@@ -684,6 +725,7 @@ final class APIClient {
         let allergens: [String]
         let tags: [String]
         let appliedConstraints: [String]
+        let actions: [BackendAction]?
     }
 
     /// Tagged-union card from the backend `cards[]` array.
