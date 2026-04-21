@@ -8,17 +8,49 @@ import Combine
 
 // MARK: - ViewModels/Plan
 
+/// Calendar view mode — day / week / month. iOS 26 segmented style.
+enum PlanMode: String, CaseIterable, Identifiable {
+    case day, week, month
+    var id: String { rawValue }
+    var iconName: String {
+        switch self {
+        case .day:   return "calendar.day.timeline.left"
+        case .week:  return "calendar"
+        case .month: return "square.grid.3x3"
+        }
+    }
+    var l10nKey: String {
+        switch self {
+        case .day:   return "plan.day"
+        case .week:  return "plan.week"
+        case .month: return "plan.month"
+        }
+    }
+}
+
 final class PlanViewModel: ObservableObject {
     @Published var weekDays: [MealPlanDay] = []
     @Published var selectedDayIndex: Int = 0
     @Published var isGenerating: Bool = false
     @Published var isOptimizing: Bool = false
-    @Published var showWeekView: Bool = false
+    @Published var mode: PlanMode = .day
     @Published var showSuccessBanner: Bool = false
     @Published var revealedMealIndex: Int = -1
     @Published var showAddedToPlanBanner: Bool = false
     @Published var addedToPlanTitle: String = ""
     @Published var addedToPlanSlot: String = ""
+
+    // Month view state
+    @Published var visibleMonth: Date = Date.now
+    /// Cache of meal plans keyed by start-of-day date. Populated from backend.
+    @Published var monthPlans: [Date: MealPlanDay] = [:]
+    @Published var isLoadingMonth: Bool = false
+
+    // Back-compat shim — some older code still reads `showWeekView`
+    var showWeekView: Bool {
+        get { mode == .week }
+        set { mode = newValue ? .week : .day }
+    }
 
     // Targets from profile (hardcoded for now)
     let calorieTarget: Int = 2200
@@ -313,6 +345,139 @@ final class PlanViewModel: ObservableObject {
             withAnimation(.easeOut(duration: 0.3)) {
                 self.showAddedToPlanBanner = false
             }
+        }
+    }
+
+    // MARK: - Month view
+
+    /// All days visible in the month grid — padded with leading/trailing days
+    /// from adjacent months so the grid always starts on the locale's first
+    /// weekday and fills complete rows (iOS 26 Calendar-app style).
+    var monthGridDays: [Date] {
+        let cal = calendar
+        guard let interval = cal.dateInterval(of: .month, for: visibleMonth) else { return [] }
+        let firstOfMonth = interval.start
+        // Start the grid on the first day of the week containing firstOfMonth.
+        let weekdayOfFirst = cal.component(.weekday, from: firstOfMonth)
+        let firstWeekday = cal.firstWeekday
+        let leadingOffset = (weekdayOfFirst - firstWeekday + 7) % 7
+        guard let gridStart = cal.date(byAdding: .day, value: -leadingOffset, to: firstOfMonth) else { return [] }
+
+        // 6 rows × 7 cols = 42 cells — covers every possible month layout.
+        return (0..<42).compactMap { cal.date(byAdding: .day, value: $0, to: gridStart) }
+    }
+
+    var monthTitle: String {
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.dateFormat = "LLLL yyyy"
+        return f.string(from: visibleMonth).capitalized(with: .current)
+    }
+
+    var weekdaySymbols: [String] {
+        let cal = calendar
+        let f = DateFormatter()
+        f.locale = Locale.current
+        let rotated = Array(f.veryShortStandaloneWeekdaySymbols.dropFirst(cal.firstWeekday - 1))
+                    + Array(f.veryShortStandaloneWeekdaySymbols.prefix(cal.firstWeekday - 1))
+        return rotated
+    }
+
+    func isInVisibleMonth(_ date: Date) -> Bool {
+        calendar.isDate(date, equalTo: visibleMonth, toGranularity: .month)
+    }
+
+    /// Lookup a cached meal plan for a specific date.
+    func plan(on date: Date) -> MealPlanDay? {
+        let key = calendar.startOfDay(for: date)
+        if let cached = monthPlans[key] { return cached }
+        // Fall back to the currently-loaded week
+        return weekDays.first { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    func stepMonth(by value: Int) {
+        guard let next = calendar.date(byAdding: .month, value: value, to: visibleMonth) else { return }
+        withAnimation(.snappy(duration: 0.3)) { visibleMonth = next }
+        Task { await loadVisibleMonth() }
+    }
+
+    func selectDate(_ date: Date) {
+        // If the date falls inside the current week, just update the index;
+        // otherwise rebuild the week anchored on the selected date.
+        if let idx = weekDays.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
+            selectDay(idx)
+        } else {
+            anchorWeek(on: date)
+        }
+        withAnimation(.snappy(duration: 0.3)) { mode = .day }
+    }
+
+    private func anchorWeek(on date: Date) {
+        let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)) ?? date
+        weekDays = (0..<7).compactMap { offset in
+            guard let d = calendar.date(byAdding: .day, value: offset, to: startOfWeek) else { return nil }
+            let existing = monthPlans[calendar.startOfDay(for: d)]
+            return existing ?? MealPlanDay(
+                date: d,
+                meals: Meal.MealType.allCases.map { Meal(type: $0, recipe: nil) }
+            )
+        }
+        selectedDayIndex = weekDays.firstIndex { calendar.isDate($0.date, inSameDayAs: date) } ?? 0
+    }
+
+    // MARK: - Backend loading
+
+    private static let apiDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .iso8601)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(secondsFromGMT: 0)
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// Load all plans that fall inside the currently visible month (+
+    /// 6-day overflow on both sides so the grid cells for adjacent months
+    /// also display meal dots).
+    @MainActor
+    func loadVisibleMonth() async {
+        guard let interval = calendar.dateInterval(of: .month, for: visibleMonth) else { return }
+        let from = calendar.date(byAdding: .day, value: -7, to: interval.start) ?? interval.start
+        let to   = calendar.date(byAdding: .day, value: 7, to: interval.end) ?? interval.end
+        await loadRange(from: from, to: to)
+    }
+
+    @MainActor
+    func loadRange(from: Date, to: Date) async {
+        isLoadingMonth = true
+        defer { isLoadingMonth = false }
+
+        let fromStr = Self.apiDateFormatter.string(from: from)
+        let toStr   = Self.apiDateFormatter.string(from: to)
+        do {
+            let days = try await APIClient.shared.getMealPlanRange(from: fromStr, to: toStr)
+            var dict: [Date: MealPlanDay] = monthPlans
+            for dto in days {
+                guard let d = Self.apiDateFormatter.date(from: dto.date) else { continue }
+                let key = calendar.startOfDay(for: d)
+                let meals: [Meal] = Meal.MealType.allCases.map { type in
+                    let slot = type.rawValue.lowercased()
+                    let entry = dto.meals.first { $0.slot.lowercased() == slot }
+                    if let rec = entry?.recipe {
+                        // Best-effort mapping — fallback sample if lookup fails
+                        let sample = Recipe.samples.first { $0.title == rec.title } ?? Recipe.samples.first
+                        return Meal(type: type, recipe: sample)
+                    }
+                    return Meal(type: type, recipe: nil)
+                }
+                dict[key] = MealPlanDay(date: d, meals: meals)
+            }
+            monthPlans = dict
+        } catch {
+            // Backend not ready or offline — keep local sample data.
+            #if DEBUG
+            print("[Plan] loadRange failed: \(error.localizedDescription)")
+            #endif
         }
     }
 }

@@ -49,16 +49,21 @@ struct IngredientDetailSheet: View {
                     }
                 }
             }
-            .navigationTitle(detail?.localizedName(l10n.language) ?? fallbackName)
-            .navigationBarTitleDisplayMode(.inline)
+            // Transparent toolbar so the hero image can scroll under the
+            // status bar / nav chrome (Apple Photos / App Store style).
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(AppColors.textTertiary)
+                            .font(.system(size: 26))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, .black.opacity(0.35))
                     }
                 }
             }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
             .task { await load() }
         }
     }
@@ -110,6 +115,7 @@ private struct IngredientDetailContent: View {
                         .font(.system(size: 14))
                         .foregroundStyle(AppColors.textSecondary)
                         .padding(.horizontal, Spacing.md)
+                        .padding(.top, Spacing.sm)
                 }
 
                 physicalBadgesSection
@@ -127,8 +133,9 @@ private struct IngredientDetailContent: View {
 
                 Spacer(minLength: 40)
             }
-            .padding(.vertical, Spacing.md)
+            .padding(.bottom, Spacing.md)
         }
+        .ignoresSafeArea(edges: .top)   // let the hero flow under the status bar
         .task(id: detail.slug) {
             await loadStates()
         }
@@ -153,20 +160,65 @@ private struct IngredientDetailContent: View {
 
     @ViewBuilder
     private var heroSection: some View {
-        ZStack {
-            let url = detail.imageUrl ?? fallbackImageUrl
-            if let s = url, let u = URL(string: s) {
-                AsyncImage(url: u) { phase in
-                    if let img = phase.image { img.resizable().scaledToFill() }
-                    else { placeholder }
+        ZStack(alignment: .bottomLeading) {
+            // Background image (bleeds under status bar + notch)
+            Group {
+                let url = detail.imageUrl ?? fallbackImageUrl
+                if let s = url, let u = URL(string: s) {
+                    AsyncImage(url: u) { phase in
+                        if let img = phase.image {
+                            img.resizable().scaledToFill()
+                        } else {
+                            placeholder
+                        }
+                    }
+                } else {
+                    placeholder
                 }
-            } else {
-                placeholder
             }
+            .frame(maxWidth: .infinity)
+            .frame(height: 320)
+            .clipped()
+
+            // Top darkening — keeps the status bar / close button legible
+            // over bright photos without black banding.
+            LinearGradient(
+                colors: [Color.black.opacity(0.55), Color.black.opacity(0.0)],
+                startPoint: .top,
+                endPoint: .center
+            )
+            .frame(height: 320)
+            .allowsHitTesting(false)
+
+            // Bottom gradient → merges hero into page background so
+            // the ingredient name sits on a readable panel.
+            LinearGradient(
+                colors: [Color.black.opacity(0.0), Color.black.opacity(0.7)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .frame(height: 320)
+            .allowsHitTesting(false)
+
+            // Ingredient name overlay
+            VStack(alignment: .leading, spacing: 4) {
+                Text(detail.localizedName(l10n.language))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
+                if let cat = detail.productType, !cat.isEmpty {
+                    Text(cat.capitalized)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(.ultraThinMaterial, in: Capsule())
+                }
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.bottom, 16)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 220)
-        .clipped()
+        .frame(height: 320)
     }
 
     private var placeholder: some View {

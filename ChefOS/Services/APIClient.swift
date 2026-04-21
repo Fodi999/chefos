@@ -52,6 +52,12 @@ final class APIClient {
         refreshToken = nil
     }
 
+    /// True when the client holds a backend-issued access token.
+    /// Read this BEFORE calling private endpoints (inventory, plan, …) so the
+    /// UI can prompt the user to sign in instead of letting the request fail
+    /// with a generic 401 → "Session expired".
+    var hasBackendSession: Bool { accessToken != nil }
+
     // MARK: - Auth Endpoints
 
     struct AuthResponse: Codable {
@@ -1484,7 +1490,18 @@ final class APIClient {
 
         switch http.statusCode {
         case 200...299:
-            return try decoder.decode(T.self, from: data)
+            do {
+                return try decoder.decode(T.self, from: data)
+            } catch let err as DecodingError {
+                #if DEBUG
+                let bodyPreview = String(data: data.prefix(800), encoding: .utf8) ?? "<non-utf8>"
+                let path = request.url?.path ?? "?"
+                print("❌ Decode failed on \(path) as \(T.self):")
+                print("   reason: \(Self.describe(err))")
+                print("   body:   \(bodyPreview)")
+                #endif
+                throw err
+            }
         case 401:
             // Only try refresh if the request was originally authenticated
             if request.value(forHTTPHeaderField: "Authorization") != nil,
@@ -1544,6 +1561,79 @@ final class APIClient {
             }
             throw URLError(.badServerResponse)
         }
+    }
+
+    // MARK: - Meal Plan Endpoints
+    //
+    // Backend contract (planned):
+    //   GET  /api/meal-plan?from=YYYY-MM-DD&to=YYYY-MM-DD  → MealPlanRangeResponse
+    //   PUT  /api/meal-plan/:date                          → MealPlanDayDTO (upsert)
+    //   DELETE /api/meal-plan/:date/:slot                  → 204
+    //
+    // While the backend endpoints are being rolled out, `getMealPlanRange`
+    // returns an empty array on 404/501 so the UI can degrade gracefully
+    // to local sample data.
+
+    struct MealPlanRecipeRefDTO: Codable {
+        let id: String
+        let title: String
+        let calories: Int?
+        let protein: Int?
+        let estimatedCost: Double?
+        let imageUrl: String?
+    }
+
+    struct MealPlanEntryDTO: Codable {
+        let slot: String              // "breakfast" | "lunch" | "dinner" | "snack"
+        let recipe: MealPlanRecipeRefDTO?
+    }
+
+    struct MealPlanDayDTO: Codable {
+        let date: String              // ISO yyyy-MM-dd
+        let meals: [MealPlanEntryDTO]
+    }
+
+    struct MealPlanRangeResponse: Codable {
+        let days: [MealPlanDayDTO]
+    }
+
+    /// Fetch meal plans for a date range (inclusive). Returns empty list if
+    /// the backend endpoint is not yet available (404/501).
+    func getMealPlanRange(from: String, to: String) async throws -> [MealPlanDayDTO] {
+        guard var comps = URLComponents(string: "\(baseURL)/meal-plan") else {
+            throw APIError.networkError
+        }
+        comps.queryItems = [
+            URLQueryItem(name: "from", value: from),
+            URLQueryItem(name: "to",   value: to),
+        ]
+        guard let url = comps.url else { throw APIError.networkError }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        try attachAuth(&request)
+
+        do {
+            let resp: MealPlanRangeResponse = try await execute(request)
+            return resp.days
+        } catch APIError.serverError(let code, _) where code == 404 || code == 501 {
+            return []
+        }
+    }
+
+    /// Upsert meals for a single date.
+    @discardableResult
+    func upsertMealPlanDay(date: String, meals: [MealPlanEntryDTO]) async throws -> MealPlanDayDTO {
+        guard let url = URL(string: "\(baseURL)/meal-plan/\(date)") else {
+            throw APIError.networkError
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        try attachAuth(&request)
+        struct Body: Codable { let meals: [MealPlanEntryDTO] }
+        request.httpBody = try JSONEncoder().encode(Body(meals: meals))
+        return try await execute(request)
     }
 }
 

@@ -27,6 +27,10 @@ final class StockViewModel: ObservableObject {
     // MARK: - Add form
     @Published var showAddSheet = false
     @Published var showSuccessBanner = false
+    /// Set to `true` by `addProduct()` when the user tries to save without a
+    /// backend session. The view uses this to show a "Sign in required"
+    /// banner with a Login button instead of a confusing red error text.
+    @Published var showLoginRequired = false
     @Published var selectedIngredient: APIClient.CatalogIngredientDTO?
     @Published var addQuantity = ""
     @Published var addPrice = ""
@@ -320,6 +324,17 @@ final class StockViewModel: ObservableObject {
     func addProduct() async {
         guard let ingredient = selectedIngredient else { return }
         guard let qty = Double(addQuantity), qty > 0 else { return }
+
+        // Gate: writing to inventory is a PRIVATE action and requires a real
+        // backend JWT. If the onboarding flow hasn't produced one yet (e.g.
+        // the user went through "Skip biometrics" without a real register /
+        // login call), don't even fire the request — surface a clear UI
+        // prompt instead of the misleading "Session expired" banner.
+        guard APIClient.shared.hasBackendSession else {
+            showLoginRequired = true
+            return
+        }
+
         let price = Double(addPrice.replacingOccurrences(of: ",", with: ".")) ?? 0
         let priceCents = Int(price * 100)
 
@@ -350,12 +365,21 @@ final class StockViewModel: ObservableObject {
             let newItem = try await api.addInventoryProduct(request)
             items.append(StockItem(from: newItem))
             showSuccessBanner = true
+            // Belt-and-suspenders: re-pull the full inventory from the server
+            // so the user's local list always matches the database, even if
+            // the response DTO drifts or a later reload overwrites our
+            // optimistic append.
+            await loadInventory()
             try? await Task.sleep(for: .milliseconds(800))
             resetAddForm()
             showAddSheet = false
             showSuccessBanner = false
         } catch {
+            // The server might still have persisted the row even if the
+            // response body failed to decode (e.g. schema drift). Refresh
+            // the list so the new product shows up regardless.
             self.error = error.localizedDescription
+            await loadInventory()
         }
         isSaving = false
     }
@@ -373,6 +397,8 @@ final class StockViewModel: ObservableObject {
         addExpiryDays = "\(days)"
         addPurchaseDate = Date()
         addExpiryDate = Calendar.current.date(byAdding: .day, value: days, to: Date()) ?? Date()
+        showLoginRequired = false
+        error = nil
     }
 
     /// Keep `addExpiryDate` in sync when the user types a number into the
@@ -427,6 +453,7 @@ final class StockViewModel: ObservableObject {
         addExpiryDays = "7"
         addPurchaseDate = Date()
         addExpiryDate = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
+        showLoginRequired = false
         catalogSearch = ""
         catalogIngredients = []
         selectedCategoryId = nil

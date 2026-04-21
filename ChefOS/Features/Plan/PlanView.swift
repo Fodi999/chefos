@@ -27,6 +27,11 @@ struct PlanView: View {
                     appeared = true
                 }
             }
+            .onChange(of: viewModel.mode) { _, newMode in
+                if newMode == .month {
+                    Task { await viewModel.loadVisibleMonth() }
+                }
+            }
             .overlay(alignment: .top) { overlayBanners }
             .sheet(isPresented: $usageService.showPaywall) {
                 PaywallView()
@@ -48,37 +53,136 @@ struct PlanView: View {
     private var scrollContent: some View {
         VStack(spacing: 20) {
             PlanHeader(
-                showingWeek: viewModel.showWeekView,
+                mode: viewModel.mode,
                 dayLabel: l10n.t("plan.day"),
                 weekLabel: l10n.t("plan.week"),
-                onSelect: { viewModel.showWeekView = $0 }
+                monthLabel: l10n.t("plan.month"),
+                onSelect: { viewModel.mode = $0 }
             )
             .staggerIn(appeared: appeared, delay: 0)
 
-            DaySelector(
-                days: viewModel.weekDays.enumerated().map { index, day in
-                    DayCellModel(
-                        id: index,
-                        dayLetter: viewModel.dayLetter(for: day.date),
-                        dayNumber: viewModel.dayNumber(for: day.date),
-                        isSelected: index == viewModel.selectedDayIndex,
-                        isToday: viewModel.isToday(day.date),
-                        hasMeals: day.meals.contains { $0.recipe != nil }
-                    )
-                },
-                onSelect: { viewModel.selectDay($0) }
-            )
-            .staggerIn(appeared: appeared, delay: 0.03)
+            if viewModel.mode != .month {
+                DaySelector(
+                    days: viewModel.weekDays.enumerated().map { index, day in
+                        DayCellModel(
+                            id: index,
+                            dayLetter: viewModel.dayLetter(for: day.date),
+                            dayNumber: viewModel.dayNumber(for: day.date),
+                            isSelected: index == viewModel.selectedDayIndex,
+                            isToday: viewModel.isToday(day.date),
+                            hasMeals: day.meals.contains { $0.recipe != nil }
+                        )
+                    },
+                    onSelect: { viewModel.selectDay($0) }
+                )
+                .staggerIn(appeared: appeared, delay: 0.03)
+            }
 
-            if viewModel.showWeekView {
+            switch viewModel.mode {
+            case .day:
+                dayViewContent
+            case .week:
                 weekOverview
                     .staggerIn(appeared: appeared, delay: 0.06)
-            } else {
-                dayViewContent
+            case .month:
+                monthOverview
+                    .staggerIn(appeared: appeared, delay: 0.04)
             }
         }
         .padding()
         .padding(.bottom, 80)
+    }
+
+    // MARK: - Month Overview
+
+    private var monthOverview: some View {
+        VStack(spacing: 16) {
+            MonthCalendarGrid(
+                monthTitle: viewModel.monthTitle,
+                weekdaySymbols: viewModel.weekdaySymbols,
+                days: viewModel.monthGridDays.map { date in
+                    let plan = viewModel.plan(on: date)
+                    let filled = plan?.meals.filter { $0.recipe != nil }.count ?? 0
+                    return MonthDayCellModel(
+                        date: date,
+                        dayNumber: viewModel.dayNumber(for: date),
+                        isToday: viewModel.isToday(date),
+                        isSelected: Calendar.current.isDate(date, inSameDayAs: viewModel.selectedDay.date),
+                        isInCurrentMonth: viewModel.isInVisibleMonth(date),
+                        mealDots: filled
+                    )
+                },
+                onPrev: { viewModel.stepMonth(by: -1) },
+                onNext: { viewModel.stepMonth(by: 1) },
+                onSelect: { date in viewModel.selectDate(date) }
+            )
+
+            if viewModel.isLoadingMonth {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(l10n.t("plan.loading"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+            }
+
+            // Month summary: totals across all loaded days in the visible month
+            monthSummaryCard
+        }
+    }
+
+    private var monthSummaryCard: some View {
+        let cal = Calendar.current
+        let daysInMonth = viewModel.monthGridDays.filter { viewModel.isInVisibleMonth($0) }
+        let plans = daysInMonth.compactMap { viewModel.plan(on: $0) }
+        let filledDays = plans.filter { $0.meals.contains(where: { $0.recipe != nil }) }.count
+        let totalCalories = plans.flatMap { $0.meals }.compactMap { $0.recipe?.calories }.reduce(0, +)
+        let totalCost = plans.flatMap { $0.meals }.compactMap { $0.recipe?.estimatedCost }.reduce(0, +)
+        let totalDays = cal.range(of: .day, in: .month, for: viewModel.visibleMonth)?.count ?? 30
+
+        return VStack(spacing: 12) {
+            HStack {
+                Label(l10n.t("plan.monthSummary"), systemImage: "chart.pie.fill")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text("\(filledDays)/\(totalDays)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.orange)
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.06))
+                    Capsule()
+                        .fill(Color.orange)
+                        .frame(width: geo.size.width * CGFloat(filledDays) / CGFloat(max(totalDays, 1)))
+                }
+            }
+            .frame(height: 6)
+            .clipShape(Capsule())
+
+            HStack(spacing: 16) {
+                statPill(icon: "flame.fill", color: .orange, value: "\(totalCalories)", label: "kcal")
+                statPill(icon: "banknote.fill", color: .green,
+                         value: String(format: "%.0f", totalCost),
+                         label: regionService.currency)
+            }
+        }
+        .padding(16)
+        .productCard(cornerRadius: 16)
+    }
+
+    private func statPill(icon: String, color: Color, value: String, label: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon).foregroundStyle(color).font(.caption)
+            Text(value).font(.subheadline.weight(.bold)).foregroundStyle(color)
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.1), in: Capsule())
     }
 
     private var dayViewContent: some View {
@@ -205,16 +309,30 @@ struct PlanView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                withAnimation(.snappy(duration: 0.4)) {
-                    viewModel.clearDay()
+            if viewModel.mode == .month {
+                Button {
+                    withAnimation(.snappy(duration: 0.3)) {
+                        viewModel.visibleMonth = Date.now
+                        viewModel.selectDate(Date.now)
+                    }
+                } label: {
+                    Image(systemName: "calendar.circle.fill")
+                        .font(.body)
+                        .foregroundStyle(.orange)
                 }
-            } label: {
-                Image(systemName: "trash")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary.opacity(0.4))
+                .buttonStyle(PressButtonStyle())
+            } else {
+                Button {
+                    withAnimation(.snappy(duration: 0.4)) {
+                        viewModel.clearDay()
+                    }
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary.opacity(0.4))
+                }
+                .buttonStyle(PressButtonStyle())
             }
-            .buttonStyle(PressButtonStyle())
         }
     }
 

@@ -32,29 +32,42 @@ final class AuthService: ObservableObject {
     // MARK: - Keychain
 
     private let tokenKey = "com.chefos.auth_token"
+    private let refreshKey = "com.chefos.refresh_token"
 
     var hasToken: Bool {
         readToken() != nil
     }
 
     func saveToken(_ token: String) {
-        let data = Data(token.utf8)
+        writeKeychain(key: tokenKey, value: token)
+    }
+
+    /// Store refresh token separately so we can re-hydrate APIClient on
+    /// relaunch without making the user re-login every time the short-lived
+    /// access token expires.
+    func saveRefreshToken(_ token: String) {
+        writeKeychain(key: refreshKey, value: token)
+    }
+
+    private func writeKeychain(key: String, value: String) {
+        let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: tokenKey,
+            kSecAttrAccount as String: key,
             kSecValueData as String: data,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        // Delete old
         SecItemDelete(query as CFDictionary)
-        // Add new
         SecItemAdd(query as CFDictionary, nil)
     }
 
-    func readToken() -> String? {
+    func readToken() -> String? { readKeychain(key: tokenKey) }
+    func readRefreshToken() -> String? { readKeychain(key: refreshKey) }
+
+    private func readKeychain(key: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: tokenKey,
+            kSecAttrAccount as String: key,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
@@ -70,11 +83,30 @@ final class AuthService: ObservableObject {
     }
 
     func deleteToken() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: tokenKey
-        ]
-        SecItemDelete(query as CFDictionary)
+        for key in [tokenKey, refreshKey] {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrAccount as String: key
+            ]
+            SecItemDelete(query as CFDictionary)
+        }
+    }
+
+    /// Push cached tokens (if any) into APIClient — called on app launch so
+    /// relaunches don't force the user through onboarding again. If the
+    /// access token turned out to be expired, the first 401 will trigger
+    /// refresh-via-refresh_token; if THAT fails, onSessionExpired kicks in.
+    func rehydrateAPIClient() {
+        if let access = readToken(), !access.isEmpty {
+            let refresh = readRefreshToken() ?? ""
+            APIClient.shared.setTokens(access: access, refresh: refresh)
+        }
+        // Also wire persistence for future refreshes — so when APIClient
+        // rotates the access token mid-session, we keep Keychain in sync.
+        APIClient.shared.onTokensRefreshed = { [weak self] access, refresh in
+            self?.saveToken(access)
+            self?.saveRefreshToken(refresh)
+        }
     }
 
     // MARK: - Biometrics
@@ -90,7 +122,26 @@ final class AuthService: ObservableObject {
             return
         }
 
-        saveToken(UUID().uuidString)
+        // Hit the real backend — /api/auth/login — and persist the JWT so
+        // every subsequent private request (inventory, plan, …) carries a
+        // valid Authorization header.
+        do {
+            let response = try await APIClient.shared.login(email: email, password: password)
+            // Keychain stores the access token for biometric-unlock flow;
+            // APIClient.login() has already cached access + refresh in RAM.
+            saveToken(response.accessToken)
+            saveRefreshToken(response.refreshToken)
+        } catch let e as APIError {
+            switch e {
+            case .validation(let msg):  error = msg
+            case .unauthorized:         error = "Invalid email or password"
+            case .rateLimited:          error = "Too many attempts. Try again later."
+            case .networkError:         error = "Network error. Check your connection."
+            case .serverError(_, let m):error = m
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     @MainActor
@@ -109,7 +160,21 @@ final class AuthService: ObservableObject {
             return
         }
 
-        saveToken(UUID().uuidString)
+        do {
+            let response = try await APIClient.shared.register(email: email, password: password, name: name)
+            saveToken(response.accessToken)
+            saveRefreshToken(response.refreshToken)
+        } catch let e as APIError {
+            switch e {
+            case .validation(let msg):  error = msg
+            case .unauthorized:         error = "Authentication failed"
+            case .rateLimited:          error = "Too many attempts. Try again later."
+            case .networkError:         error = "Network error. Check your connection."
+            case .serverError(_, let m):error = m
+            }
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     func checkBiometricType() {

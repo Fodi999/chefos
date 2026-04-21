@@ -14,6 +14,11 @@ struct CatalogSearchSheet: View {
     /// Ingredient whose Wikipedia-style detail is currently being shown.
     @State private var detailIngredient: APIClient.CatalogIngredientDTO?
 
+    // Number editor sheets
+    @State private var showQuantityEditor = false
+    @State private var showPriceEditor    = false
+    @State private var showShelfLifeEditor = false
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -294,73 +299,133 @@ struct CatalogSearchSheet: View {
                 .padding(16)
                 .productCard(cornerRadius: 16)
 
-                // Editable fields — only these are saved to user's inventory
-                VStack(spacing: 14) {
+                // ── Quantity picker (iOS 26 decimal wheel, Apple Health style) ──
+                VStack(spacing: 10) {
+                    DecimalPickerRow(
+                        label: l10n.t("recipes.quantity"),
+                        value: Double(vm.addQuantity) ?? 0,
+                        unit: ingredient.defaultUnit,
+                        icon: "scalemass.fill",
+                        fractionDigits: 2
+                    ) { showQuantityEditor = true }
+                    .sheet(isPresented: $showQuantityEditor) {
+                        DecimalPickerSheet(
+                            title: l10n.t("recipes.quantity"),
+                            unit: ingredient.defaultUnit,
+                            wholeRange: 0...9999,
+                            fractionSlots: 100,
+                            initial: Double(vm.addQuantity) ?? 1
+                        ) { v in
+                            // Keep whole numbers clean, otherwise 2 decimals
+                            vm.addQuantity = v == v.rounded() ? "\(Int(v))" : String(format: "%.2f", v)
+                        }
+                    }
+
+                    if let cal = ingredient.caloriesPer100g,
+                       let qty = Double(vm.addQuantity), qty > 0 {
+                        HStack {
+                            Image(systemName: "flame.fill")
+                                .foregroundStyle(.orange)
+                                .font(.caption)
+                            Text("≈ \(Int(qty * cal / 100)) kcal")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.orange)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 6)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .leading)))
+                    }
+                }
+                .productCard(cornerRadius: 16)
+                .animation(.snappy(duration: 0.2), value: vm.addQuantity)
+
+                // Price + dates + shelf life
+                VStack(spacing: 0) {
                     Text(l10n.t("recipes.yourSettings"))
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.top, 12)
+                        .padding(.bottom, 6)
 
-                    formField(title: l10n.t("recipes.quantity"), text: $vm.addQuantity, icon: "number", keyboard: .decimalPad, suffix: ingredient.defaultUnit)
-                    formField(title: l10n.t("recipes.price"), text: $vm.addPrice, icon: "banknote", keyboard: .decimalPad, suffix: currencySymbol)
-
-                    // Purchase date — native picker
-                    dateField(
-                        title: l10n.t("recipes.purchaseDate"),
-                        icon: "calendar",
-                        date: $vm.addPurchaseDate,
-                        range: ...Date()
-                    )
-                    .onChange(of: vm.addPurchaseDate) { _, _ in
-                        // Keep days count coherent when the user moves the
-                        // purchase date — re-anchor expiry off the new date.
-                        vm.syncExpiryFromDays()
+                    // Price — decimal wheel
+                    DecimalPickerRow(
+                        label: l10n.t("recipes.price"),
+                        value: Double(vm.addPrice) ?? 0,
+                        unit: currencySymbol,
+                        icon: "banknote.fill",
+                        fractionDigits: 2
+                    ) { showPriceEditor = true }
+                    .sheet(isPresented: $showPriceEditor) {
+                        DecimalPickerSheet(
+                            title: l10n.t("recipes.price"),
+                            unit: currencySymbol,
+                            wholeRange: 0...99999,
+                            fractionSlots: 100,
+                            initial: Double(vm.addPrice) ?? 0
+                        ) { v in
+                            vm.addPrice = String(format: "%.2f", v)
+                        }
                     }
 
-                    // Expiry date — native picker + quick chips
-                    dateField(
-                        title: l10n.t("recipes.expiryDate"),
-                        icon: "calendar.badge.exclamationmark",
-                        date: $vm.addExpiryDate,
-                        range: vm.addPurchaseDate...
-                    )
-                    .onChange(of: vm.addExpiryDate) { _, _ in
-                        vm.syncDaysFromExpiry()
+                    Divider().overlay(Color.white.opacity(0.05)).padding(.leading, 14)
+
+                    // Shelf-life picker (days)
+                    NumberPickerRow(
+                        label: l10n.t("recipes.shelfLife"),
+                        value: Int(vm.addExpiryDays) ?? 7,
+                        unit: l10n.t("recipes.days")
+                    ) { showShelfLifeEditor = true }
+                    .sheet(isPresented: $showShelfLifeEditor) {
+                        NumberPickerSheet(
+                            title: l10n.t("recipes.shelfLife"),
+                            unit: l10n.t("recipes.days"),
+                            range: 1...365,
+                            initial: Int(vm.addExpiryDays) ?? 7
+                        ) { v in
+                            vm.addExpiryDays = "\(v)"
+                            vm.syncExpiryFromDays()
+                        }
                     }
 
-                    // Shelf-life quick chips + numeric input
-                    HStack(spacing: 10) {
-                        Image(systemName: "clock")
-                            .foregroundStyle(.secondary)
-                            .frame(width: 24)
-                        Text(l10n.t("recipes.shelfLife"))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        TextField("7", text: $vm.addExpiryDays)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                            .font(.subheadline.weight(.semibold))
-                            .frame(width: 50)
-                            .onChange(of: vm.addExpiryDays) { _, _ in
-                                vm.syncExpiryFromDays()
-                            }
-                        Text(l10n.t("recipes.days"))
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                            .frame(width: 44, alignment: .leading)
-                    }
-
+                    // Quick shelf chips
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach([1, 3, 7, 14, 30, 90], id: \.self) { d in
                                 shelfChip(days: d)
                             }
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 10)
                     }
+
+                    Divider().overlay(Color.white.opacity(0.05)).padding(.leading, 14)
+
+                    dateField(
+                        title: l10n.t("recipes.purchaseDate"),
+                        icon: "calendar",
+                        date: $vm.addPurchaseDate,
+                        range: ...Date()
+                    )
+                    .onChange(of: vm.addPurchaseDate) { _, _ in vm.syncExpiryFromDays() }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+
+                    Divider().overlay(Color.white.opacity(0.05)).padding(.leading, 14)
+
+                    dateField(
+                        title: l10n.t("recipes.expiryDate"),
+                        icon: "calendar.badge.exclamationmark",
+                        date: $vm.addExpiryDate,
+                        range: vm.addPurchaseDate...
+                    )
+                    .onChange(of: vm.addExpiryDate) { _, _ in vm.syncDaysFromExpiry() }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
                 }
-                .padding(16)
                 .productCard(cornerRadius: 16)
 
                 // Add button
@@ -381,14 +446,15 @@ struct CatalogSearchSheet: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(
-                        (vm.showSuccessBanner ? Color.green : Color.green),
-                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    )
+                    .background(Color.green, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .animation(.snappy, value: vm.showSuccessBanner)
                 }
                 .disabled(vm.isSaving || vm.addQuantity.isEmpty)
                 .opacity((vm.isSaving || vm.addQuantity.isEmpty) ? 0.5 : 1)
+
+                if vm.showLoginRequired {
+                    loginRequiredCard
+                }
 
                 if let error = vm.error {
                     Text(error)
@@ -397,6 +463,24 @@ struct CatalogSearchSheet: View {
                 }
             }
             .padding()
+        }
+    }
+
+    // MARK: - Numpad input handler
+
+    private func numpadTap(_ key: String) {
+        switch key {
+        case "⌫":
+            if !vm.addQuantity.isEmpty { vm.addQuantity.removeLast() }
+        case ".":
+            guard !vm.addQuantity.contains(".") else { return }
+            if vm.addQuantity.isEmpty { vm.addQuantity = "0." } else { vm.addQuantity += "." }
+        default:
+            // Don't allow leading zero before digits (except "0.")
+            if vm.addQuantity == "0" { vm.addQuantity = key; return }
+            // Limit total length
+            guard vm.addQuantity.count < 7 else { return }
+            vm.addQuantity += key
         }
     }
 
@@ -499,5 +583,46 @@ struct CatalogSearchSheet: View {
                 .overlay(Capsule().stroke(Color.white.opacity(isActive ? 0 : 0.06), lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Login-required card
+
+    /// Shown inline under the "Add to stock" button when the user tries to
+    /// save without a backend JWT. Offers a single clear CTA that closes
+    /// the sheet — RecipesView owns tab switching, so from there the user
+    /// can reach Profile → Sign in.
+    private var loginRequiredCard: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "person.crop.circle.badge.exclamationmark")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(l10n.t("auth.loginRequiredTitle"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    Text(l10n.t("auth.loginRequiredBody"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+            }
+            Button {
+                vm.showLoginRequired = false
+                dismiss()
+            } label: {
+                Text(l10n.t("auth.signIn"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.orange.opacity(0.3), lineWidth: 1))
     }
 }
