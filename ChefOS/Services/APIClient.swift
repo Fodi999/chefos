@@ -759,8 +759,68 @@ final class APIClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try encoder.encode(body)
-        return try await execute(request)
+        let bodyData = try encoder.encode(body)
+        request.httpBody = bodyData
+
+        #if DEBUG
+        print("➡️ [chat] POST \(url.absoluteString)")
+        if let s = String(data: bodyData, encoding: .utf8) { print("➡️ [chat] body: \(s)") }
+        #endif
+
+        // Custom execute: keep full diagnostics instead of generic APIError.
+        let started = Date()
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let urlErr as URLError {
+            #if DEBUG
+            print("❌ [chat] URLError: code=\(urlErr.code.rawValue) desc=\(urlErr.localizedDescription)")
+            #endif
+            throw APIError.networkError
+        }
+        let elapsed = Int(Date().timeIntervalSince(started) * 1000)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw APIError.networkError
+        }
+
+        let raw = String(data: data, encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
+        #if DEBUG
+        print("⬅️ [chat] status=\(http.statusCode) in \(elapsed)ms bytes=\(data.count)")
+        print("⬅️ [chat] body: \(raw.prefix(800))\(raw.count > 800 ? "…" : "")")
+        #endif
+
+        guard (200...299).contains(http.statusCode) else {
+            if let errorBody = try? decoder.decode(APIErrorResponse.self, from: data) {
+                throw APIError.serverError(http.statusCode, errorBody.details ?? errorBody.message)
+            }
+            throw APIError.serverError(http.statusCode, "HTTP \(http.statusCode): \(raw.prefix(200))")
+        }
+
+        do {
+            return try decoder.decode(ChatApiResponse.self, from: data)
+        } catch let decErr as DecodingError {
+            #if DEBUG
+            print("❌ [chat] DecodingError: \(decErr)")
+            #endif
+            throw APIError.serverError(-1, "Decode error: \(Self.describe(decErr))")
+        }
+    }
+
+    private static func describe(_ err: DecodingError) -> String {
+        switch err {
+        case .typeMismatch(let t, let ctx):
+            return "typeMismatch<\(t)> at \(ctx.codingPath.map { $0.stringValue }.joined(separator: ".")): \(ctx.debugDescription)"
+        case .valueNotFound(let t, let ctx):
+            return "valueNotFound<\(t)> at \(ctx.codingPath.map { $0.stringValue }.joined(separator: ".")): \(ctx.debugDescription)"
+        case .keyNotFound(let k, let ctx):
+            return "keyNotFound(\(k.stringValue)) at \(ctx.codingPath.map { $0.stringValue }.joined(separator: "."))"
+        case .dataCorrupted(let ctx):
+            return "dataCorrupted at \(ctx.codingPath.map { $0.stringValue }.joined(separator: ".")): \(ctx.debugDescription)"
+        @unknown default:
+            return "\(err)"
+        }
     }
 
     // MARK: - Generic Request Methods

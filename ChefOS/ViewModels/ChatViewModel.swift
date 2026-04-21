@@ -286,9 +286,40 @@ final class ChatViewModel: ObservableObject {
                 withAnimation(.easeOut(duration: 0.2)) {
                     self.isThinking = false
                 }
+                #if DEBUG
+                print("❌ [ChatVM] sendChat failed: \(error)")
+                #endif
+                let userMessage: String = {
+                    if let apiErr = error as? APIError {
+                        switch apiErr {
+                        case .networkError:
+                            return self.l10n.t("chat.error.network")
+                        case .rateLimited:
+                            return self.l10n.t("chat.error.rate_limited")
+                        case .serverError(let code, let msg):
+                            #if DEBUG
+                            return "⚠️ \(code): \(msg)"
+                            #else
+                            return self.l10n.t("chat.error.server")
+                            #endif
+                        case .validation(let msg):
+                            return msg
+                        case .unauthorized:
+                            return self.l10n.t("chat.error.unauthorized")
+                        }
+                    }
+                    if error is URLError {
+                        return self.l10n.t("chat.error.network")
+                    }
+                    #if DEBUG
+                    return "⚠️ \(String(describing: error))"
+                    #else
+                    return self.l10n.t("chat.error")
+                    #endif
+                }()
                 withAnimation(.snappy(duration: 0.35)) {
                     self.messages.append(Message(
-                        content: .text(self.l10n.t("chat.error")),
+                        content: .text(userMessage),
                         isFromUser: false
                     ))
                 }
