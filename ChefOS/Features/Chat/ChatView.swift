@@ -178,6 +178,9 @@ struct MessageBubble: View {
         case .recipe(let card):
             RecipeBotCard(card: card, onAction: onAction)
                 .padding(.horizontal)
+        case .cookingLoss(let card):
+            CookingLossBotCard(card: card)
+                .padding(.horizontal)
         case .confirmation(let icon, let title, let subtitle, let tint):
             ConfirmationCard(icon: icon, title: title, subtitle: subtitle, tint: tint)
                 .padding(.horizontal)
@@ -534,6 +537,79 @@ struct NutritionBotCard: View {
                 .foregroundStyle(AppColors.textSecondary)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - CookingLossBotCard
+
+/// Displays per-state cooking-loss table: weight change, water loss, oil absorbed, kcal.
+struct CookingLossBotCard: View {
+    let card: APIClient.BackendCookingLossCard
+
+    var body: some View {
+        ChatCard {
+            chatCardHeader(icon: "flame.fill", label: "Cooking loss · per 100g raw", accent: .orange)
+            HealthDivider()
+            VStack(alignment: .leading, spacing: 10) {
+                Text(card.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(AppColors.textPrimary)
+
+                ForEach(card.rows, id: \.state) { row in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(row.label.capitalized)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(AppColors.textPrimary)
+                            Spacer()
+                            if let k = row.caloriesPer100g {
+                                Text("\(Int(k.rounded())) kcal")
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundStyle(SemanticColors.nutrient(.calories))
+                            }
+                        }
+                        HStack(spacing: 12) {
+                            if let w = row.weightChangePercent {
+                                metricChip(icon: "scalemass",
+                                           text: String(format: "%@%.0f%%", w < 0 ? "" : "+", w),
+                                           color: w < 0 ? .orange : AppColors.textSecondary)
+                            }
+                            if let wl = row.waterLossPercent {
+                                metricChip(icon: "drop",
+                                           text: String(format: "−%.0f%%", wl),
+                                           color: .blue)
+                            }
+                            if let oa = row.oilAbsorptionG, oa > 0 {
+                                metricChip(icon: "drop.fill",
+                                           text: String(format: "+%.1fg", oa),
+                                           color: .yellow)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
+                    if row.state != card.rows.last?.state {
+                        HealthDivider()
+                    }
+                }
+
+                Text("Percentages are measured against raw weight.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(AppColors.textSecondary)
+                    .padding(.top, 4)
+            }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 12)
+        }
+    }
+
+    private func metricChip(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(text)
+                .font(.system(size: 12, weight: .medium, design: .rounded))
+        }
+        .foregroundStyle(color)
     }
 }
 

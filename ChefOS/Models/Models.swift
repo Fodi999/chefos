@@ -357,6 +357,7 @@ enum ChatCardType {
     case nutrition(APIClient.BackendNutritionCard)
     case conversion(APIClient.BackendConversionCard)
     case recipe(APIClient.BackendRecipeCard)
+    case cookingLoss(APIClient.BackendCookingLossCard)
     // Feedback card — shown after an action is performed
     case confirmation(icon: String, title: String, subtitle: String, tint: ConfirmationTint)
 }

@@ -313,6 +313,7 @@ final class ChatViewModel: ObservableObject {
                             case .nutrition(let n):  return .nutrition(n)
                             case .conversion(let c): return .conversion(c)
                             case .recipe(let r):     return .recipe(r)
+                            case .cookingLoss(let cl): return .cookingLoss(cl)
                             case .unknown:           return .none
                             }
                         }()

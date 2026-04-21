@@ -741,6 +741,40 @@ final class APIClient {
         let supported: Bool
     }
 
+    /// One row in the cooking-loss table — per processing state.
+    struct BackendCookingLossRow: Decodable {
+        let state: String           // "boiled" | "fried" | "baked" | ...
+        let label: String           // localized: "варёная" / "boiled" / ...
+        let weightChangePercent: Double?
+        let waterLossPercent: Double?
+        let oilAbsorptionG: Double?
+        let caloriesPer100g: Double?
+        let proteinPer100g: Double?
+        let fatPer100g: Double?
+        let carbsPer100g: Double?
+    }
+
+    struct BackendCookingLossCard: Decodable {
+        let slug: String
+        let name: String
+        let rawCaloriesPer100g: Double
+        let imageUrl: String?
+        let rows: [BackendCookingLossRow]
+
+        private enum CodingKeys: String, CodingKey {
+            case slug, name, rawCaloriesPer100g, imageUrl, rows
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.slug = (try? c.decode(String.self, forKey: .slug)) ?? ""
+            self.name = (try? c.decode(String.self, forKey: .name)) ?? ""
+            self.rawCaloriesPer100g = (try? c.decode(Double.self, forKey: .rawCaloriesPer100g)) ?? 0
+            self.imageUrl = try? c.decode(String.self, forKey: .imageUrl)
+            self.rows = (try? c.decode([BackendCookingLossRow].self, forKey: .rows)) ?? []
+        }
+    }
+
     struct BackendRecipeIngredient: Decodable {
         let name: String
         let slug: String?
@@ -795,6 +829,7 @@ final class APIClient {
         case nutrition(BackendNutritionCard)
         case conversion(BackendConversionCard)
         case recipe(BackendRecipeCard)
+        case cookingLoss(BackendCookingLossCard)
         case unknown
 
         private enum TypeKey: CodingKey { case type }
@@ -817,6 +852,9 @@ final class APIClient {
                 else { Self.warn(type_, decoder); self = .unknown }
             case "recipe":
                 if let r = try? BackendRecipeCard(from: decoder) { self = .recipe(r) }
+                else { Self.warn(type_, decoder); self = .unknown }
+            case "cooking_loss":
+                if let cl = try? BackendCookingLossCard(from: decoder) { self = .cookingLoss(cl) }
                 else { Self.warn(type_, decoder); self = .unknown }
             default:
                 #if DEBUG
