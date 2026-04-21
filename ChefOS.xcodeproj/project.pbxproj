@@ -6,6 +6,29 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		084DF842E95EC4C115F821DD /* PlanSummaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A456A08D1190795498DFEA7A /* PlanSummaryCard.swift */; };
+		0D778B09D52418BABBE3742D /* PlanHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78863D56D7BAADF156E85E8E /* PlanHeader.swift */; };
+		1CB2ACCF5BD5DE5AB37CEE2B /* SurfaceModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A008BFF2D802CB0D4C3E14E /* SurfaceModifier.swift */; };
+		2260A5FED453D1038232ED86 /* SemanticColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8CA56350781A9AE42110725 /* SemanticColors.swift */; };
+		30444B52FCA180250BB655A3 /* PlanSummaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB93322CB02B9057CEF0045C /* PlanSummaryCard.swift */; };
+		3C8BD841FAB0DCF3339F3B03 /* ShimmerModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA95A98522253662CF443043 /* ShimmerModifier.swift */; };
+		5793EE61727F4B77024BAD3C /* CostRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9ABD41762C90C2774B844A9 /* CostRing.swift */; };
+		5A3672752BFCEE1B5A8DC3C7 /* MealRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 394FE8FC5D8C5D6BA4FE4E0F /* MealRow.swift */; };
+		61EAC6D92B474A960CC6E4DF /* PlanProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = F269ED9ABFD6D4685F81E106 /* PlanProgressRing.swift */; };
+		685BD7C0BBD0AFB8927567C0 /* CalendarDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ECF572E201B09EAD158E11C /* CalendarDayCell.swift */; };
+		69D51FBAC642A3295ECADF04 /* CostRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FE88860EA23C5B1987221D1 /* CostRing.swift */; };
+		799ED95F14A94DF47C7F3CE7 /* PlanProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32C7E314C0475A9D84D72DAB /* PlanProgressRing.swift */; };
+		80948F96FF6AB8A7E614D098 /* DaySelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22153751A99B279B6C359F27 /* DaySelector.swift */; };
+		85F88A17EE96EBC20E7DA92E /* CalendarDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAF959BC2D2F1F9545FCED4 /* CalendarDayCell.swift */; };
+		A67A12C69D73D8B6DC668471 /* MealRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE1C8AC37938BA38DE6CFADD /* MealRow.swift */; };
+		AA5E8336156C95635B0CF3E5 /* PlanHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0EA94C6884B1E39D14A139 /* PlanHeader.swift */; };
+		C72158E5B05C79D662422B2A /* SurfaceModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A469E51200CB4EFC5DB2DF /* SurfaceModifier.swift */; };
+		D23AC63812FFD76EFDF445E3 /* SemanticColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48CE1B50872086720D58F51 /* SemanticColors.swift */; };
+		E8C4691B1151076D8A65E6F7 /* ShimmerModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F720D6B44B49ABFC6E92D6 /* ShimmerModifier.swift */; };
+		F9356A8561AC4323B12908F8 /* DaySelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = D341B01964A31056AE5EBC50 /* DaySelector.swift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		6945A53C2F92FB1800C51925 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,24 +47,50 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1FE88860EA23C5B1987221D1 /* CostRing.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CostRing.swift; path = ChefOS/Presentation/Plan/Components/CostRing.swift; sourceTree = "<group>"; };
+		22153751A99B279B6C359F27 /* DaySelector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DaySelector.swift; path = ChefOS/Presentation/Plan/Components/DaySelector.swift; sourceTree = "<group>"; };
+		32C7E314C0475A9D84D72DAB /* PlanProgressRing.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlanProgressRing.swift; path = ChefOS/Presentation/Plan/Components/PlanProgressRing.swift; sourceTree = "<group>"; };
+		394FE8FC5D8C5D6BA4FE4E0F /* MealRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealRow.swift; path = ChefOS/Presentation/Plan/Components/MealRow.swift; sourceTree = "<group>"; };
+		4A008BFF2D802CB0D4C3E14E /* SurfaceModifier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SurfaceModifier.swift; path = ChefOS/Presentation/DesignSystem/Modifiers/SurfaceModifier.swift; sourceTree = "<group>"; };
+		4B0EA94C6884B1E39D14A139 /* PlanHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlanHeader.swift; path = ChefOS/Presentation/Plan/Components/PlanHeader.swift; sourceTree = "<group>"; };
 		6945A52E2F92FB1700C51925 /* ChefOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ChefOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6945A53B2F92FB1800C51925 /* ChefOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChefOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6945A5452F92FB1800C51925 /* ChefOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChefOSUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6ECF572E201B09EAD158E11C /* CalendarDayCell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CalendarDayCell.swift; path = ChefOS/Presentation/Plan/Components/CalendarDayCell.swift; sourceTree = "<group>"; };
+		71A469E51200CB4EFC5DB2DF /* SurfaceModifier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SurfaceModifier.swift; path = ChefOS/Presentation/DesignSystem/Modifiers/SurfaceModifier.swift; sourceTree = "<group>"; };
+		78863D56D7BAADF156E85E8E /* PlanHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlanHeader.swift; path = ChefOS/Presentation/Plan/Components/PlanHeader.swift; sourceTree = "<group>"; };
+		A456A08D1190795498DFEA7A /* PlanSummaryCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlanSummaryCard.swift; path = ChefOS/Presentation/Plan/Components/PlanSummaryCard.swift; sourceTree = "<group>"; };
+		AB93322CB02B9057CEF0045C /* PlanSummaryCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlanSummaryCard.swift; path = ChefOS/Presentation/Plan/Components/PlanSummaryCard.swift; sourceTree = "<group>"; };
+		B48CE1B50872086720D58F51 /* SemanticColors.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SemanticColors.swift; path = ChefOS/Presentation/DesignSystem/Theme/SemanticColors.swift; sourceTree = "<group>"; };
+		B8CA56350781A9AE42110725 /* SemanticColors.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SemanticColors.swift; path = ChefOS/Presentation/DesignSystem/Theme/SemanticColors.swift; sourceTree = "<group>"; };
+		CA95A98522253662CF443043 /* ShimmerModifier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ShimmerModifier.swift; path = ChefOS/Presentation/DesignSystem/Modifiers/ShimmerModifier.swift; sourceTree = "<group>"; };
+		D341B01964A31056AE5EBC50 /* DaySelector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DaySelector.swift; path = ChefOS/Presentation/Plan/Components/DaySelector.swift; sourceTree = "<group>"; };
+		F269ED9ABFD6D4685F81E106 /* PlanProgressRing.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlanProgressRing.swift; path = ChefOS/Presentation/Plan/Components/PlanProgressRing.swift; sourceTree = "<group>"; };
+		F4F720D6B44B49ABFC6E92D6 /* ShimmerModifier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ShimmerModifier.swift; path = ChefOS/Presentation/DesignSystem/Modifiers/ShimmerModifier.swift; sourceTree = "<group>"; };
+		F9ABD41762C90C2774B844A9 /* CostRing.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CostRing.swift; path = ChefOS/Presentation/Plan/Components/CostRing.swift; sourceTree = "<group>"; };
+		FE1C8AC37938BA38DE6CFADD /* MealRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MealRow.swift; path = ChefOS/Presentation/Plan/Components/MealRow.swift; sourceTree = "<group>"; };
+		FFAF959BC2D2F1F9545FCED4 /* CalendarDayCell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CalendarDayCell.swift; path = ChefOS/Presentation/Plan/Components/CalendarDayCell.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6945A5302F92FB1700C51925 /* ChefOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = ChefOS;
 			sourceTree = "<group>";
 		};
 		6945A53E2F92FB1800C51925 /* ChefOSTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = ChefOSTests;
 			sourceTree = "<group>";
 		};
 		6945A5482F92FB1800C51925 /* ChefOSUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+			);
 			path = ChefOSUITests;
 			sourceTree = "<group>";
 		};
@@ -72,6 +121,40 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		3B37ED29D36256E151D38495 /* ChefOS */ = {
+			isa = PBXGroup;
+			children = (
+				5BB9988C2CD1046842E3ED48 /* Presentation */,
+			);
+			name = ChefOS;
+			sourceTree = "<group>";
+		};
+		41FB1671A0B07E5C577647AA /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				E90AAD96F8F98287727F79F7 /* Modifiers */,
+				FC99EF0D9939FD0046BD45BD /* Theme */,
+			);
+			name = DesignSystem;
+			sourceTree = "<group>";
+		};
+		5BB9988C2CD1046842E3ED48 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				41FB1671A0B07E5C577647AA /* DesignSystem */,
+				5F264FAA111427E92C1B5159 /* Plan */,
+			);
+			name = Presentation;
+			sourceTree = "<group>";
+		};
+		5F264FAA111427E92C1B5159 /* Plan */ = {
+			isa = PBXGroup;
+			children = (
+				F69F52FC4449E035EB4305DC /* Components */,
+			);
+			name = Plan;
+			sourceTree = "<group>";
+		};
 		6945A5252F92FB1700C51925 = {
 			isa = PBXGroup;
 			children = (
@@ -79,6 +162,7 @@
 				6945A53E2F92FB1800C51925 /* ChefOSTests */,
 				6945A5482F92FB1800C51925 /* ChefOSUITests */,
 				6945A52F2F92FB1700C51925 /* Products */,
+				3B37ED29D36256E151D38495 /* ChefOS */,
 			);
 			sourceTree = "<group>";
 		};
@@ -90,6 +174,47 @@
 				6945A5452F92FB1800C51925 /* ChefOSUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		E90AAD96F8F98287727F79F7 /* Modifiers */ = {
+			isa = PBXGroup;
+			children = (
+				CA95A98522253662CF443043 /* ShimmerModifier.swift */,
+				71A469E51200CB4EFC5DB2DF /* SurfaceModifier.swift */,
+				F4F720D6B44B49ABFC6E92D6 /* ShimmerModifier.swift */,
+				4A008BFF2D802CB0D4C3E14E /* SurfaceModifier.swift */,
+			);
+			name = Modifiers;
+			sourceTree = "<group>";
+		};
+		F69F52FC4449E035EB4305DC /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				F269ED9ABFD6D4685F81E106 /* PlanProgressRing.swift */,
+				1FE88860EA23C5B1987221D1 /* CostRing.swift */,
+				FFAF959BC2D2F1F9545FCED4 /* CalendarDayCell.swift */,
+				FE1C8AC37938BA38DE6CFADD /* MealRow.swift */,
+				32C7E314C0475A9D84D72DAB /* PlanProgressRing.swift */,
+				F9ABD41762C90C2774B844A9 /* CostRing.swift */,
+				6ECF572E201B09EAD158E11C /* CalendarDayCell.swift */,
+				394FE8FC5D8C5D6BA4FE4E0F /* MealRow.swift */,
+				4B0EA94C6884B1E39D14A139 /* PlanHeader.swift */,
+				D341B01964A31056AE5EBC50 /* DaySelector.swift */,
+				A456A08D1190795498DFEA7A /* PlanSummaryCard.swift */,
+				78863D56D7BAADF156E85E8E /* PlanHeader.swift */,
+				22153751A99B279B6C359F27 /* DaySelector.swift */,
+				AB93322CB02B9057CEF0045C /* PlanSummaryCard.swift */,
+			);
+			name = Components;
+			sourceTree = "<group>";
+		};
+		FC99EF0D9939FD0046BD45BD /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				B8CA56350781A9AE42110725 /* SemanticColors.swift */,
+				B48CE1B50872086720D58F51 /* SemanticColors.swift */,
+			);
+			name = Theme;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -111,8 +236,6 @@
 				6945A5302F92FB1700C51925 /* ChefOS */,
 			);
 			name = ChefOS;
-			packageProductDependencies = (
-			);
 			productName = ChefOS;
 			productReference = 6945A52E2F92FB1700C51925 /* ChefOS.app */;
 			productType = "com.apple.product-type.application";
@@ -134,8 +257,6 @@
 				6945A53E2F92FB1800C51925 /* ChefOSTests */,
 			);
 			name = ChefOSTests;
-			packageProductDependencies = (
-			);
 			productName = ChefOSTests;
 			productReference = 6945A53B2F92FB1800C51925 /* ChefOSTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -157,8 +278,6 @@
 				6945A5482F92FB1800C51925 /* ChefOSUITests */,
 			);
 			name = ChefOSUITests;
-			packageProductDependencies = (
-			);
 			productName = ChefOSUITests;
 			productReference = 6945A5452F92FB1800C51925 /* ChefOSUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -236,6 +355,26 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3C8BD841FAB0DCF3339F3B03 /* ShimmerModifier.swift in Sources */,
+				C72158E5B05C79D662422B2A /* SurfaceModifier.swift in Sources */,
+				2260A5FED453D1038232ED86 /* SemanticColors.swift in Sources */,
+				61EAC6D92B474A960CC6E4DF /* PlanProgressRing.swift in Sources */,
+				69D51FBAC642A3295ECADF04 /* CostRing.swift in Sources */,
+				85F88A17EE96EBC20E7DA92E /* CalendarDayCell.swift in Sources */,
+				A67A12C69D73D8B6DC668471 /* MealRow.swift in Sources */,
+				E8C4691B1151076D8A65E6F7 /* ShimmerModifier.swift in Sources */,
+				1CB2ACCF5BD5DE5AB37CEE2B /* SurfaceModifier.swift in Sources */,
+				D23AC63812FFD76EFDF445E3 /* SemanticColors.swift in Sources */,
+				799ED95F14A94DF47C7F3CE7 /* PlanProgressRing.swift in Sources */,
+				5793EE61727F4B77024BAD3C /* CostRing.swift in Sources */,
+				685BD7C0BBD0AFB8927567C0 /* CalendarDayCell.swift in Sources */,
+				5A3672752BFCEE1B5A8DC3C7 /* MealRow.swift in Sources */,
+				AA5E8336156C95635B0CF3E5 /* PlanHeader.swift in Sources */,
+				F9356A8561AC4323B12908F8 /* DaySelector.swift in Sources */,
+				084DF842E95EC4C115F821DD /* PlanSummaryCard.swift in Sources */,
+				0D778B09D52418BABBE3742D /* PlanHeader.swift in Sources */,
+				80948F96FF6AB8A7E614D098 /* DaySelector.swift in Sources */,
+				30444B52FCA180250BB655A3 /* PlanSummaryCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

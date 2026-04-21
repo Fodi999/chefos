@@ -269,8 +269,8 @@ struct CookSuggestionsSheet: View {
                     Text(dish.displayName ?? dish.dishNameLocal ?? dish.dishName)
                         .font(.subheadline.weight(.semibold)).lineLimit(2)
                     HStack(spacing: 8) {
-                        Label(dish.dishType.capitalized, systemImage: dishTypeIcon(dish.dishType))
-                        Label(dish.complexity.capitalized, systemImage: "gauge.medium")
+                        Label(localizedDishType(dish.dishType), systemImage: dishTypeIcon(dish.dishType))
+                        Label(localizedComplexity(dish.complexity), systemImage: "gauge.medium")
                     }.font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
@@ -398,6 +398,18 @@ struct CookSuggestionsSheet: View {
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(color.opacity(0.1), in: Capsule())
         .foregroundStyle(color)
+    }
+
+    private func localizedDishType(_ type: String) -> String {
+        let key = "dishType.\(type)"
+        let result = l10n.t(key)
+        return result == key ? type.replacingOccurrences(of: "_", with: " ").capitalized : result
+    }
+
+    private func localizedComplexity(_ c: String) -> String {
+        let key = "complexity.\(c)"
+        let result = l10n.t(key)
+        return result == key ? c.capitalized : result
     }
 }
 
@@ -531,8 +543,8 @@ struct RecipeDetailSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(dish.displayName ?? dish.dishNameLocal ?? dish.dishName).font(.title2.weight(.bold))
             HStack(spacing: 14) {
-                Label(dish.dishType.capitalized, systemImage: "fork.knife")
-                Label(dish.complexity.capitalized, systemImage: "gauge.medium")
+                Label(localizedDishType(dish.dishType), systemImage: "fork.knife")
+                Label(localizedComplexity(dish.complexity), systemImage: "gauge.medium")
                 Label("\(dish.servings)", systemImage: "person.2")
             }.font(.caption).foregroundStyle(.secondary)
         }
@@ -716,14 +728,19 @@ struct RecipeDetailSheet: View {
         sectionCard(title: l10n.t("cook.tags"), icon: "tag.fill", color: .indigo) {
             FlowLayout(spacing: 6) {
                 ForEach(dish.tags, id: \.self) { tag in
-                    Text(tag).font(.caption2.weight(.medium))
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(Color.green.opacity(0.1), in: Capsule())
+                    Label {
+                        Text(localizeTag(tag)).font(.caption2.weight(.medium))
+                    } icon: {
+                        Image(systemName: iconForTag(tag)).font(.system(size: 9))
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(Color.green.opacity(0.1), in: Capsule())
+                    .foregroundStyle(Color.green.opacity(0.9))
                 }
                 ForEach(dish.allergens, id: \.self) { a in
                     HStack(spacing: 3) {
                         Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 8))
-                        Text(a)
+                        Text(localizeAllergen(a))
                     }.font(.caption2.weight(.medium))
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background(Color.red.opacity(0.1), in: Capsule())
@@ -755,8 +772,55 @@ struct RecipeDetailSheet: View {
         case "high_protein": return l10n.t("cook.reason.protein")
         case "all_ingredients_available": return l10n.t("cook.reason.allAvailable")
         case "budget_friendly": return l10n.t("cook.reason.budget")
+        case "fits_goal":       return l10n.t("cook.reason.fitsGoal")
+        case "uses_inventory":  return l10n.t("cook.reason.usesInventory")
         default: return reason.replacingOccurrences(of: "_", with: " ").capitalized
         }
+    }
+
+    private func localizedDishType(_ type: String) -> String {
+        let key = "dishType.\(type)"
+        let result = l10n.t(key)
+        return result == key ? type.replacingOccurrences(of: "_", with: " ").capitalized : result
+    }
+
+    private func localizedComplexity(_ c: String) -> String {
+        let key = "complexity.\(c)"
+        let result = l10n.t(key)
+        return result == key ? c.capitalized : result
+    }
+
+    private func localizeTag(_ tag: String) -> String {
+        let key = "tag.\(tag)"
+        let result = l10n.t(key)
+        return result == key ? tag.replacingOccurrences(of: "_", with: " ").capitalized : result
+    }
+
+    private func iconForTag(_ tag: String) -> String {
+        switch tag {
+        case "uses_expiring_ingredients": return "clock.badge.exclamationmark"
+        case "high_protein":              return "bolt.fill"
+        case "all_ingredients_available": return "checkmark.circle.fill"
+        case "budget_friendly":           return "dollarsign.circle.fill"
+        case "low_calorie":               return "flame"
+        case "high_calorie":              return "flame.fill"
+        case "vegetarian":                return "leaf.fill"
+        case "vegan":                     return "leaf"
+        case "gluten_free":               return "xmark.circle"
+        case "dairy_free":                return "drop.triangle"
+        case "quick":                     return "hare.fill"
+        case "seasonal":                  return "sun.max.fill"
+        case "spicy":                     return "thermometer.high"
+        case "high_fiber":                return "chart.bar.fill"
+        case "low_carb":                  return "minus.circle"
+        default:                          return "tag"
+        }
+    }
+
+    private func localizeAllergen(_ allergen: String) -> String {
+        let key = "allergen.\(allergen.lowercased())"
+        let result = l10n.t(key)
+        return result == key ? allergen.capitalized : result
     }
 
     private func localizeFlavorSuggestion(_ s: String) -> String {
