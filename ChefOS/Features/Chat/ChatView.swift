@@ -113,7 +113,9 @@ struct ChatView: View {
             ScrollView {
                 LazyVStack(spacing: 14) {
                     ForEach(viewModel.messages) { message in
-                        MessageBubble(message: message)
+                        MessageBubble(message: message, onAction: { action in
+                            Task { @MainActor in viewModel.handleAction(action) }
+                        })
                             .id(message.id)
                             .transition(
                                 .asymmetric(
@@ -147,6 +149,7 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: Message
+    var onAction: ((ChatAction) -> Void)? = nil
 
     var body: some View {
         // Structured AI cards — full width, no bubble indentation
@@ -164,7 +167,7 @@ struct MessageBubble: View {
             RestrictionsCard(items: items)
                 .padding(.horizontal)
         case .product(let card):
-            ProductBotCard(card: card)
+            ProductBotCard(card: card, onAction: onAction)
                 .padding(.horizontal)
         case .nutrition(let card):
             NutritionBotCard(card: card)
@@ -173,7 +176,10 @@ struct MessageBubble: View {
             ConversionBotCard(card: card)
                 .padding(.horizontal)
         case .recipe(let card):
-            RecipeBotCard(card: card)
+            RecipeBotCard(card: card, onAction: onAction)
+                .padding(.horizontal)
+        case .confirmation(let icon, let title, let subtitle, let tint):
+            ConfirmationCard(icon: icon, title: title, subtitle: subtitle, tint: tint)
                 .padding(.horizontal)
         case .none:
             // Standard bubble (user message or plain AI reply)
@@ -370,6 +376,8 @@ private func chatCardHeader(icon: String, label: String, accent: Color) -> some 
 
 struct ProductBotCard: View {
     let card: APIClient.BackendProductCard
+    var onAction: ((ChatAction) -> Void)? = nil
+    @EnvironmentObject var l10n: LocalizationService
 
     var body: some View {
         ChatCard {
@@ -403,6 +411,29 @@ struct ProductBotCard: View {
             }
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, 12)
+
+            // Action row
+            if onAction != nil {
+                HealthDivider()
+                HStack(spacing: 8) {
+                    ChatActionButton(
+                        title: l10n.t("chat.action.addToCart"),
+                        icon: "cart.badge.plus",
+                        style: .primary
+                    ) {
+                        onAction?(.addProductToShopping(card))
+                    }
+                    ChatActionButton(
+                        title: l10n.t("chat.action.showRecipes"),
+                        icon: "fork.knife",
+                        style: .secondary
+                    ) {
+                        onAction?(.showRecipesFor(product: card))
+                    }
+                }
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, 10)
+            }
         }
     }
 
@@ -515,7 +546,9 @@ struct ConversionBotCard: View {
 
 struct RecipeBotCard: View {
     let card: APIClient.BackendRecipeCard
+    var onAction: ((ChatAction) -> Void)? = nil
     @State private var expanded = false
+    @EnvironmentObject var l10n: LocalizationService
 
     var body: some View {
         ChatCard {
@@ -584,7 +617,7 @@ struct RecipeBotCard: View {
             if expanded {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(Array(card.ingredients.enumerated()), id: \.offset) { _, ing in
-                        HStack {
+                        HStack(spacing: 8) {
                             Text(ing.name)
                                 .font(.system(size: 13))
                                 .foregroundStyle(AppColors.textPrimary)
@@ -595,6 +628,18 @@ struct RecipeBotCard: View {
                             Text("· \(ing.kcal) kcal")
                                 .font(.system(size: 11))
                                 .foregroundStyle(AppColors.textSecondary)
+                            if onAction != nil {
+                                Button {
+                                    onAction?(.swapIngredient(recipe: card, ingredient: ing.name))
+                                } label: {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(AppColors.primary)
+                                        .frame(width: 22, height: 22)
+                                        .background(AppColors.primary.opacity(0.12), in: Circle())
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
@@ -629,6 +674,29 @@ struct RecipeBotCard: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
+
+            // Primary action row — always visible
+            if onAction != nil {
+                HealthDivider()
+                HStack(spacing: 8) {
+                    ChatActionButton(
+                        title: l10n.t("chat.action.addToPlan"),
+                        icon: "calendar.badge.plus",
+                        style: .primary
+                    ) {
+                        onAction?(.addRecipeToPlan(card))
+                    }
+                    ChatActionButton(
+                        title: l10n.t("chat.action.cook"),
+                        icon: "flame.fill",
+                        style: .secondary
+                    ) {
+                        onAction?(.startCooking(card))
+                    }
+                }
+                .padding(.horizontal, Spacing.sm)
+                .padding(.vertical, 10)
+            }
         }
     }
 
@@ -662,6 +730,86 @@ struct RecipeBotCard: View {
                 .foregroundStyle(AppColors.textSecondary)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - ChatActionButton
+
+/// Unified action button used across bot cards. Two visual weights.
+struct ChatActionButton: View {
+    enum Style { case primary, secondary }
+    let title: String
+    let icon: String
+    let style: Style
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .foregroundStyle(style == .primary ? Color.white : AppColors.primary)
+            .background(
+                style == .primary
+                    ? AnyShapeStyle(AppColors.primary)
+                    : AnyShapeStyle(AppColors.primary.opacity(0.12)),
+                in: RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - ConfirmationCard
+
+/// Feedback card shown after a user-invoked action succeeds.
+struct ConfirmationCard: View {
+    let icon: String
+    let title: String
+    let subtitle: String
+    let tint: ConfirmationTint
+
+    private var color: Color {
+        switch tint {
+        case .success: return SemanticColors.nutrient(.protein)
+        case .info:    return AppColors.primary
+        case .warning: return AppColors.warning
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(color)
+                .frame(width: 36, height: 36)
+                .background(color.opacity(0.12), in: Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(AppColors.textPrimary)
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.textSecondary)
+                    .lineLimit(2)
+            }
+            Spacer()
+        }
+        .padding(Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppColors.surface)
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+                .stroke(color.opacity(0.25), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: Radius.lg, style: .continuous))
     }
 }
 

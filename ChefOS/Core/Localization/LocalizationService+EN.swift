@@ -139,6 +139,18 @@ extension LocalizationService {
         "chat.focus.eatHealthier": "Focus: balanced, wholesome recipes",
         "chat.focus.balanced":     "Focus: balanced and delicious",
 
+        // Chat action buttons
+        "chat.action.addToPlan":      "Add to Plan",
+        "chat.action.cook":           "Start Cooking",
+        "chat.action.addToCart":      "Add to Cart",
+        "chat.action.showRecipes":    "Show Recipes",
+        "chat.action.steps":          "steps",
+        "chat.action.added.title":    "Added to today's plan",
+        "chat.action.cooking.title":  "Ready to cook",
+        "chat.action.shopping.title": "Added to shopping list",
+        "chat.action.swap.query":     "Suggest an alternative to {ingredient} in {recipe}",
+        "chat.action.showRecipes.query": "Show me recipes with {product}",
+
         "profile.years": "y.o.",
 
         // Onboarding

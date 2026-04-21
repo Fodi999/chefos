@@ -312,6 +312,31 @@ enum ChatCardType {
     case nutrition(APIClient.BackendNutritionCard)
     case conversion(APIClient.BackendConversionCard)
     case recipe(APIClient.BackendRecipeCard)
+    // Feedback card — shown after an action is performed
+    case confirmation(icon: String, title: String, subtitle: String, tint: ConfirmationTint)
+}
+
+enum ConfirmationTint {
+    case success
+    case info
+    case warning
+}
+
+/// User-invokable action emitted by a chat card.
+/// Dispatched through `ChatViewModel.handleAction(_:)`.
+enum ChatAction {
+    case addRecipeToPlan(APIClient.BackendRecipeCard)
+    case startCooking(APIClient.BackendRecipeCard)
+    case swapIngredient(recipe: APIClient.BackendRecipeCard, ingredient: String)
+    case addProductToShopping(APIClient.BackendProductCard)
+    case showRecipesFor(product: APIClient.BackendProductCard)
+}
+
+// Cross-ViewModel notifications (chat → plan / shopping)
+extension Notification.Name {
+    static let chatDidAddRecipeToPlan   = Notification.Name("chat.addRecipeToPlan")
+    static let chatDidAddToShoppingList = Notification.Name("chat.addToShoppingList")
+    static let chatDidRequestCooking    = Notification.Name("chat.requestCooking")
 }
 
 enum MessageContent {

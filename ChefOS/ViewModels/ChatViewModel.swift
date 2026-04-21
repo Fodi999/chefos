@@ -138,6 +138,75 @@ final class ChatViewModel: ObservableObject {
         sendToBackend("Suggest something creative for dinner!")
     }
 
+    // MARK: - Action Layer
+    //
+    // Cards dispatch user-initiated actions through this single entry point.
+    // The ViewModel:
+    //   1. Broadcasts a `Notification` so Plan/Shopping VMs can react
+    //   2. Appends a confirmation card so the user sees immediate feedback
+    //   3. Optionally triggers a follow-up chat query (e.g. "show recipes for X")
+
+    @MainActor
+    func handleAction(_ action: ChatAction) {
+        let haptic = UIImpactFeedbackGenerator(style: .light)
+        haptic.impactOccurred()
+
+        switch action {
+        case .addRecipeToPlan(let recipe):
+            let name = recipe.displayName ?? recipe.dishNameLocal ?? recipe.dishName
+            NotificationCenter.default.post(name: .chatDidAddRecipeToPlan, object: recipe)
+            appendConfirmation(
+                icon: "checkmark.circle.fill",
+                title: l10n.t("chat.action.added.title"),
+                subtitle: "\(name) · \(recipe.perServingKcal) kcal",
+                tint: .success
+            )
+
+        case .startCooking(let recipe):
+            let name = recipe.displayName ?? recipe.dishNameLocal ?? recipe.dishName
+            NotificationCenter.default.post(name: .chatDidRequestCooking, object: recipe)
+            appendConfirmation(
+                icon: "flame.fill",
+                title: l10n.t("chat.action.cooking.title"),
+                subtitle: "\(name) · \(recipe.steps.count) \(l10n.t("chat.action.steps"))",
+                tint: .info
+            )
+
+        case .swapIngredient(let recipe, let ingredient):
+            // Trigger a new chat turn — user wants an alternative
+            let name = recipe.displayName ?? recipe.dishName
+            let query = l10n.t("chat.action.swap.query")
+                .replacingOccurrences(of: "{ingredient}", with: ingredient)
+                .replacingOccurrences(of: "{recipe}", with: name)
+            sendSuggestion(query)
+
+        case .addProductToShopping(let product):
+            NotificationCenter.default.post(name: .chatDidAddToShoppingList, object: product)
+            appendConfirmation(
+                icon: "cart.fill.badge.plus",
+                title: l10n.t("chat.action.shopping.title"),
+                subtitle: product.name,
+                tint: .success
+            )
+
+        case .showRecipesFor(let product):
+            let query = l10n.t("chat.action.showRecipes.query")
+                .replacingOccurrences(of: "{product}", with: product.name)
+            sendSuggestion(query)
+        }
+    }
+
+    @MainActor
+    private func appendConfirmation(icon: String, title: String, subtitle: String, tint: ConfirmationTint) {
+        withAnimation(.snappy(duration: 0.35)) {
+            messages.append(Message(
+                content: .text(""),
+                isFromUser: false,
+                cardType: .confirmation(icon: icon, title: title, subtitle: subtitle, tint: tint)
+            ))
+        }
+    }
+
     // MARK: - Backend Integration (POST /public/chat → RuleBot)
 
     private func sendToBackend(_ input: String) {

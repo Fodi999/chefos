@@ -127,6 +127,18 @@ extension LocalizationService {
         "chat.focus.eatHealthier": "Фокус: сбалансированные, здоровые рецепты",
         "chat.focus.balanced":     "Фокус: сбалансированно и вкусно",
 
+        // Chat action buttons
+        "chat.action.addToPlan":      "Добавить в план",
+        "chat.action.cook":           "Начать готовить",
+        "chat.action.addToCart":      "В корзину",
+        "chat.action.showRecipes":    "Рецепты",
+        "chat.action.steps":          "шагов",
+        "chat.action.added.title":    "Добавлено в план на сегодня",
+        "chat.action.cooking.title":  "Готовы готовить",
+        "chat.action.shopping.title": "Добавлено в список покупок",
+        "chat.action.swap.query":     "Предложи замену для {ingredient} в {recipe}",
+        "chat.action.showRecipes.query": "Покажи рецепты с {product}",
+
         "profile.years": "лет",
 
         "onboarding.welcome": "Добро пожаловать в ChefOS",
