@@ -24,7 +24,7 @@ struct PlanHeader: View {
             segmentButton(label: weekLabel, isActive: showingWeek,  selectsWeek: true)
         }
         .padding(3)
-        .background(.ultraThinMaterial, in: Capsule())
+        .background(AppColors.surfaceRaised, in: Capsule())
         .overlay(Capsule().stroke(AppColors.glassStroke, lineWidth: 1))
         .frame(maxWidth: .infinity, alignment: .center)
     }
@@ -45,13 +45,7 @@ struct PlanHeader: View {
                 .background {
                     if isActive {
                         Capsule()
-                            .fill(LinearGradient(
-                                colors: [SemanticColors.meal(.breakfast),
-                                         Color(red: 0.9, green: 0.4, blue: 0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
-                            .shadow(color: SemanticColors.meal(.breakfast).opacity(0.3), radius: 10, y: 3)
+                            .fill(SemanticColors.meal(.breakfast))
                     }
                 }
                 .animation(.snappy(duration: 0.3), value: isActive)

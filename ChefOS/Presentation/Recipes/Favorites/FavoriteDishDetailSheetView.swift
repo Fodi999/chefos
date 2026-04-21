@@ -38,7 +38,7 @@ struct FavoriteDishDetailSheetView: View {
                             Text(l10n.t("cook.addedToShoppingList")).font(.subheadline.weight(.medium))
                         }
                         .padding(.horizontal, 20).padding(.vertical, 12)
-                        .background(.ultraThickMaterial, in: Capsule())
+                        .background(AppColors.surfaceRaised, in: Capsule())
                         .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
                         .padding(.bottom, 30)
                     }
@@ -46,7 +46,7 @@ struct FavoriteDishDetailSheetView: View {
                     .zIndex(10)
                 }
             }
-            .background(LinearGradient.screenBackground.ignoresSafeArea())
+            .background(AppColors.background.ignoresSafeArea())
             .navigationTitle(fav.displayName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -103,7 +103,7 @@ struct FavoriteDishDetailSheetView: View {
                         Image(systemName: "chevron.right").font(.caption.weight(.bold))
                     }
                     .foregroundStyle(.white).padding(16)
-                    .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             }
         }
@@ -286,7 +286,7 @@ struct FavoriteDishDetailSheetView: View {
             content()
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     // MARK: - Localization Helpers

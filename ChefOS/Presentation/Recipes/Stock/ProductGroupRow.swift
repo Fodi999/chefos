@@ -104,7 +104,7 @@ struct ProductGroupRow: View {
             }
         }
         .padding(14)
-        .glassCard(cornerRadius: 16)
+        .productCard(cornerRadius: 16)
         .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
         .overlay {
             if group.isExpiringSoon {

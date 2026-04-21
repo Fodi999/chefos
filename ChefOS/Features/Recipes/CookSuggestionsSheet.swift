@@ -12,7 +12,7 @@ struct CookSuggestionsSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground
+                AppColors.background
                     .ignoresSafeArea()
 
                 if vm.isLoading {
@@ -128,14 +128,10 @@ struct CookSuggestionsSheet: View {
             }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(colors: [.indigo.opacity(0.3), .purple.opacity(0.15)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 0.5
-                )
+                .strokeBorder(Color.indigo.opacity(0.15), lineWidth: 0.5)
         )
     }
 
@@ -193,8 +189,8 @@ struct CookSuggestionsSheet: View {
             insightMetric(icon: "exclamationmark.triangle.fill", value: "\(insight.wasteRisk)%", label: l10n.t("cook.wasteRisk"), color: insight.wasteRisk > 30 ? .red : .orange)
         }
         .padding(.vertical, 14).frame(maxWidth: .infinity)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.white.opacity(0.04), lineWidth: 0.5))
     }
 
     private func insightMetric(icon: String, value: String, label: String, color: Color) -> some View {
@@ -232,8 +228,8 @@ struct CookSuggestionsSheet: View {
             }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.yellow.opacity(0.2), lineWidth: 0.5))
+        .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Color.yellow.opacity(0.1), lineWidth: 0.5))
     }
 
     // MARK: - Section
@@ -351,7 +347,7 @@ struct CookSuggestionsSheet: View {
             .background((dish.missingCount == 0 ? Color.green : Color.orange).opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(accentColor.opacity(0.15), lineWidth: 0.5))
     }
 
@@ -454,7 +450,7 @@ struct RecipeDetailSheet: View {
                             Text(l10n.t("cook.addedToShoppingList")).font(.subheadline.weight(.medium))
                         }
                         .padding(.horizontal, 20).padding(.vertical, 12)
-                        .background(.ultraThickMaterial, in: Capsule())
+                        .background(AppColors.surfaceRaised, in: Capsule())
                         .shadow(color: .black.opacity(0.15), radius: 12, y: 6)
                         .padding(.bottom, 30)
                     }
@@ -462,7 +458,7 @@ struct RecipeDetailSheet: View {
                     .zIndex(10)
                 }
             }
-            .background(LinearGradient.screenBackground.ignoresSafeArea())
+            .background(AppColors.background.ignoresSafeArea())
             .navigationTitle(dish.displayName ?? dish.dishNameLocal ?? dish.dishName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -508,7 +504,7 @@ struct RecipeDetailSheet: View {
                         Image(systemName: "chevron.right").font(.caption.weight(.bold))
                     }
                     .foregroundStyle(.white).padding(16)
-                    .background(.green.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Color.green, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             } else {
                 Button { addMissingToShoppingList() } label: {
@@ -522,7 +518,7 @@ struct RecipeDetailSheet: View {
                         Image(systemName: "chevron.right").font(.caption.weight(.bold))
                     }
                     .foregroundStyle(.white).padding(16)
-                    .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             }
         }
@@ -683,7 +679,7 @@ struct RecipeDetailSheet: View {
                 ForEach(dish.steps) { step in
                     HStack(alignment: .top, spacing: 12) {
                         Text("\(step.step)").font(.caption.weight(.bold)).foregroundStyle(.white)
-                            .frame(width: 26, height: 26).background(.orange.gradient, in: Circle())
+                            .frame(width: 26, height: 26).background(Color.orange, in: Circle())
                         VStack(alignment: .leading, spacing: 6) {
                             Text(step.text).font(.subheadline)
                             HStack(spacing: 10) {
@@ -761,7 +757,7 @@ struct RecipeDetailSheet: View {
             content()
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     // MARK: - Localization

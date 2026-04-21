@@ -20,7 +20,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground
+                AppColors.background
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -57,7 +57,7 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle(l10n.t("profile.title"))
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(AnyShapeStyle(AppColors.surface), for: .navigationBar)
             .overlay(alignment: .bottom) {
                 // ── Sticky Save Button ──
                 if viewModel.hasUnsavedChanges || viewModel.saveSuccess {
@@ -112,23 +112,14 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background(
-                viewModel.saveSuccess
-                    ? LinearGradient(colors: [.green, .green.opacity(0.8)], startPoint: .leading, endPoint: .trailing)
-                    : LinearGradient(colors: [.orange, .orange.opacity(0.8)], startPoint: .leading, endPoint: .trailing),
+                viewModel.saveSuccess ? Color.green : AppColors.accent,
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
-            .shadow(color: (viewModel.saveSuccess ? Color.green : Color.orange).opacity(0.4), radius: 12, y: 6)
+            .applyShadow(Shadows.card)
         }
         .disabled(viewModel.isSaving || viewModel.saveSuccess)
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
-        .background(
-            LinearGradient(colors: [.clear, .black.opacity(0.6)], startPoint: .top, endPoint: .bottom)
-                .frame(height: 100)
-                .ignoresSafeArea()
-                .allowsHitTesting(false),
-            alignment: .bottom
-        )
     }
 
     // MARK: - Avatar
@@ -136,12 +127,6 @@ struct ProfileView: View {
     private var avatarHeader: some View {
         VStack(spacing: 10) {
             ZStack {
-                // Outer glow
-                Circle()
-                    .fill(Color.orange.opacity(0.25))
-                    .frame(width: 100, height: 100)
-                    .blur(radius: 20)
-
                 if let url = viewModel.avatarUrl, let imageURL = URL(string: url) {
                     AsyncImage(url: imageURL) { phase in
                         switch phase {
@@ -151,6 +136,7 @@ struct ProfileView: View {
                                 .scaledToFill()
                                 .frame(width: 80, height: 80)
                                 .clipShape(Circle())
+                                .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
                         default:
                             avatarPlaceholder
                         }
@@ -159,7 +145,7 @@ struct ProfileView: View {
                     avatarPlaceholder
                 }
             }
-            .shadow(color: .orange.opacity(0.5), radius: 20, y: 4)
+            .applyShadow(Shadows.subtle)
             .onTapGesture { showPhotoPicker = true }
 
             TextField(l10n.t("onboarding.name"), text: $viewModel.profile.name)
@@ -187,7 +173,7 @@ struct ProfileView: View {
 
     private var avatarPlaceholder: some View {
         Circle()
-            .fill(LinearGradient.userBubble)
+            .fill(AppColors.surfaceRaised)
             .frame(width: 80, height: 80)
             .overlay(
                 Circle()
@@ -472,9 +458,7 @@ struct ProfileView: View {
             HStack(spacing: 8) {
                 Image(systemName: "brain.head.profile")
                     .font(.title3)
-                    .foregroundStyle(
-                        LinearGradient(colors: [.purple, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
+                    .foregroundStyle(AppColors.accent)
                     .symbolEffect(.pulse, options: .repeating)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(l10n.t("profile.aiTitle"))
@@ -496,32 +480,11 @@ struct ProfileView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.purple.opacity(0.18), Color.cyan.opacity(0.1), Color.purple.opacity(0.08)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-        )
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [Color.purple.opacity(0.3), Color.cyan.opacity(0.15)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 0.5
-                )
+                .stroke(AppColors.primary.opacity(0.1), lineWidth: 0.5)
         )
-        .shadow(color: .purple.opacity(0.2), radius: 16, y: 6)
     }
 
     // MARK: - Region
@@ -699,7 +662,7 @@ struct ProfileSection<Content: View>: View {
             VStack(spacing: 0) {
                 content
             }
-            .glassCard(cornerRadius: 16)
+            .productCard(cornerRadius: 16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .stroke(Color.white.opacity(emphasis ? 0.12 : 0.05), lineWidth: 0.5)

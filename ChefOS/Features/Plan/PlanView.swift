@@ -13,14 +13,13 @@ struct PlanView: View {
     @EnvironmentObject var usageService: UsageService
     @EnvironmentObject var l10n: LocalizationService
     @State private var appeared = false
-    @State private var smartPlanBreathing = false
     @State private var expandedMealId: UUID? = nil
     @StateObject private var favVM = FavoritesViewModel()
 
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground
+                AppColors.background
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -64,69 +63,50 @@ struct PlanView: View {
                             )
                             .staggerIn(appeared: appeared, delay: 0.05)
 
-                            // MARK: Soft warning banner
-                            if !usageService.actionCostPreview.isEmpty {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.caption2)
-                                        .foregroundStyle(.yellow)
-                                    Text(usageService.actionCostPreview)
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.yellow)
-                                    Spacer()
-                                    Text("\(l10n.t("plan.resetsIn")) \(usageService.timeUntilReset)")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                            // MARK: Status Group — warnings / savings merged into one card
+                            let hasCostPreview = !usageService.actionCostPreview.isEmpty
+                            let saved = viewModel.budgetTarget - viewModel.totalCost
+                            let hasSavings = viewModel.totalCost > 0 && viewModel.budgetTarget > 0 && saved > 0
+                            let isOverBudget = viewModel.totalCost > viewModel.budgetTarget && viewModel.budgetTarget > 0
+
+                            if hasCostPreview || hasSavings || isOverBudget {
+                                GroupCard {
+                                    if hasCostPreview {
+                                        statusRow(
+                                            icon: "exclamationmark.triangle.fill",
+                                            text: usageService.actionCostPreview,
+                                            trailing: "\(l10n.t("plan.resetsIn")) \(usageService.timeUntilReset)",
+                                            accent: AppColors.warning
+                                        )
+                                    }
+                                    if hasCostPreview && hasSavings { HealthDivider() }
+                                    if hasSavings {
+                                        statusRow(
+                                            icon: "leaf.fill",
+                                            text: "\(l10n.t("plan.saves")) \(Int(saved)) \(regionService.currency) \(l10n.t("plan.today"))",
+                                            accent: AppColors.success
+                                        )
+                                    }
+                                    if isOverBudget && usageService.canOptimize() {
+                                        if hasCostPreview || hasSavings { HealthDivider() }
+                                        Button {
+                                            usageService.requestAction("optimization", canPerform: usageService.canOptimize()) {
+                                                usageService.useOptimize()
+                                                viewModel.optimizeDay()
+                                            }
+                                        } label: {
+                                            statusRow(
+                                                icon: "wand.and.stars",
+                                                text: l10n.t("plan.overBudget"),
+                                                trailing: "Optimize →",
+                                                accent: AppColors.accent
+                                            )
+                                        }
+                                        .buttonStyle(PressButtonStyle())
+                                    }
                                 }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(Color.yellow.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-
-                            // MARK: Value moment — savings
-                            if viewModel.totalCost > 0 && viewModel.budgetTarget > 0 {
-                                let saved = viewModel.budgetTarget - viewModel.totalCost
-                                if saved > 0 {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "leaf.fill")
-                                            .font(.caption2)
-                                            .foregroundStyle(.green)
-                                        Text("\(l10n.t("plan.saves")) \(Int(saved)) \(regionService.currency) \(l10n.t("plan.today"))")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(.green)
-                                    }
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.green.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                }
-                            }
-
-                            // MARK: Smart suggestion — over budget
-                            if viewModel.totalCost > viewModel.budgetTarget && viewModel.budgetTarget > 0 && usageService.canOptimize() {
-                                Button {
-                                    usageService.requestAction("optimization", canPerform: usageService.canOptimize()) {
-                                        usageService.useOptimize()
-                                        viewModel.optimizeDay()
-                                    }
-                                } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "exclamationmark.circle.fill")
-                                            .foregroundStyle(.orange)
-                                        Text(l10n.t("plan.overBudget"))
-                                            .font(.caption.weight(.bold))
-                                            .foregroundStyle(.orange)
-                                        Spacer()
-                                        Image(systemName: "wand.and.stars")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 10)
-                                    .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                }
-                                .buttonStyle(PressButtonStyle())
+                                .staggerIn(appeared: appeared, delay: 0.06)
                             }
 
                             // MARK: Smart Plan + Optimize
@@ -134,9 +114,10 @@ struct PlanView: View {
                                 smartPlanButton
                                 optimizeButton
                             }
-                            .staggerIn(appeared: appeared, delay: 0.06)
+                            .staggerIn(appeared: appeared, delay: 0.07)
 
-                            // MARK: Daily Stats with targets
+                            // MARK: Daily Stats
+                            SectionHeader(l10n.t("plan.highlights"))
                             PlanSummaryCard(summary: planSummary)
                                 .staggerIn(appeared: appeared, delay: 0.09)
 
@@ -145,7 +126,8 @@ struct PlanView: View {
                                 .staggerIn(appeared: appeared, delay: 0.12)
 
                             // MARK: Meals
-                            VStack(spacing: 14) {
+                            SectionHeader(l10n.t("plan.meals"))
+                            VStack(spacing: 10) {
                                 ForEach(Array(viewModel.selectedDay.meals.enumerated()), id: \.element.id) { index, meal in
                                     MealRow(
                                         meal: meal,
@@ -184,7 +166,7 @@ struct PlanView: View {
                 }
             }
             .navigationTitle(l10n.t("plan.title"))
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(AnyShapeStyle(AppColors.surface), for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -202,9 +184,6 @@ struct PlanView: View {
             .onAppear {
                 withAnimation(.easeOut(duration: 0.5)) {
                     appeared = true
-                }
-                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-                    smartPlanBreathing = true
                 }
             }
             .overlay(alignment: .top) {
@@ -240,12 +219,11 @@ struct PlanView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: Capsule())
+        .background(AppColors.surface, in: Capsule())
         .overlay(
             Capsule()
-                .strokeBorder(Color.green.opacity(0.2), lineWidth: 1)
+                .strokeBorder(Color.green.opacity(0.1), lineWidth: 1)
         )
-        .shadow(color: .green.opacity(0.2), radius: 12, y: 4)
     }
 
     // MARK: - Added to Plan Banner
@@ -263,12 +241,34 @@ struct PlanView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial, in: Capsule())
+        .background(AppColors.surface, in: Capsule())
         .overlay(
             Capsule()
-                .strokeBorder(Color.cyan.opacity(0.2), lineWidth: 1)
+                .strokeBorder(Color.cyan.opacity(0.1), lineWidth: 1)
         )
-        .shadow(color: .cyan.opacity(0.2), radius: 12, y: 4)
+    }
+
+    // MARK: - Status Row (inside grouped card)
+
+    @ViewBuilder
+    private func statusRow(icon: String, text: String, trailing: String? = nil, accent: Color) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(accent)
+                .frame(width: 20)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(AppColors.textPrimary)
+            Spacer()
+            if let trailing {
+                Text(trailing)
+                    .font(.caption)
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+        }
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, 12)
     }
 
     // MARK: - Plan Summary (assembles display model, no UI logic)
@@ -331,11 +331,10 @@ struct PlanView: View {
                     }
                 }
             }
-            .padding(14)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                    .stroke(Color.red.opacity(0.15), lineWidth: 1)
             )
         }
     }
@@ -361,7 +360,6 @@ struct PlanView: View {
                     } else {
                         Image(systemName: "sparkles")
                             .font(.title3.weight(.semibold))
-                            .symbolEffect(.bounce, options: .repeating.speed(0.3), isActive: smartPlanGlow)
                     }
                 }
                 .frame(width: 24, height: 24)
@@ -378,55 +376,12 @@ struct PlanView: View {
             }
             .foregroundStyle(.white)
             .padding(16)
-            .background {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [.orange, Color(red: 0.95, green: 0.45, blue: 0.1), Color(red: 0.85, green: 0.3, blue: 0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay {
-                        // Inner light
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.18), .clear],
-                                    startPoint: .top,
-                                    endPoint: .center
-                                )
-                            )
-                    }
-                    .overlay {
-                        // Traveling shimmer
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.clear, .white.opacity(0.12), .clear],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .offset(x: shimmerOffset)
-                            .mask(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    }
-            }
-            .shadow(color: .orange.opacity(smartPlanBreathing ? 0.45 : 0.2), radius: smartPlanBreathing ? 24 : 12, y: 6)
-            .scaleEffect(smartPlanBreathing ? 1.01 : 0.99)
+            .background(AppColors.accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
         .buttonStyle(PressButtonStyle())
         .disabled(viewModel.isGenerating)
         .opacity(viewModel.isGenerating ? 0.85 : 1)
         .animation(.easeInOut(duration: 0.3), value: viewModel.isGenerating)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2).repeatForever(autoreverses: true)) {
-                smartPlanGlow = true
-            }
-            withAnimation(.linear(duration: 2.5).repeatForever(autoreverses: false)) {
-                shimmerOffset = 400
-            }
-        }
     }
 
     // MARK: - Optimize Button (Secondary)
@@ -447,9 +402,7 @@ struct PlanView: View {
                     } else {
                         Image(systemName: "wand.and.stars")
                             .font(.body.weight(.semibold))
-                            .foregroundStyle(
-                                LinearGradient(colors: [.cyan, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
+                            .foregroundStyle(Color.cyan)
                     }
                 }
                 .frame(width: 22, height: 22)
@@ -460,10 +413,10 @@ struct PlanView: View {
             }
             .frame(width: 72)
             .padding(.vertical, 14)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
+                    .strokeBorder(Color.white.opacity(0.04), lineWidth: 1)
             )
         }
         .buttonStyle(PressButtonStyle())
@@ -489,7 +442,7 @@ struct PlanView: View {
             Spacer()
         }
         .padding(14)
-        .glassCard(cornerRadius: 16)
+        .productCard(cornerRadius: 16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(insight.color.opacity(0.15), lineWidth: 1)
@@ -527,7 +480,7 @@ struct PlanView: View {
                         Capsule()
                             .fill(Color.white.opacity(0.06))
                         Capsule()
-                            .fill(LinearGradient(colors: [.orange, .yellow], startPoint: .leading, endPoint: .trailing))
+                            .fill(Color.orange)
                             .frame(width: geo.size.width * CGFloat(viewModel.weekDaysCompleted) / 7.0)
                             .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.weekDaysCompleted)
                     }
@@ -536,7 +489,7 @@ struct PlanView: View {
                 .clipShape(Capsule())
             }
             .padding(16)
-            .glassCard(cornerRadius: 18)
+            .productCard(cornerRadius: 18)
 
             // Day rows
             ForEach(Array(viewModel.weekDays.enumerated()), id: \.element.id) { index, day in
@@ -598,11 +551,7 @@ struct PlanView: View {
                                         Capsule()
                                             .fill(Color.white.opacity(0.06))
                                         Capsule()
-                                            .fill(
-                                                cals > viewModel.calorieTarget
-                                                    ? LinearGradient(colors: [.red, .orange], startPoint: .leading, endPoint: .trailing)
-                                                    : LinearGradient(colors: [.orange, .yellow], startPoint: .leading, endPoint: .trailing)
-                                            )
+                                            .fill(cals > viewModel.calorieTarget ? Color.red : Color.orange)
                                             .frame(width: geo.size.width * min(CGFloat(cals) / CGFloat(max(viewModel.calorieTarget, 1)), 1.0))
                                     }
                                 }
@@ -618,7 +567,7 @@ struct PlanView: View {
                             .foregroundStyle(.secondary.opacity(0.4))
                     }
                     .padding(14)
-                    .glassCard(cornerRadius: 16)
+                    .productCard(cornerRadius: 16)
                     .overlay {
                         if viewModel.isToday(day.date) {
                             RoundedRectangle(cornerRadius: 16)

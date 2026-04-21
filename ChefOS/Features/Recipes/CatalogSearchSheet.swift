@@ -14,7 +14,7 @@ struct CatalogSearchSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground.ignoresSafeArea()
+                AppColors.background.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // Search bar
@@ -32,8 +32,8 @@ struct CatalogSearchSheet: View {
                         }
                     }
                     .padding(12)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                    .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.04), lineWidth: 1))
                     .padding(.horizontal)
                     .padding(.top, 8)
 
@@ -104,7 +104,7 @@ struct CatalogSearchSheet: View {
                     if isActive {
                         Capsule().fill(Color.green.opacity(0.7))
                     } else {
-                        Capsule().fill(.ultraThinMaterial)
+                        Capsule().fill(AppColors.surfaceRaised)
                     }
                 }
                 .overlay(Capsule().stroke(Color.white.opacity(isActive ? 0 : 0.06), lineWidth: 1))
@@ -198,8 +198,8 @@ struct CatalogSearchSheet: View {
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 1))
+            .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.04), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }
@@ -272,7 +272,7 @@ struct CatalogSearchSheet: View {
                     }
                 }
                 .padding(16)
-                .glassCard(cornerRadius: 16)
+                .productCard(cornerRadius: 16)
 
                 // Editable fields — only these are saved to user's inventory
                 VStack(spacing: 14) {
@@ -287,7 +287,7 @@ struct CatalogSearchSheet: View {
                     formField(title: l10n.t("recipes.expiryDays"), text: $vm.addExpiryDays, icon: "calendar", keyboard: .numberPad, suffix: l10n.t("recipes.days"))
                 }
                 .padding(16)
-                .glassCard(cornerRadius: 16)
+                .productCard(cornerRadius: 16)
 
                 // Add button
                 Button {
@@ -308,7 +308,7 @@ struct CatalogSearchSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        (vm.showSuccessBanner ? Color.green : Color.green).gradient,
+                        (vm.showSuccessBanner ? Color.green : Color.green),
                         in: RoundedRectangle(cornerRadius: 14, style: .continuous)
                     )
                     .animation(.snappy, value: vm.showSuccessBanner)

@@ -37,24 +37,21 @@ struct AppCard<Content: View>: View {
             .background { background }
             .overlay {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(AppColors.glassStroke, lineWidth: 1)
+                    .stroke(AppColors.glassStroke, lineWidth: 0.5)
             }
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .applyShadow(style == .elevated ? Shadows.intense : Shadows.card)
+            .applyShadow(Shadows.card)
     }
 
     @ViewBuilder
     private var background: some View {
         switch style {
-        case .solid:
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(AppColors.surface)
         case .glass:
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(.ultraThinMaterial.opacity(0.6))
+            AppColors.surface
+        case .solid:
+            AppColors.surface
         case .elevated:
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(AppColors.surfaceRaised)
+            AppColors.surfaceRaised
         }
     }
 }

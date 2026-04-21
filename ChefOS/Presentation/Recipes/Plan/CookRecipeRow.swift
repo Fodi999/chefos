@@ -18,9 +18,7 @@ struct CookRecipeRow: View {
             HStack(spacing: 14) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(canCook
-                            ? LinearGradient(colors: [.green, .mint], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            : LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .fill(canCook ? Color.green : Color.orange)
                         .frame(width: 50, height: 50)
                     Image(systemName: canCook ? "checkmark.seal.fill" : "fork.knife")
                         .font(.title3).foregroundStyle(.white)
@@ -111,12 +109,7 @@ struct CookRecipeRow: View {
                             Text(l10n.t("recipes.cookBtn")).font(.caption.weight(.bold))
                         }
                         .foregroundStyle(.white).padding(.horizontal, 16).padding(.vertical, 8)
-                        .background(
-                            LinearGradient(colors: [.orange, Color(red: 0.9, green: 0.3, blue: 0.1)],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing),
-                            in: Capsule()
-                        )
-                        .shadow(color: .orange.opacity(0.3), radius: 6, y: 2)
+                        .background(Color.orange, in: Capsule())
                     }.buttonStyle(PressButtonStyle())
 
                     Button { onAddToPlan?() } label: {
@@ -131,8 +124,8 @@ struct CookRecipeRow: View {
                         }
                         .foregroundStyle(planViewModel?.plannedSlot(for: recipe) != nil ? .cyan : .secondary)
                         .padding(.horizontal, 16).padding(.vertical, 8)
-                        .background(.ultraThinMaterial, in: Capsule())
-                        .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1))
+                        .background(AppColors.surfaceRaised, in: Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.04), lineWidth: 1))
                     }
                     .buttonStyle(PressButtonStyle())
                     .disabled(planViewModel?.plannedSlot(for: recipe) != nil)
@@ -152,8 +145,7 @@ struct CookRecipeRow: View {
             .padding(.leading, 64)
         }
         .padding(14)
-        .glassCard(cornerRadius: 18)
-        .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+        .surface(.card, cornerRadius: 18)
         .overlay {
             if canCook {
                 RoundedRectangle(cornerRadius: 18)

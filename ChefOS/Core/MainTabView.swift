@@ -42,7 +42,7 @@ struct MainTabView: View {
                 }
                 .tag(Tab.profile)
         }
-        .tint(Color.auroraBlue)
+        .tint(AppColors.primary)
         .toolbarBackground(.ultraThinMaterial, for: .tabBar)
         .toolbarBackgroundVisibility(.visible, for: .tabBar)
         .environmentObject(planViewModel)

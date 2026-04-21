@@ -35,24 +35,8 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             // Background
-            LinearGradient(
-                colors: [Color(red: 0.05, green: 0.05, blue: 0.08), Color(red: 0.08, green: 0.06, blue: 0.12)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            // Ambient orbs
-            Circle()
-                .fill(Color.orange.opacity(0.12))
-                .frame(width: 300, height: 300)
-                .blur(radius: 80)
-                .offset(x: -80, y: -200)
-            Circle()
-                .fill(Color.purple.opacity(0.08))
-                .frame(width: 250, height: 250)
-                .blur(radius: 60)
-                .offset(x: 100, y: 200)
+            AppColors.background
+                .ignoresSafeArea()
 
             switch step {
             case .welcome:
@@ -87,15 +71,8 @@ struct OnboardingView: View {
             VStack(spacing: 20) {
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.orange, Color(red: 0.95, green: 0.4, blue: 0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(AppColors.accent)
                         .frame(width: 100, height: 100)
-                        .shadow(color: .orange.opacity(0.4), radius: 30, y: 10)
                     Image(systemName: "fork.knife")
                         .font(.system(size: 44, weight: .semibold))
                         .foregroundStyle(.white)
@@ -145,10 +122,10 @@ struct OnboardingView: View {
                                 .foregroundStyle(.green)
                         }
                         .padding(18)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.green.opacity(0.2), lineWidth: 1)
+                                .stroke(Color.green.opacity(0.1), lineWidth: 1)
                         )
 
                         // Change country
@@ -183,15 +160,7 @@ struct OnboardingView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.orange, Color(red: 0.9, green: 0.35, blue: 0.1)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
-                    .shadow(color: .orange.opacity(0.35), radius: 16, y: 6)
+                    .background(AppColors.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .padding(.horizontal, 24)
             .opacity(detecting ? 0.4 : 1)
@@ -210,9 +179,7 @@ struct OnboardingView: View {
             VStack(spacing: 20) {
                 Image(systemName: "person.badge.key.fill")
                     .font(.system(size: 50, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
+                    .foregroundStyle(AppColors.primary)
 
                 Text(isLoginMode ? l10n.t("onboarding.signIn") : l10n.t("onboarding.createAccount"))
                     .font(.title2.weight(.bold))
@@ -308,15 +275,7 @@ struct OnboardingView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(
-                    LinearGradient(
-                        colors: [.orange, Color(red: 0.9, green: 0.35, blue: 0.1)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                )
-                .shadow(color: .orange.opacity(0.35), radius: 16, y: 6)
+                .background(AppColors.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .disabled(authService.isLoading || email.isEmpty || password.isEmpty || (!isLoginMode && name.isEmpty))
             .opacity((email.isEmpty || password.isEmpty) ? 0.5 : 1)
@@ -358,10 +317,10 @@ struct OnboardingView: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                .stroke(Color.white.opacity(0.04), lineWidth: 0.5)
         )
     }
 
@@ -373,16 +332,9 @@ struct OnboardingView: View {
 
             VStack(spacing: 24) {
                 ZStack {
-                    Circle()
-                        .fill(Color.cyan.opacity(0.15))
-                        .frame(width: 120, height: 120)
-                        .blur(radius: 20)
                     Image(systemName: authService.biometricIcon)
                         .font(.system(size: 60, weight: .light))
-                        .foregroundStyle(
-                            LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
-                        )
-                        .symbolEffect(.bounce, options: .repeating.speed(0.3))
+                        .foregroundStyle(Color.cyan)
                 }
 
                 VStack(spacing: 8) {
@@ -410,15 +362,7 @@ struct OnboardingView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.cyan, .blue],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
-                    .shadow(color: .cyan.opacity(0.3), radius: 16, y: 6)
+                    .background(Color.cyan, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
 
                 Button {
@@ -446,28 +390,16 @@ struct LockScreenView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.05, green: 0.05, blue: 0.08), Color(red: 0.08, green: 0.06, blue: 0.12)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            AppColors.background
+                .ignoresSafeArea()
 
             VStack(spacing: 30) {
                 Spacer()
 
-                // Logo
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.orange, Color(red: 0.95, green: 0.4, blue: 0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(AppColors.accent)
                         .frame(width: 80, height: 80)
-                        .shadow(color: .orange.opacity(0.4), radius: 20, y: 8)
                     Image(systemName: "fork.knife")
                         .font(.system(size: 36, weight: .semibold))
                         .foregroundStyle(.white)
@@ -538,12 +470,8 @@ struct CountryPickerView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color(red: 0.05, green: 0.05, blue: 0.08), Color(red: 0.08, green: 0.06, blue: 0.12)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            AppColors.background
+                .ignoresSafeArea()
 
             List {
                 ForEach(filteredCountries) { country in

@@ -2,55 +2,47 @@
 //  GlassModifier.swift
 //  ChefOS — DesignSystem
 //
-//  The signature 2026 glass card style.
-//  Usage: .glassCard() or .glassCard(cornerRadius: Radius.lg)
+//  Real Product: Standardized UI surfaces based on Apple HIG.
+//  No visual noise (no glows, no gradients).
 //
 
 import SwiftUI
 
-// MARK: - Glass Card Modifier
+// MARK: - Product Card Modifier
 
-struct GlassCard: ViewModifier {
+struct ProductCard: ViewModifier {
     var cornerRadius: CGFloat = Radius.md
 
     func body(content: Content) -> some View {
         content
-            .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.ultraThinMaterial.opacity(0.6))
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(AppColors.glassStroke, lineWidth: 1)
-            )
+            .background(AppColors.surface, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .applyShadow(Shadows.card)
     }
 }
 
 extension View {
+    /// Applies a standard HIG-compliant card style.
     func glassCard(cornerRadius: CGFloat = Radius.md) -> some View {
-        modifier(GlassCard(cornerRadius: cornerRadius))
+        modifier(ProductCard(cornerRadius: cornerRadius))
+    }
+    
+    /// Legacy alias for glassCard
+    func productCard(cornerRadius: CGFloat = Radius.md) -> some View {
+         modifier(ProductCard(cornerRadius: cornerRadius))
     }
 }
 
-// MARK: - Ambient Glow Modifier
+// MARK: - No-Op Modifiers (Removed Noise)
 
-struct AmbientGlow: ViewModifier {
-    var color: Color = AppColors.primaryGlow
-    var radius: CGFloat = 30
-
+struct NoNoiseGlow: ViewModifier {
     func body(content: Content) -> some View {
-        content
-            .background(
-                color
-                    .blur(radius: radius)
-                    .opacity(0.5)
-            )
+        content // NO noise allowed
     }
 }
 
 extension View {
-    func ambientGlow(color: Color = AppColors.primaryGlow, radius: CGFloat = 30) -> some View {
-        modifier(AmbientGlow(color: color, radius: radius))
+    /// Removed: Ambient glow is no longer part of the product design.
+    func ambientGlow(color: Color = .clear, radius: CGFloat = 0) -> some View {
+        modifier(NoNoiseGlow())
     }
 }

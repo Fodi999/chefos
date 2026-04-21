@@ -37,43 +37,53 @@ struct PlanSummaryModel {
 struct PlanSummaryCard: View {
     let summary: PlanSummaryModel
 
+    private var budgetColor: Color {
+        summary.cost > summary.budgetTarget
+            ? SemanticColors.state(.danger)
+            : SemanticColors.state(.budget)
+    }
+
     var body: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 16) {
-                PlanProgressRing(
-                    progress: summary.calorieProgress,
-                    icon: "flame.fill",
-                    current: summary.calories,
-                    target: summary.calorieTarget,
-                    unit: "kcal",
-                    color: SemanticColors.nutrient(.calories)
-                )
-                PlanProgressRing(
-                    progress: summary.proteinProgress,
-                    icon: "bolt.fill",
-                    current: summary.protein,
-                    target: summary.proteinTarget,
-                    unit: "g protein",
-                    color: SemanticColors.nutrient(.protein)
-                )
-                CostRing(
-                    progress: summary.costProgress,
-                    current: summary.cost,
-                    target: summary.budgetTarget,
-                    color: summary.cost > summary.budgetTarget
-                        ? SemanticColors.state(.danger)
-                        : SemanticColors.state(.budget),
-                    currency: summary.currency
-                )
+        VStack(spacing: 0) {
+            // Rings row
+            GroupCard {
+                StatRingRow(stats: [
+                    .init(
+                        value: summary.calories,
+                        target: summary.calorieTarget,
+                        unit: "kcal",
+                        label: "Calories",
+                        accent: SemanticColors.nutrient(.calories),
+                        lineWidth: 10   // primary — thickest
+                    ),
+                    .init(
+                        value: summary.protein,
+                        target: summary.proteinTarget,
+                        unit: "g",
+                        label: "Protein",
+                        accent: SemanticColors.nutrient(.protein),
+                        lineWidth: 6    // secondary
+                    ),
+                    .init(
+                        value: Int(summary.cost),
+                        target: Int(summary.budgetTarget),
+                        unit: summary.currency,
+                        label: "Budget",
+                        accent: budgetColor,
+                        lineWidth: 6    // secondary
+                    ),
+                ])
             }
 
             // Status line
-            Text(summary.statusText)
-                .appStyle(.caption)
-                .foregroundStyle(summary.statusColor)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if !summary.statusText.isEmpty {
+                Text(summary.statusText)
+                    .appStyle(.caption)
+                    .foregroundStyle(summary.statusColor)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Spacing.xs)
+                    .padding(.top, 6)
+            }
         }
-        .padding(Spacing.sm)
-        .glassCard(cornerRadius: Radius.md)
     }
 }

@@ -20,45 +20,50 @@ struct ChatView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground
+                AppColors.background
                     .ignoresSafeArea()
-
-                ambientOrbs
 
                 VStack(spacing: 0) {
                     // Usage indicator
                     HStack(spacing: .spacingS) {
                         Image(systemName: "sparkles")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(Color.auroraBlue)
+                            .foregroundStyle(AppColors.primary)
                         Text("\(l10n.t("chat.actionsLeft")) \(usageService.chatsRemaining)")
-                            .premiumCaption()
+                            .appStyle(.caption)
                         Spacer()
                         if usageService.purchasedActions > 0 {
                             Text("+\(usageService.purchasedActions) \(l10n.t("chat.purchased"))")
                                 .font(.caption2.weight(.bold))
-                                .foregroundStyle(Color.auroraBlue)
+                                .foregroundStyle(AppColors.primary)
                         }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
+                    .background(AppColors.surface)
 
                     // Soft warning / cost preview banner
                     if !usageService.actionCostPreview.isEmpty {
                         HStack(spacing: .spacingS) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.caption2)
-                                .foregroundStyle(Color.amberGlow)
+                                .foregroundStyle(AppColors.accent)
                             Text(usageService.actionCostPreview)
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(Color.amberGlow)
+                                .foregroundStyle(AppColors.accent)
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.yellow.opacity(0.1))
+                        .background(AppColors.accent.opacity(0.1))
                         .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+
+                    // Context card — visible only when no messages yet
+                    if viewModel.messages.isEmpty {
+                        assistantContextCard
+                            .padding(.horizontal, 16)
+                            .padding(.top, 8)
                     }
 
                     messageList
@@ -83,7 +88,7 @@ struct ChatView: View {
             }
             .navigationTitle(l10n.t("chat.title"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(AppColors.surface, for: .navigationBar)
             .sheet(isPresented: $showPhotoPicker) {
                 ImagePicker(image: $pickedImage, sourceType: .photoLibrary)
             }
@@ -105,24 +110,68 @@ struct ChatView: View {
     // MARK: Ambient Background Orbs
 
     private var ambientOrbs: some View {
-        GeometryReader { geo in
-            ZStack {
-                Circle()
-                    .fill(Color.auroraBlue.opacity(0.08))
-                    .frame(width: 260, height: 260)
-                    .blur(radius: 80)
-                    .offset(x: -geo.size.width * 0.3, y: -geo.size.height * 0.15)
+        EmptyView()
+    }
 
-                Circle()
-                    .fill(Color.amberGlow.opacity(0.04))
-                    .frame(width: 200, height: 200)
-                    .blur(radius: 70)
-                    .offset(x: geo.size.width * 0.3, y: geo.size.height * 0.25)
+    // MARK: Assistant Context Card (shown on empty state)
+
+    private var assistantContextCard: some View {
+        GroupCard {
+            // Row 1 — role
+            HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 36, height: 36)
+                    .background(AppColors.primary.opacity(0.12), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ChefOS Assistant")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AppColors.textPrimary)
+                    Text("Recipes · Nutrition · Planning")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppColors.textSecondary)
+                }
+                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 12)
+
+            HealthDivider()
+
+            // Row 2 — daily usage
+            HStack(spacing: 10) {
+                Image(systemName: "message.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppColors.primary)
+                    .frame(width: 20)
+                Text("Chats today")
+                    .font(.subheadline)
+                    .foregroundStyle(AppColors.textPrimary)
+                Spacer()
+                Text("\(usageService.chatsRemaining) left")
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(usageService.chatsRemaining > 2 ? AppColors.success : AppColors.warning)
+            }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 12)
+
+            HealthDivider()
+
+            // Row 3 — tip
+            HStack(spacing: 10) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppColors.textSecondary)
+                    .frame(width: 20)
+                Text("Scan a receipt or photo for instant analysis")
+                    .font(.subheadline)
+                    .foregroundStyle(AppColors.textSecondary)
+                Spacer()
+            }
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, 12)
         }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
     }
 
     // MARK: Message List
@@ -188,30 +237,19 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private func textBubble(_ text: String) -> some View {
-        if message.isFromUser {
-            Text(text)
-                .padding(.horizontal, .spacingM)
-                .padding(.vertical, 12)
-                .foregroundStyle(.white)
-                .background {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.auroraBlue)
-                        .shadow(color: Color.auroraBlue.opacity(0.25), radius: 10, x: 0, y: 5)
+        Text(text)
+            .appStyle(.body)
+            .padding(.horizontal, .spacingM)
+            .padding(.vertical, 12)
+            .foregroundStyle(message.isFromUser ? .white : AppColors.textPrimary)
+            .background {
+                if message.isFromUser {
+                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                        .fill(AppColors.primary)
+                } else {
+                    AppCard(style: .solid, cornerRadius: Radius.md) { EmptyView() }
                 }
-        } else {
-            Text(text)
-                .padding(.horizontal, .spacingM)
-                .padding(.vertical, 12)
-                .foregroundStyle(Color.white.opacity(0.9))
-                .background {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.obsidianPanel.opacity(0.6))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                        )
-                }
-        }
+            }
     }
 
     private func imageBubble(_ uiImage: UIImage) -> some View {
@@ -265,7 +303,7 @@ struct RecipeCardBubble: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(cornerRadius: 20)
+        .productCard(cornerRadius: 20)
     }
 }
 
@@ -290,7 +328,7 @@ struct ThinkingIndicator: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .glassCard(cornerRadius: 16)
+            .productCard(cornerRadius: 16)
 
             Text(l10n.t("chat.thinking"))
                 .font(.footnote.weight(.medium))

@@ -75,7 +75,7 @@ struct InventoryEditorSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground.ignoresSafeArea()
+                AppColors.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 16) {
@@ -147,7 +147,7 @@ struct InventoryEditorSheet: View {
             Spacer()
         }
         .padding(14)
-        .glassCard(cornerRadius: 16)
+        .productCard(cornerRadius: 16)
     }
 
     // MARK: - Add New Content (catalog search → form)
@@ -181,8 +181,8 @@ struct InventoryEditorSheet: View {
                     .onSubmit { Task { await searchCatalog() } }
             }
             .padding(12)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+            .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color.white.opacity(0.04), lineWidth: 1))
 
             if isSearching {
                 ProgressView()
@@ -247,7 +247,7 @@ struct InventoryEditorSheet: View {
                         }
                         .padding(.vertical, 8)
                         .padding(.horizontal, 12)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
@@ -305,7 +305,7 @@ struct InventoryEditorSheet: View {
                     .foregroundStyle(.primary)
             }
             .padding(14)
-            .glassCard(cornerRadius: 14)
+            .productCard(cornerRadius: 14)
 
             manualFallbackButtons
         }
@@ -353,8 +353,8 @@ struct InventoryEditorSheet: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 1))
             }
             .buttonStyle(PressButtonStyle())
         }
@@ -375,7 +375,7 @@ struct InventoryEditorSheet: View {
             formField(title: l10n.t("recipes.expiryDays"), text: $expiryDays, icon: "calendar", keyboard: .numberPad, suffix: l10n.t("recipes.days"))
         }
         .padding(16)
-        .glassCard(cornerRadius: 16)
+        .productCard(cornerRadius: 16)
     }
 
     // MARK: - Save Button
@@ -399,7 +399,7 @@ struct InventoryEditorSheet: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
-                (showSuccess ? Color.green : Color.green).gradient,
+                showSuccess ? Color.green : Color.green,
                 in: RoundedRectangle(cornerRadius: 14, style: .continuous)
             )
         }

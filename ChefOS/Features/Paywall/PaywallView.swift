@@ -16,25 +16,8 @@ struct PaywallView: View {
 
     var body: some View {
         ZStack {
-            // Background
-            LinearGradient(
-                colors: [Color(red: 0.05, green: 0.05, blue: 0.08), Color(red: 0.1, green: 0.06, blue: 0.14)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
-            // Ambient
-            Circle()
-                .fill(Color.orange.opacity(0.1))
-                .frame(width: 300, height: 300)
-                .blur(radius: 80)
-                .offset(x: -60, y: -250)
-            Circle()
-                .fill(Color.purple.opacity(0.08))
-                .frame(width: 250, height: 250)
-                .blur(radius: 60)
-                .offset(x: 80, y: 180)
+            AppColors.background
+                .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 28) {
@@ -116,12 +99,8 @@ struct PaywallView: View {
         VStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(
-                        LinearGradient(colors: [.orange, Color(red: 0.95, green: 0.4, blue: 0.1)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
+                    .fill(AppColors.accent)
                     .frame(width: 72, height: 72)
-                    .shadow(color: .orange.opacity(0.4), radius: 20, y: 6)
                 Image(systemName: "sparkles")
                     .font(.system(size: 32, weight: .semibold))
                     .foregroundStyle(.white)
@@ -158,10 +137,10 @@ struct PaywallView: View {
             benefitRow(icon: "bolt.fill", text: "Hit your protein & calorie goals", color: .purple)
         }
         .padding(18)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(Color.white.opacity(0.04), lineWidth: 1)
         )
     }
 
@@ -206,15 +185,7 @@ struct PaywallView: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
-            .background(
-                LinearGradient(
-                    colors: [.orange, Color(red: 0.9, green: 0.35, blue: 0.1)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .shadow(color: .orange.opacity(0.35), radius: 16, y: 6)
+            .background(AppColors.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .disabled(purchasing || selectedPackage == nil)
     }
@@ -291,52 +262,14 @@ struct PackageCard: View {
                     .font(.headline.weight(.bold))
                     .foregroundStyle(isSelected ? package.color : .white)
             }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
-            )
+            .padding(12)
+            .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(isSelected ? package.color.opacity(0.5) : Color.white.opacity(0.06), lineWidth: isSelected ? 1.5 : 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(package.color.opacity(0.1), lineWidth: 1)
             )
-            .shadow(color: isSelected ? package.color.opacity(0.15) : .clear, radius: 12, y: 4)
         }
         .buttonStyle(PressButtonStyle())
-    }
-}
-
-// MARK: - Inline Usage Banner (reusable)
-
-struct UsageBanner: View {
-    let icon: String
-    let text: String
-    let remaining: Int
-    let total: Int
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(color)
-            Text(text)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.primary.opacity(0.8))
-            Spacer()
-            Text("\(remaining)/\(total)")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(remaining > 0 ? color : .red)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background((remaining > 0 ? color : Color.red).opacity(0.12), in: Capsule())
-        }
-        .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(color.opacity(0.12), lineWidth: 1)
-        )
     }
 }
 

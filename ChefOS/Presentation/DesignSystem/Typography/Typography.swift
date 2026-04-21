@@ -52,24 +52,40 @@ extension View {
 
 enum Typography {
     static func font(for style: AppTextStyle) -> Font {
-        switch style {
-        case .largeTitle:   return .system(size: 34, weight: .bold,     design: .default)
-        case .title:        return .system(size: 24, weight: .semibold,  design: .default)
-        case .title2:       return .system(size: 20, weight: .semibold,  design: .default)
-        case .headline:     return .system(size: 17, weight: .semibold,  design: .default)
-        case .body:         return .system(size: 16, weight: .regular,   design: .default)
-        case .bodyMedium:   return .system(size: 16, weight: .medium,    design: .default)
-        case .subheadline:  return .system(size: 14, weight: .regular,   design: .default)
-        case .caption:      return .system(size: 13, weight: .regular,   design: .default)
-        case .caption2:     return .system(size: 12, weight: .regular,   design: .default)
-        case .micro:        return .system(size: 11, weight: .regular,   design: .default)
-        case .section:      return .system(size: 15, weight: .semibold,  design: .default)
-        case .sectionTitle: return .system(size: 15, weight: .semibold,  design: .default)
-        case .metric:       return .system(size: 28, weight: .bold,      design: .default)
-        case .nutrientValue:return .system(size: 13, weight: .bold,      design: .default)
-        case .tag:          return .system(size: 12, weight: .medium,    design: .default)
-        case .button:       return .system(size: 15, weight: .semibold,  design: .default)
-        }
+        let design: Font.Design = .default
+        
+        let size: CGFloat = {
+            switch style {
+            case .largeTitle:   return 34
+            case .title:        return 24
+            case .title2:       return 20
+            case .headline:     return 17
+            case .body:         return 16
+            case .bodyMedium:   return 16
+            case .subheadline:  return 14
+            case .caption:      return 13
+            case .caption2:     return 12
+            case .micro:        return 11
+            case .section:      return 15
+            case .sectionTitle: return 15
+            case .metric:       return 28
+            case .nutrientValue:return 13
+            case .tag:          return 12
+            case .button:       return 15
+            }
+        }()
+        
+        let weight: Font.Weight = {
+            switch style {
+            case .largeTitle, .metric: return .bold
+            case .title, .title2, .headline, .section, .sectionTitle, .button: return .semibold
+            case .bodyMedium: return .medium
+            case .nutrientValue, .tag: return .bold
+            default: return .regular
+            }
+        }()
+
+        return .system(size: size, weight: weight, design: design)
     }
 }
 

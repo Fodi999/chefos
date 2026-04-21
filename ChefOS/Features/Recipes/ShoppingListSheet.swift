@@ -8,7 +8,7 @@ struct ShoppingListSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground
+                AppColors.background
                     .ignoresSafeArea()
 
                 if vm.items.isEmpty {
@@ -114,7 +114,7 @@ struct ShoppingListSheet: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func sectionHeader(_ title: String, icon: String, color: Color) -> some View {
@@ -174,7 +174,7 @@ struct ShoppingListSheet: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .padding(.horizontal)
     }
 }

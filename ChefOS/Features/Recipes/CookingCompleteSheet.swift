@@ -33,7 +33,7 @@ struct CookingCompleteSheet: View {
                     nutritionBadge("🍞", String(format: "%.0f", dish.perServingCarbsG), l10n.t("cook.carbs"))
                 }
                 .padding(16)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 16))
 
                 if deducted {
                     HStack(spacing: 8) {
@@ -90,7 +90,7 @@ struct CookingCompleteSheet: View {
 
                 Color.clear.frame(height: 20)
             }
-            .background(LinearGradient.screenBackground.ignoresSafeArea())
+            .background(AppColors.background.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

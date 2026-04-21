@@ -45,7 +45,7 @@ struct DaySelector: View {
                 .padding(.horizontal, 4)
             }
             .padding(.vertical, 4)
-            .glassCard(cornerRadius: Radius.lg)
+            .productCard(cornerRadius: Radius.lg)
             .onAppear {
                 if let selected = days.first(where: { $0.isSelected }) {
                     proxy.scrollTo(selected.id, anchor: .center)

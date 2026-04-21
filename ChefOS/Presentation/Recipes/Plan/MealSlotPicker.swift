@@ -37,15 +37,15 @@ struct MealSlotPicker: View {
                                 .foregroundStyle(isFilled ? .orange : .green)
                         }
                         .padding(14)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                        .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.white.opacity(0.04), lineWidth: 1))
                     }.buttonStyle(PressButtonStyle())
                 }
             }.padding(.horizontal)
 
             Spacer()
         }
-        .presentationBackground(.ultraThinMaterial)
+        .presentationBackground(AppColors.surface)
     }
 
     private func mealIcon(_ type: Meal.MealType) -> String {

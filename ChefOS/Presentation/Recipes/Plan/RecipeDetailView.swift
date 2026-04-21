@@ -16,7 +16,7 @@ struct RecipeDetailView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient.screenBackground.ignoresSafeArea()
+            AppColors.background.ignoresSafeArea()
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     headerCard
@@ -28,7 +28,7 @@ struct RecipeDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+        .toolbarBackground(AppColors.surface, for: .navigationBar)
         .sheet(isPresented: $showMealPicker) {
             if let pvm = planViewModel {
                 MealSlotPicker(recipe: recipe, planViewModel: pvm)
@@ -66,7 +66,7 @@ struct RecipeDetailView: View {
                             valueColor: pct <= 15 ? .green : pct <= 30 ? .orange : .red)
             }
             .padding(.vertical, 12).padding(.horizontal, 16)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             HStack(spacing: 6) {
                 Image(systemName: canCookNow ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
@@ -76,7 +76,7 @@ struct RecipeDetailView: View {
             .foregroundStyle(canCookNow ? .green : .orange)
             .padding(.top, 4)
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 20).glassCard(cornerRadius: 24)
+        .frame(maxWidth: .infinity).padding(.vertical, 20).productCard(cornerRadius: 24)
     }
 
     private func economyCell(value: String, label: String, valueColor: Color = .green) -> some View {
@@ -108,7 +108,7 @@ struct RecipeDetailView: View {
                 }
             }
         }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading).glassCard(cornerRadius: 20)
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).productCard(cornerRadius: 20)
     }
 
     // MARK: - Action Buttons
@@ -124,12 +124,7 @@ struct RecipeDetailView: View {
                         Text(l10n.t("recipes.cookNow")).font(.headline.weight(.bold))
                     }
                     .foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(
-                        LinearGradient(colors: [.orange, Color(red: 0.9, green: 0.3, blue: 0.1)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
-                    .shadow(color: .orange.opacity(0.3), radius: 10, y: 4)
+                    .background(Color.orange, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }.buttonStyle(PressButtonStyle())
 
                 Button { showMealPicker = true } label: {
@@ -144,8 +139,8 @@ struct RecipeDetailView: View {
                     }
                     .foregroundStyle(planViewModel?.plannedSlot(for: recipe) != nil ? .cyan : .secondary)
                     .padding(.vertical, 14).padding(.horizontal, 24)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                    .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.04), lineWidth: 1))
                 }.buttonStyle(PressButtonStyle())
             } else {
                 Button { viewModel.addToShoppingList(recipe: recipe) } label: {
@@ -171,13 +166,11 @@ struct RecipeDetailView: View {
                 HStack(alignment: .top, spacing: 12) {
                     Text("\(index + 1)").font(.caption.bold()).foregroundStyle(.white)
                         .frame(width: 24, height: 24)
-                        .background(LinearGradient(colors: [.orange, Color(red: 0.9, green: 0.4, blue: 0.1)],
-                                                   startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .clipShape(Circle())
+                        .background(Color.orange, in: Circle())
                     Text(step).foregroundStyle(.primary)
                 }
             }
         }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading).glassCard(cornerRadius: 20)
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading).productCard(cornerRadius: 20)
     }
 }

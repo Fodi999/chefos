@@ -13,6 +13,7 @@ struct RecipesView: View {
     @EnvironmentObject var regionService: RegionService
     @EnvironmentObject var usageService: UsageService
     @EnvironmentObject var l10n: LocalizationService
+    @Environment(DesignSystem.self) private var ds
     @State private var appeared = false
     @State private var mealPickerRecipe: Recipe? = nil
     @State private var expandedItems: Set<String> = []
@@ -31,7 +32,7 @@ struct RecipesView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.screenBackground
+                AppColors.background
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -84,12 +85,11 @@ struct RecipesView: View {
                                 .padding(.leading, 44)
                         }
                         .padding(16)
-                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(Color.green.opacity(0.2), lineWidth: 1)
+                                .stroke(Color.green.opacity(0.1), lineWidth: 1)
                         )
-                        .shadow(color: .green.opacity(0.15), radius: 16, y: 6)
                         .padding(.horizontal)
                         .transition(.move(edge: .top).combined(with: .opacity))
 
@@ -100,7 +100,7 @@ struct RecipesView: View {
             }
             .searchable(text: $viewModel.searchText, prompt: viewModel.showStock ? l10n.t("recipes.searchStock") : l10n.t("recipes.search"))
             .navigationTitle(l10n.t("recipes.title"))
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(AnyShapeStyle(AppColors.surface), for: .navigationBar)
             .navigationDestination(for: UUID.self) { id in
                 if let recipe = viewModel.recipes.first(where: { $0.id == id }) {
                     RecipeDetailView(recipe: recipe, viewModel: viewModel, planViewModel: planViewModel, currency: regionService.currency)
@@ -263,7 +263,8 @@ struct RecipesView: View {
             }
         }
         .padding(4)
-        .background(.ultraThinMaterial.opacity(0.4), in: Capsule())
+        .padding(4)
+        .background(AppColors.surface, in: Capsule())
         .overlay(Capsule().stroke(Color.white.opacity(0.04), lineWidth: 1))
         .frame(maxWidth: .infinity, alignment: .center)
     }
@@ -284,11 +285,11 @@ struct RecipesView: View {
                         Text(l10n.t("recipes.addProduct"))
                             .font(.system(size: 14, weight: .semibold))
                     }
-                    .foregroundStyle(Color.auroraBlue)
+                    .foregroundStyle(AppColors.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.auroraBlue.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color.auroraBlue.opacity(0.2), lineWidth: 1))
+                    .background(AppColors.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(AppColors.primary.opacity(0.2), lineWidth: 1))
                 }
                 .buttonStyle(PressButtonStyle())
 
@@ -307,7 +308,7 @@ struct RecipesView: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(Color.amberGlow, in: Capsule())
+                                .background(AppColors.accent, in: Capsule())
                         }
                     }
                     .foregroundStyle(.white)
@@ -401,7 +402,7 @@ struct RecipesView: View {
     private var stockSummary: some View {
         HStack(spacing: 0) {
             stockMetric(value: String(format: "%.0f %@", stockVM.totalValue, currencySymbol), label: l10n.t("recipes.total"), color: .green, icon: "banknote.fill")
-            Divider().frame(height: 36).overlay(Color.white.opacity(0.06))
+            Divider().frame(height: 36).overlay(Color.white.opacity(0.04))
             stockMetric(value: "\(stockVM.items.count)", label: l10n.t("recipes.items"), color: .cyan, icon: "shippingbox.fill")
             Divider().frame(height: 36).overlay(Color.white.opacity(0.06))
             stockMetric(value: "\(stockVM.expiringCount)", label: l10n.t("recipes.expiring"), color: stockVM.expiringCount > 0 ? .red : .secondary, icon: "exclamationmark.triangle.fill")
@@ -411,7 +412,7 @@ struct RecipesView: View {
             }
         }
         .padding(.vertical, 16)
-        .glassCard(cornerRadius: 18)
+        .productCard(cornerRadius: 18)
     }
 
     // MARK: - Smart Insight Block
@@ -421,11 +422,11 @@ struct RecipesView: View {
             HStack(spacing: .spacingS) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Color.auroraBlue)
+                    .foregroundStyle(AppColors.primary)
                     .symbolEffect(.bounce, options: .repeating)
                 Text(l10n.t("recipes.smartInsight"))
                     .premiumHeader()
-                    .foregroundStyle(Color.auroraBlue)
+                    .foregroundStyle(AppColors.primary)
                 Spacer()
                 // Action hint / badge
                 if stockVM.estimatedDaysOfFood > 0 {
@@ -434,10 +435,10 @@ struct RecipesView: View {
                         Text("~\(stockVM.estimatedDaysOfFood)d")
                     }
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(Color.auroraBlue.opacity(0.8))
+                    .foregroundStyle(AppColors.primary.opacity(0.8))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.auroraBlue.opacity(0.15), in: Capsule())
+                    .background(AppColors.primary.opacity(0.15), in: Capsule())
                 }
             }
             .padding(.bottom, .spacingXS)
@@ -463,7 +464,7 @@ struct RecipesView: View {
                             .premiumCaption()
                         Text(String(format: "%.0f %@", stockVM.wasteRiskValue, currencySymbol))
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Color.amberGlow)
+                            .foregroundStyle(AppColors.accent)
                             .lineLimit(1)
                     }
                 }
@@ -483,12 +484,12 @@ struct RecipesView: View {
                 .foregroundStyle(Color.obsidianBase)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(Color.auroraBlue, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(AppColors.primary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(PressButtonStyle())
         }
         .padding(.spacingM)
-        .glassCard(cornerRadius: 16)
+        .productCard(cornerRadius: 16)
     }
 
     /// Dynamic status text
@@ -564,7 +565,7 @@ struct RecipesView: View {
                             if isActive {
                                 Capsule().fill(filterColor(filter).opacity(0.6))
                             } else {
-                                Capsule().fill(.ultraThinMaterial)
+                                Capsule().fill(AppColors.surface)
                             }
                         }
                         .overlay(Capsule().stroke(Color.white.opacity(isActive ? 0 : 0.06), lineWidth: 1))
@@ -699,7 +700,7 @@ struct RecipesView: View {
                     .foregroundStyle(Color.obsidianBase)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.auroraBlue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(AppColors.primary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .buttonStyle(PressButtonStyle())
             }
@@ -714,7 +715,7 @@ struct RecipesView: View {
                     .foregroundStyle(Color.auroraBlue)
             }
             .padding(12)
-            .background(Color.auroraBlue.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(AppColors.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             Spacer().frame(height: 20)
         }
@@ -752,7 +753,7 @@ struct RecipesView: View {
                 }
             }
             .padding(.spacingM)
-            .glassCard(cornerRadius: 16)
+            .productCard(cornerRadius: 16)
 
             // 🧠 Smart analysis — WHY not enough
             VStack(alignment: .leading, spacing: 10) {
@@ -770,7 +771,7 @@ struct RecipesView: View {
                 if !stockVM.hasProtein {
                     analysisRow(icon: "xmark.circle.fill", color: Color.amberGlow, text: l10n.t("cook.noProtein"))
                 } else {
-                    analysisRow(icon: "checkmark.circle.fill", color: Color.auroraBlue, text: l10n.t("cook.hasProtein"))
+                    analysisRow(icon: "checkmark.circle.fill", color: AppColors.primary, text: l10n.t("cook.hasProtein"))
                 }
                 if !stockVM.hasBase {
                     analysisRow(icon: "xmark.circle.fill", color: Color.amberGlow, text: l10n.t("cook.noBase"))
@@ -796,7 +797,7 @@ struct RecipesView: View {
                 .padding(.top, 4)
             }
             .padding(.spacingM)
-            .glassCard(cornerRadius: 16)
+            .productCard(cornerRadius: 16)
 
             // 🎯 Quick-add buttons (interactive!)
             if !stockVM.hasProtein {
@@ -854,7 +855,7 @@ struct RecipesView: View {
             .padding(14)
             .background {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(AppColors.surface)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
@@ -931,7 +932,7 @@ struct RecipesView: View {
             }
         }
         .padding(14)
-        .glassCard(cornerRadius: 16)
+        .productCard(cornerRadius: 16)
     }
 
     private func quickAddButton(label: String, query: String) -> some View {
@@ -964,7 +965,6 @@ struct RecipesView: View {
             .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .strokeBorder(borderColor, lineWidth: 1)
                     .background(Capsule().fill(bgColor))
             )
         }
@@ -1024,7 +1024,7 @@ struct RecipesView: View {
                 }
             }
             .padding(.spacingM)
-            .glassCard(cornerRadius: 16)
+            .productCard(cornerRadius: 16)
 
             // AI Suggestions
             if cookVM.isLoading {
@@ -1109,10 +1109,8 @@ struct RecipesView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(
-                        LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    )
+                    .background(AppColors.primary)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
                 .buttonStyle(PressButtonStyle())
             }
@@ -1286,7 +1284,7 @@ struct RecipesView: View {
                                     )
                                     .foregroundStyle(
                                         ing.available
-                                            ? (ing.expiringSoon ? .orange : accentColor)
+                                            ? (ing.expiringSoon ? .orange : AppColors.primary)
                                             : .red
                                     )
                                 }
@@ -1434,10 +1432,10 @@ struct RecipesView: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(isExpanded ? accentColor.opacity(0.5) : accentColor.opacity(0.2), lineWidth: 1)
+                .stroke(isExpanded ? accentColor.opacity(0.3) : accentColor.opacity(0.1), lineWidth: 1)
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -1585,10 +1583,10 @@ struct RecipesView: View {
             }
         }
         .padding(14)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(accentColor.opacity(0.3), lineWidth: 1)
+                .stroke(accentColor.opacity(0.15), lineWidth: 1)
         )
     }
 

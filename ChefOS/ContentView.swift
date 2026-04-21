@@ -57,28 +57,29 @@ struct ContentView: View {
     }
 
     private var header: some View {
-        HStack(spacing: .spacingM) {
+        HStack(spacing: Spacing.md) {
             ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.auroraBlue.opacity(0.15))
+                RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+                    .fill(AppColors.primary.opacity(0.15))
                     .frame(width: 40, height: 40)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(Color.auroraBlue.opacity(0.3), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+                            .stroke(AppColors.primary.opacity(0.3), lineWidth: 1)
                     )
 
                 Image(systemName: "sparkles")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(Color.auroraBlue)
+                    .foregroundStyle(AppColors.primary)
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("ChefOS")
-                    .premiumHeader()
-                    .foregroundStyle(.white)
+                    .appStyle(.title2)
+                    .foregroundStyle(AppColors.textPrimary)
                 Text("Intelligence Engine")
-                    .premiumCaption()
+                    .appStyle(.caption)
                     .textCase(.uppercase)
+                    .foregroundStyle(AppColors.textSecondary)
             }
 
             Spacer()
@@ -86,17 +87,14 @@ struct ContentView: View {
             Button(action: {}) {
                 Image(systemName: "line.3.horizontal.decrease.circle")
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(AppColors.textSecondary)
             }
             .buttonStyle(PressButtonStyle())
         }
-        .padding(.horizontal, .spacingL)
-        .padding(.vertical, .spacingM)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
         .background {
-            Rectangle()
-                .fill(.ultraThinMaterial.opacity(0.6))
-                .blur(radius: 5)
-                .mask(LinearGradient(colors: [.black, .black.opacity(0.8), .clear], startPoint: .top, endPoint: .bottom))
+            AppColors.surface
                 .ignoresSafeArea()
         }
     }
@@ -134,27 +132,8 @@ private struct DeepObsidianBackground: View {
     @State private var animate = false
 
     var body: some View {
-        ZStack {
-            Color.obsidianBase
-                .ignoresSafeArea()
-
-            // Subtle ambient glows (8% Primary, 2% Secondary)
-            ZStack {
-                Circle()
-                    .fill(Color.auroraBlue.opacity(0.08))
-                    .frame(width: 400, height: 400)
-                    .offset(x: animate ? 100 : -100, y: animate ? -50 : 50)
-                    .blur(radius: 120)
-
-                Circle()
-                    .fill(Color.amberGlow.opacity(0.04)) // Very restricted warm accent
-                    .frame(width: 350, height: 350)
-                    .offset(x: animate ? -120 : 120, y: animate ? 80 : -80)
-                    .blur(radius: 120)
-            }
-            .animation(.easeInOut(duration: 12).repeatForever(autoreverses: true), value: animate)
-            .onAppear { animate = true }
-        }
+        AppColors.background
+            .ignoresSafeArea()
     }
 }
 
@@ -166,25 +145,26 @@ private struct GlassComposer: View {
     let onSend: () -> Void
 
     var body: some View {
-        VStack(spacing: .spacingS) {
+        VStack(spacing: Spacing.sm) {
             // Header Row
-            HStack(spacing: .spacingXS) {
+            HStack(spacing: Spacing.xs) {
                 Text("245")
-                    .premiumHeader()
+                    .appStyle(.headline)
                 Text("Project Requests")
-                    .premiumCaption()
+                    .appStyle(.caption)
                 
                 Spacer()
                 
                 Text("PRO")
-                    .font(.system(size: 10, weight: .black, design: .default))
-                    .foregroundStyle(Color.amberGlow)
+                    .appStyle(.micro)
+                    .bold()
+                    .foregroundStyle(AppColors.accent)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.amberGlow.opacity(0.1), in: Capsule())
+                    .background(AppColors.accent.opacity(0.1), in: Capsule())
             }
-            .padding(.horizontal, .spacingS)
-            .foregroundStyle(.white)
+            .padding(.horizontal, Spacing.sm)
+            .foregroundStyle(AppColors.textPrimary)
 
             // Input Container
             VStack(alignment: .leading, spacing: 0) {
@@ -192,14 +172,14 @@ private struct GlassComposer: View {
                     .textFieldStyle(.plain)
                     .focused($isFocused)
                     .lineLimit(1...5)
-                    .padding(.horizontal, .spacingM)
+                    .padding(.horizontal, Spacing.md)
                     .padding(.vertical, 14)
-                    .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(AppColors.glassFill, in: RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.white.opacity(isFocused ? 0.2 : 0.05), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .stroke(AppColors.glassStroke, lineWidth: 1)
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppColors.textPrimary)
             }
 
             // Bottom Actions Row
@@ -215,25 +195,24 @@ private struct GlassComposer: View {
                 Button(action: onSend) {
                     Image(systemName: "arrow.up")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(canSend ? Color.obsidianBase : .white.opacity(0.5))
+                        .foregroundStyle(canSend ? AppColors.background : AppColors.textTertiary)
                         .frame(width: 36, height: 36)
                         .background {
                             Circle()
-                                .fill(canSend ? Color.auroraBlue : Color.white.opacity(0.1))
+                                .fill(canSend ? AppColors.primary : AppColors.glassFill)
                         }
                         .scaleEffect(isFocused ? 1.05 : 1.0)
                 }
                 .buttonStyle(PressButtonStyle())
                 .disabled(!canSend)
-                .animation(.premiumSpring, value: canSend)
             }
-            .padding(.top, .spacingXS)
-            .padding(.horizontal, .spacingXS)
+            .padding(.top, Spacing.xs)
+            .padding(.horizontal, Spacing.xs)
         }
-        .padding(.spacingM)
-        .glassCard(cornerRadius: 24)
-        .padding(.horizontal, .spacingS)
-        .padding(.bottom, .spacingM)
+        .padding(Spacing.md)
+        .surface(.card, cornerRadius: Radius.lg)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.bottom, Spacing.md)
     }
 }
 
@@ -272,25 +251,23 @@ private struct ContentMessageBubble: View {
         HStack(alignment: .bottom, spacing: 12) {
             if isUser { Spacer(minLength: 64) }
 
-            VStack(alignment: isUser ? .trailing : .leading, spacing: .spacingXS) {
+            VStack(alignment: isUser ? .trailing : .leading, spacing: Spacing.xs) {
                 Text(message.text)
-                    .font(.system(size: 15, weight: .regular, design: .default))
-                    .foregroundStyle(isUser ? .white : .white.opacity(0.9))
-                    .padding(.horizontal, .spacingM)
+                    .appStyle(.body)
+                    .foregroundStyle(isUser ? .white : AppColors.textPrimary)
+                    .padding(.horizontal, Spacing.md)
                     .padding(.vertical, 12)
                     .background {
                         if isUser {
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(Color.auroraBlue)
-                                // Only auroraBlue, no gradients, less cheap
-                                .shadow(color: Color.auroraBlue.opacity(0.25), radius: 10, x: 0, y: 5)
+                            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                                .fill(AppColors.primary)
+                                .shadow(color: AppColors.primary.opacity(0.25), radius: 10, x: 0, y: 5)
                         } else {
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .fill(Color.obsidianPanel.opacity(0.6))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                        .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                                )
+                            AppCard(style: .solid, cornerRadius: Radius.md) { EmptyView() }
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                                        .stroke(AppColors.glassStroke, lineWidth: 1)
+                                }
                         }
                     }
             }
@@ -321,11 +298,7 @@ private struct ThinkingBubble: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(.white.opacity(0.08))
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
+        .background(AppColors.surfaceRaised, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .onAppear {
             dotScale = 1.0
         }

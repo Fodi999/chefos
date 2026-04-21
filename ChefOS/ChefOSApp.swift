@@ -13,6 +13,7 @@ struct ChefOSApp: App {
     @StateObject private var regionService = RegionService()
     @StateObject private var usageService = UsageService()
     @StateObject private var l10n = LocalizationService.shared
+    @State private var designSystem = DesignSystem.shared
 
     var body: some Scene {
         WindowGroup {
@@ -33,6 +34,7 @@ struct ChefOSApp: App {
             .environmentObject(regionService)
             .environmentObject(usageService)
             .environmentObject(l10n)
+            .environment(designSystem)
             .onAppear {
                 authService.determineInitialState()
             }

@@ -44,8 +44,7 @@ struct MealRow: View {
             }
         }
         .padding(meal.type == .lunch ? Spacing.md : 14)
-        .glassCard(cornerRadius: Radius.md)
-        .shadow(color: .black.opacity(0.25), radius: 10, y: 5)
+        .surface(.card, cornerRadius: Radius.md)
         .opacity(meal.type == .dinner ? 0.85 : 1.0)
         .overlay { mealBorder }
         .contentShape(Rectangle())
@@ -67,7 +66,7 @@ struct MealRow: View {
             // Meal type icon
             Image(systemName: mealIconName)
                 .font(meal.type == .lunch ? .title2 : .title3)
-                .foregroundStyle(mealIconGradient)
+                .foregroundStyle(mealIconColor)
                 .frame(width: meal.type == .lunch ? 40 : 36,
                        height: meal.type == .lunch ? 40 : 36)
                 .surface(.tag(mealTagStyle),
@@ -223,13 +222,7 @@ struct MealRow: View {
     private var mealBorder: some View {
         if meal.type == .lunch {
             RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [SemanticColors.meal(.breakfast).opacity(0.2),
-                                 SemanticColors.nutrient(.fat).opacity(0.1), .clear],
-                        startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 1
-                )
+                .strokeBorder(SemanticColors.meal(.breakfast).opacity(0.1), lineWidth: 1)
         }
         if isExpanded {
             RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
@@ -465,11 +458,11 @@ struct MealRow: View {
         }
     }
 
-    private var mealIconGradient: LinearGradient {
+    private var mealIconColor: Color {
         switch meal.type {
-        case .breakfast: return LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .lunch:     return LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .dinner:    return LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .breakfast: return .orange
+        case .lunch:     return .orange
+        case .dinner:    return .purple
         }
     }
 }

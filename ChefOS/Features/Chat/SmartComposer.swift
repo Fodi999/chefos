@@ -27,19 +27,19 @@ struct SmartComposer: View {
                     .lineLimit(1...5)
                     .foregroundStyle(.white)
                     .font(.body)
-                    .tint(Color.auroraBlue)
+                    .tint(AppColors.primary)
                     .focused($isFocused)
                     .submitLabel(.send)
                     .onSubmit { sendAndDismiss() }
 
                 // Subtle tool hints
                 HStack(spacing: .spacingS) {
-                    ComposerToolButton(icon: "sparkles", label: l10n.t("chat.ai"), color: Color.auroraBlue) {
+                    ComposerToolButton(icon: "sparkles", label: l10n.t("chat.ai"), color: AppColors.primary) {
                         onAISuggest()
                     }
-                    ComposerToolButton(icon: "camera.fill", label: l10n.t("chat.photo"), color: Color.auroraBlue) {
+                    ComposerToolButton(icon: "camera.fill", label: l10n.t("chat.photo"), color: AppColors.primary) {
                     }
-                    ComposerToolButton(icon: "waveform", label: l10n.t("chat.voice"), color: Color.auroraBlue) {
+                    ComposerToolButton(icon: "waveform", label: l10n.t("chat.voice"), color: AppColors.primary) {
                         // stub
                     }
                     Spacer()
@@ -52,11 +52,11 @@ struct SmartComposer: View {
             Button(action: sendAndDismiss) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(canSend ? Color.obsidianBase : .white.opacity(0.5))
+                    .foregroundStyle(canSend ? AppColors.background : .white.opacity(0.5))
                     .frame(width: 38, height: 38)
                     .background(
                         canSend
-                            ? AnyShapeStyle(Color.auroraBlue)
+                            ? AnyShapeStyle(AppColors.primary)
                             : AnyShapeStyle(Color.white.opacity(0.06))
                     )
                     .clipShape(Circle())
@@ -71,7 +71,7 @@ struct SmartComposer: View {
             .animation(.premiumSpring, value: canSend)
             .padding(12)
         }
-        .glassCard(cornerRadius: 24)
+        .productCard(cornerRadius: 24)
         .padding(.horizontal, .spacingM)
         .padding(.bottom, .spacingS)
     }
@@ -110,7 +110,7 @@ struct ComposerToolButton: View {
 
 #Preview {
     ZStack {
-        LinearGradient.screenBackground.ignoresSafeArea()
+        AppColors.background.ignoresSafeArea()
         VStack {
             Spacer()
             SmartComposer(

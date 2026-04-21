@@ -36,8 +36,7 @@ struct CalendarDayCell: View {
         .background {
             if isSelected {
                 RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
-                    .fill(LinearGradient.userBubble)
-                    .shadow(color: SemanticColors.meal(.breakfast).opacity(0.2), radius: 8, y: 2)
+                    .fill(AppColors.primary)
             } else if isToday {
                 RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
                     .strokeBorder(SemanticColors.meal(.breakfast).opacity(0.4), lineWidth: 1)
