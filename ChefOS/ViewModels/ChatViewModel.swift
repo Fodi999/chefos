@@ -155,6 +155,8 @@ final class ChatViewModel: ObservableObject {
         case .addRecipeToPlan(let recipe):
             let name = recipe.displayName ?? recipe.dishNameLocal ?? recipe.dishName
             NotificationCenter.default.post(name: .chatDidAddRecipeToPlan, object: recipe)
+            // Step 3: record the add in chat context so the next turn knows.
+            recordAddedRecipe(name)
             appendConfirmation(
                 icon: "checkmark.circle.fill",
                 title: l10n.t("chat.action.added.title"),
@@ -182,6 +184,8 @@ final class ChatViewModel: ObservableObject {
 
         case .addProductToShopping(let product):
             NotificationCenter.default.post(name: .chatDidAddToShoppingList, object: product)
+            // Step 3: record the add so backend stops re-suggesting it.
+            recordAddedProduct(product.slug)
             appendConfirmation(
                 icon: "cart.fill.badge.plus",
                 title: l10n.t("chat.action.shopping.title"),
@@ -193,6 +197,27 @@ final class ChatViewModel: ObservableObject {
             let query = l10n.t("chat.action.showRecipes.query")
                 .replacingOccurrences(of: "{product}", with: product.name)
             sendSuggestion(query)
+        }
+    }
+
+    /// Step 3: append a recipe id to chatContext.addedRecipes (deduplicated, capped).
+    private func recordAddedRecipe(_ id: String) {
+        var list = chatContext.addedRecipes ?? []
+        if !list.contains(id) {
+            list.append(id)
+            // Cap to keep payload small — server contract caps at 20.
+            if list.count > 20 { list.removeFirst(list.count - 20) }
+            chatContext.addedRecipes = list
+        }
+    }
+
+    /// Step 3: append a product slug to chatContext.addedProducts (dedup, capped).
+    private func recordAddedProduct(_ slug: String) {
+        var list = chatContext.addedProducts ?? []
+        if !list.contains(slug) {
+            list.append(slug)
+            if list.count > 30 { list.removeFirst(list.count - 30) }
+            chatContext.addedProducts = list
         }
     }
 

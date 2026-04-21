@@ -588,6 +588,13 @@ final class APIClient {
         var lastCards: [String]?
         var shownSlugs: [String]?
         var turnCount: Int
+        // ── Step 3 (stateful v1) — operational state ─────────────────
+        // Filled by the client after the user actually executes an action.
+        // Backend uses these to drop already-added items from suggestions
+        // and to strip AddToPlan / AddToShopping from cards already added.
+        var addedRecipes: [String]?
+        var addedProducts: [String]?
+        var lastCategory: String?
 
         static func empty() -> ChatContext {
             ChatContext(turnCount: 0)
