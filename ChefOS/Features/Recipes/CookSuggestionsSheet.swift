@@ -2,12 +2,57 @@ import SwiftUI
 
 // MARK: - Cook Suggestions Sheet (main list)
 
+/// Sort modes for dish list. Purely UI — doesn't re-call backend.
+enum DishSortMode: String, CaseIterable, Identifiable {
+    case smart     // backend priorityScore (default)
+    case savings   // wasteSavedCents desc
+    case cheapest  // costCents asc
+    case fastest   // sum(steps.timeMin) asc
+
+    var id: String { rawValue }
+    var labelKey: String {
+        switch self {
+        case .smart:    return "cook.sort.smart"
+        case .savings:  return "cook.sort.savings"
+        case .cheapest: return "cook.sort.cheapest"
+        case .fastest:  return "cook.sort.fastest"
+        }
+    }
+}
+
+private func sortDishes(_ dishes: [APIClient.SuggestedDish], by mode: DishSortMode) -> [APIClient.SuggestedDish] {
+    switch mode {
+    case .smart:
+        return dishes // backend-provided order
+    case .savings:
+        return dishes.sorted {
+            ($0.insight.economics?.wasteSavedCents ?? 0) > ($1.insight.economics?.wasteSavedCents ?? 0)
+        }
+    case .cheapest:
+        return dishes.sorted {
+            let a = $0.insight.economics?.costCents ?? Int.max
+            let b = $1.insight.economics?.costCents ?? Int.max
+            return a < b
+        }
+    case .fastest:
+        return dishes.sorted {
+            let a = $0.steps.compactMap(\.timeMin).reduce(0, +)
+            let b = $1.steps.compactMap(\.timeMin).reduce(0, +)
+            // dishes without time info go to bottom
+            let aa = a == 0 ? Int.max : a
+            let bb = b == 0 ? Int.max : b
+            return aa < bb
+        }
+    }
+}
+
 struct CookSuggestionsSheet: View {
     @ObservedObject var vm: CookSuggestionsViewModel
     @EnvironmentObject var l10n: LocalizationService
     @EnvironmentObject var regionService: RegionService
     @EnvironmentObject var favVM: FavoritesViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var sortMode: DishSortMode = .smart
 
     var body: some View {
         NavigationStack {
@@ -49,14 +94,18 @@ struct CookSuggestionsSheet: View {
                             if let insight = vm.inventoryInsight {
                                 inventoryInsightCard(insight)
                             }
+                            // 🔀 Sort control — creates sense of control without enum modes
+                            if !vm.canCook.isEmpty || !vm.almost.isEmpty || !vm.strategic.isEmpty {
+                                sortPicker
+                            }
                             if !vm.canCook.isEmpty {
-                                dishSection(title: l10n.t("cook.canCookNow"), icon: "checkmark.seal.fill", color: .green, dishes: vm.canCook)
+                                dishSection(title: l10n.t("cook.canCookNow"), icon: "checkmark.seal.fill", color: .green, dishes: sortDishes(vm.canCook, by: sortMode))
                             }
                             if !vm.almost.isEmpty {
-                                dishSection(title: l10n.t("cook.almostReady"), icon: "ellipsis.circle.fill", color: .orange, dishes: vm.almost)
+                                dishSection(title: l10n.t("cook.almostReady"), icon: "ellipsis.circle.fill", color: .orange, dishes: sortDishes(vm.almost, by: sortMode))
                             }
                             if !vm.strategic.isEmpty {
-                                dishSection(title: l10n.t("cook.strategic"), icon: "brain.head.profile.fill", color: .purple, dishes: vm.strategic)
+                                dishSection(title: l10n.t("cook.strategic"), icon: "brain.head.profile.fill", color: .purple, dishes: sortDishes(vm.strategic, by: sortMode))
                             }
                             if let unlock = vm.unlockSuggestions, !unlock.unlockHints.isEmpty {
                                 unlockCard(unlock)
@@ -85,6 +134,47 @@ struct CookSuggestionsSheet: View {
             RecipeDetailSheet(dish: dish)
                 .environmentObject(l10n)
                 .environmentObject(favVM)
+        }
+    }
+
+    // MARK: - Sort Picker
+
+    private var sortPicker: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.up.arrow.down.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(l10n.t("cook.sort.label"))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Menu {
+                ForEach(DishSortMode.allCases) { mode in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { sortMode = mode }
+                        let h = UIImpactFeedbackGenerator(style: .soft)
+                        h.impactOccurred()
+                    } label: {
+                        if sortMode == mode {
+                            Label(l10n.t(mode.labelKey), systemImage: "checkmark")
+                        } else {
+                            Text(l10n.t(mode.labelKey))
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(l10n.t(sortMode.labelKey))
+                        .font(.caption.weight(.semibold))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(AppColors.surface, in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.secondary.opacity(0.15), lineWidth: 0.5))
+            }
         }
     }
 
@@ -293,7 +383,7 @@ struct CookSuggestionsSheet: View {
 
             // 💰 Honest Economics (Phase 0)
             if let econ = dish.insight.economics {
-                economicsBlock(econ)
+                economicsBlock(econ, dish: dish)
             }
 
             // Smart Badges
@@ -362,7 +452,7 @@ struct CookSuggestionsSheet: View {
     /// 💰 Honest economics block (Phase 0).
     /// Styled by confidence: Strong = green/bold, Medium = yellow, Weak = gray.
     @ViewBuilder
-    private func economicsBlock(_ e: APIClient.DishEconomics) -> some View {
+    private func economicsBlock(_ e: APIClient.DishEconomics, dish: APIClient.SuggestedDish) -> some View {
         let (tint, badge, note): (Color, String, String?) = {
             switch e.confidence {
             case .strong: return (.green,  "🔥 " + l10n.t("cook.econ.strong"), nil)
@@ -370,8 +460,9 @@ struct CookSuggestionsSheet: View {
             case .weak:   return (.gray,   "❌ " + l10n.t("cook.econ.weak"),   l10n.t("cook.econ.estimate"))
             }
         }()
+        let isSaved = favVM.isFavorite(dish.dishName)
 
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             // Headline savings — biggest visual weight when it matters
             if e.wasteSavedCents > 0 {
                 HStack(spacing: 6) {
@@ -405,6 +496,33 @@ struct CookSuggestionsSheet: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+
+            // 💾 Save as dish — closes the loop: stock → rec → value → ACTION
+            Button {
+                favVM.toggle(dish)
+                let haptic = UIImpactFeedbackGenerator(style: .light)
+                haptic.impactOccurred()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: isSaved ? "checkmark.circle.fill" : "bookmark")
+                        .font(.caption.weight(.bold))
+                    Text(l10n.t(isSaved ? "cook.save.saved" : "cook.save.asDish"))
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                }
+                .foregroundStyle(isSaved ? .white : tint)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    (isSaved ? tint : tint.opacity(0.12)),
+                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(tint.opacity(isSaved ? 0 : 0.35), lineWidth: 0.5)
+                )
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
