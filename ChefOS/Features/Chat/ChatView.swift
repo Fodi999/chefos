@@ -710,6 +710,53 @@ struct ConversionBotCard: View {
     }
 }
 
+// MARK: - DishPhotoView
+
+/// Renders a dish photo from either a base64 data URI or a regular URL.
+struct DishPhotoView: View {
+    let urlString: String
+
+    var body: some View {
+        Group {
+            if urlString.hasPrefix("data:image/") {
+                // base64 inline image
+                if let b64 = urlString.components(separatedBy: ",").last,
+                   let data = Data(base64Encoded: b64),
+                   let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 200)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            } else if let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    case .failure:
+                        EmptyView()
+                    case .empty:
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppColors.surface)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 200)
+                            .overlay(ProgressView())
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+            }
+        }
+    }
+}
+
 // MARK: - RecipeBotCard
 
 struct RecipeBotCard: View {
@@ -739,6 +786,13 @@ struct RecipeBotCard: View {
             }
             .padding(.horizontal, Spacing.sm)
             .padding(.top, 10)
+
+            // AI-generated dish photo
+            if let imgUrl = card.dishImageUrl, !imgUrl.isEmpty {
+                DishPhotoView(urlString: imgUrl)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.top, 6)
+            }
 
             // Per-serving macros
             HStack(spacing: 0) {

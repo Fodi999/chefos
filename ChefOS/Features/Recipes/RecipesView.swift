@@ -36,7 +36,7 @@ struct RecipesView: View {
                     .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 16) {
+                    LazyVStack(spacing: 16) {
                         modeToggle
                             .staggerIn(appeared: appeared, delay: 0)
 
@@ -50,6 +50,7 @@ struct RecipesView: View {
                     .padding(.vertical, 8)
                     .padding(.bottom, 80)
                 }
+                .scrollIndicators(.hidden)
 
                 // Cooked banner
                 if viewModel.showCookedBanner {

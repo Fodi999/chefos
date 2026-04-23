@@ -65,6 +65,7 @@ struct CookSuggestionsSheet: View {
                         .padding(.horizontal)
                         .padding(.vertical, 8)
                     }
+                    .scrollIndicators(.hidden)
                 }
             }
             .navigationTitle(l10n.t("cook.title"))
@@ -290,6 +291,11 @@ struct CookSuggestionsSheet: View {
                 Label("\(dish.servings)", systemImage: "person.2.fill").font(.caption2).foregroundStyle(.secondary)
             }
 
+            // 💰 Honest Economics (Phase 0)
+            if let econ = dish.insight.economics {
+                economicsBlock(econ)
+            }
+
             // Smart Badges
             if let p = vm.personalization, p.personalized {
                 FlowLayout(spacing: 6) {
@@ -352,6 +358,62 @@ struct CookSuggestionsSheet: View {
     }
 
     // MARK: - Small Helpers
+
+    /// 💰 Honest economics block (Phase 0).
+    /// Styled by confidence: Strong = green/bold, Medium = yellow, Weak = gray.
+    @ViewBuilder
+    private func economicsBlock(_ e: APIClient.DishEconomics) -> some View {
+        let (tint, badge, note): (Color, String, String?) = {
+            switch e.confidence {
+            case .strong: return (.green,  "🔥 " + l10n.t("cook.econ.strong"), nil)
+            case .medium: return (.orange, "⚠️ " + l10n.t("cook.econ.medium"), nil)
+            case .weak:   return (.gray,   "❌ " + l10n.t("cook.econ.weak"),   l10n.t("cook.econ.estimate"))
+            }
+        }()
+
+        VStack(alignment: .leading, spacing: 6) {
+            // Headline savings — biggest visual weight when it matters
+            if e.wasteSavedCents > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "leaf.arrow.circlepath")
+                        .font(.caption.weight(.bold))
+                    Text(String(
+                        format: l10n.t("cook.econ.saves"),
+                        e.wasteFormatted
+                    ))
+                    .font(.subheadline.weight(.bold))
+                }
+                .foregroundStyle(tint)
+            }
+
+            // Cost + Margin row
+            HStack(spacing: 12) {
+                Label(e.costFormatted, systemImage: "banknote")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Label(String(format: "%.0f%%", e.marginPercent), systemImage: "chart.line.uptrend.xyaxis")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(tint)
+                Spacer()
+                Text(badge)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(tint)
+            }
+
+            if let note {
+                Text(note)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(tint.opacity(0.25), lineWidth: 0.5)
+        )
+    }
 
     private func flavorBar(score: Double) -> some View {
         GeometryReader { geo in

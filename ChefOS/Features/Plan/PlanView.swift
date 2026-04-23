@@ -47,6 +47,8 @@ struct PlanView: View {
             ScrollView {
                 scrollContent
             }
+            .scrollIndicators(.hidden)
+            .scrollDismissesKeyboard(.immediately)
         }
     }
 
@@ -268,7 +270,7 @@ struct PlanView: View {
     }
 
     private var mealsList: some View {
-        VStack(spacing: 10) {
+        LazyVStack(spacing: 10) {
             ForEach(dayMealEntries, id: \.meal.id) { entry in
                 mealRow(entry.meal, index: entry.index)
                     .staggerIn(appeared: appeared, delay: 0.15 + Double(entry.index) * 0.05)
@@ -489,6 +491,7 @@ struct PlanView: View {
 
     @State private var smartPlanGlow = false
     @State private var shimmerOffset: CGFloat = -200
+    @State private var isShimmerActive = false
 
     private var smartPlanButton: some View {
         Button {
@@ -497,37 +500,60 @@ struct PlanView: View {
                 viewModel.generateDay()
             }
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                if viewModel.isGenerating {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white)
+                } else {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(viewModel.isGenerating ? l10n.t("plan.generating") : l10n.t("plan.smartPlan"))
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                    Text(viewModel.isGenerating ? l10n.t("plan.aiThinking") : l10n.t("plan.generateAll"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .foregroundStyle(.white)
+            .background {
                 ZStack {
-                    if viewModel.isGenerating {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(.white)
-                    } else {
-                        Image(systemName: "sparkles")
-                            .font(.title3.weight(.semibold))
+                    LinearGradient(
+                        colors: [AppColors.accent, AppColors.accent.opacity(0.8), Color.purple.opacity(0.5)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    
+                    if isShimmerActive {
+                        Capsule()
+                            .fill(LinearGradient(colors: [.clear, .white.opacity(0.1), .clear], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: 80)
+                            .offset(x: shimmerOffset)
                     }
                 }
-                .frame(width: 24, height: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.isGenerating ? l10n.t("plan.generating") : l10n.t("plan.smartPlan"))
-                        .font(.headline.weight(.bold))
-                    Text(viewModel.isGenerating ? l10n.t("plan.aiThinking") : l10n.t("plan.generateAll"))
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-
-                Spacer()
+                .drawingGroup()
             }
-            .foregroundStyle(.white)
-            .padding(16)
-            .background(AppColors.accent, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: AppColors.accent.opacity(0.3), radius: 10, x: 0, y: 5)
         }
         .buttonStyle(PressButtonStyle())
         .disabled(viewModel.isGenerating)
-        .opacity(viewModel.isGenerating ? 0.85 : 1)
-        .animation(.easeInOut(duration: 0.3), value: viewModel.isGenerating)
+        .onAppear {
+            guard !isShimmerActive else { return }
+            isShimmerActive = true
+            withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
+                shimmerOffset = 200
+            }
+        }
+        .onDisappear {
+            isShimmerActive = false
+        }
     }
 
     // MARK: - Optimize Button (Secondary)
@@ -539,35 +565,34 @@ struct PlanView: View {
                 viewModel.optimizeDay()
             }
         } label: {
-            VStack(spacing: 5) {
-                ZStack {
-                    if viewModel.isOptimizing {
-                        ProgressView()
-                            .controlSize(.small)
-                            .tint(.cyan)
-                    } else {
-                        Image(systemName: "wand.and.stars")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.cyan)
-                    }
+            HStack(spacing: 8) {
+                if viewModel.isOptimizing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.cyan)
+                } else {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Color.cyan)
                 }
-                .frame(width: 22, height: 22)
-
+                
                 Text(l10n.t("plan.optimize"))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
             }
-            .frame(width: 72)
-            .padding(.vertical, 14)
-            .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(AppColors.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.04), lineWidth: 1)
-            )
+                    .strokeBorder(Color.white.opacity(0.05), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
         }
         .buttonStyle(PressButtonStyle())
         .disabled(viewModel.isOptimizing || viewModel.filledCount == 0)
-        .opacity(viewModel.filledCount == 0 ? 0.4 : 1)
+        .opacity(viewModel.filledCount == 0 ? 0.6 : 1)
     }
 
     // MARK: - AI Insight

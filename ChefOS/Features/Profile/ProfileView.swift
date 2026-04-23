@@ -31,7 +31,7 @@ struct ProfileView: View {
                     .ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    LazyVStack(spacing: 20) {
                         avatarHeader
                             .staggerIn(appeared: appeared, delay: 0)
 
@@ -53,6 +53,9 @@ struct ProfileView: View {
                         aiSummaryCard
                             .staggerIn(appeared: appeared, delay: 0.3)
 
+                        notificationsCard
+                            .staggerIn(appeared: appeared, delay: 0.33)
+
                         regionCard
                             .staggerIn(appeared: appeared, delay: 0.35)
 
@@ -62,6 +65,7 @@ struct ProfileView: View {
                     .padding()
                     .padding(.bottom, 100) // space for save button
                 }
+                .scrollIndicators(.hidden)
             }
             .navigationTitle(l10n.t("profile.title"))
             .toolbarBackground(AnyShapeStyle(AppColors.surface), for: .navigationBar)
@@ -531,6 +535,108 @@ struct ProfileView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(AppColors.primary.opacity(0.1), lineWidth: 0.5)
         )
+    }
+
+    // MARK: - Notifications
+
+    @StateObject private var notifService = NotificationService.shared
+
+    private var notificationsCard: some View {
+        ProfileSection(title: l10n.t("profile.notifications"), icon: "bell.badge") {
+            if !notifService.isAuthorized {
+                Button {
+                    Task {
+                        let granted = await notifService.requestAuthorization()
+                        if !granted,
+                           let url = URL(string: UIApplication.openSettingsURLString) {
+                            await UIApplication.shared.open(url)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "bell.slash.fill")
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(l10n.t("profile.notifEnable"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                            Text(l10n.t("profile.notifEnableHint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                }
+            } else {
+                Toggle(isOn: $notifService.expiryEnabled) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(l10n.t("profile.notifExpiry"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                            Text(l10n.t("profile.notifExpiryHint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "clock.badge.exclamationmark")
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .tint(.orange)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+
+                Divider().overlay(Color.white.opacity(0.04))
+
+                Toggle(isOn: $notifService.lowStockEnabled) {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(l10n.t("profile.notifLowStock"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                            Text(l10n.t("profile.notifLowStockHint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "cart.badge.minus")
+                            .foregroundStyle(.red)
+                    }
+                }
+                .tint(.orange)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+
+                Divider().overlay(Color.white.opacity(0.04))
+
+                HStack {
+                    Label {
+                        Text(l10n.t("profile.notifTime"))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                    } icon: {
+                        Image(systemName: "alarm")
+                            .foregroundStyle(.cyan)
+                    }
+                    Spacer()
+                    Picker("", selection: $notifService.dailyHour) {
+                        ForEach([7, 8, 9, 10, 11, 12, 18, 19, 20], id: \.self) { h in
+                            Text(String(format: "%02d:00", h)).tag(h)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .tint(.orange)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+            }
+        }
     }
 
     // MARK: - Region

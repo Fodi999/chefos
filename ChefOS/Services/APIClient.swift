@@ -31,7 +31,19 @@ final class APIClient {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 30
+        // Larger in-memory + disk cache improves image re-load and API repeat speed.
+        config.urlCache = URLCache(
+            memoryCapacity: 32 * 1024 * 1024,       // 32 MB RAM
+            diskCapacity: 256 * 1024 * 1024,        // 256 MB disk
+            diskPath: "chefos.urlcache"
+        )
+        config.requestCachePolicy = .useProtocolCachePolicy
+        config.httpMaximumConnectionsPerHost = 6
+        config.waitsForConnectivity = true
         session = URLSession(configuration: config)
+
+        // Install as shared cache → boosts AsyncImage performance app-wide.
+        URLCache.shared = config.urlCache!
 
         decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -899,6 +911,32 @@ final class APIClient {
         let estimatedCostCents: Int
         let priorityScore: Int
         let reasons: [String]
+        /// Honest economics — present only when backend had real price data.
+        /// `nil` means "we don't know, don't show money UI".
+        let economics: DishEconomics?
+    }
+
+    /// Honest kitchen economics (Phase 0). Never fabricated — `nil` when
+    /// no priced ingredients were available.
+    struct DishEconomics: Codable {
+        let costCents: Int
+        let wasteSavedCents: Int
+        let suggestedPriceCents: Int
+        let marginPercent: Double
+        let priceCoveragePercent: Int
+        let confidence: ConfidenceLevel
+
+        enum ConfidenceLevel: String, Codable {
+            case strong, medium, weak
+        }
+
+        var costFormatted: String     { Self.fmt(costCents) }
+        var priceFormatted: String    { Self.fmt(suggestedPriceCents) }
+        var wasteFormatted: String    { Self.fmt(wasteSavedCents) }
+
+        private static func fmt(_ cents: Int) -> String {
+            String(format: "%.2f zł", Double(cents) / 100.0)
+        }
     }
 
     struct FlavorInfo: Codable {
@@ -921,10 +959,12 @@ final class APIClient {
         try attachAuth(&request)
         request.httpBody = try JSONEncoder().encode([:] as [String: String])
         let result: CookSuggestionsResponse = try await execute(request)
+        #if DEBUG
         print("✅ Parsed: canCook=\(result.canCook.count), almost=\(result.almost.count), strategic=\(result.strategic.count)")
         for dish in result.canCook + result.almost + result.strategic {
             print("  🍽 \(dish.dishName) | steps=\(dish.steps.count) | missing=\(dish.missingCount) | ingredients=\(dish.ingredients.count)")
         }
+        #endif
         return result
     }
 
@@ -1228,6 +1268,8 @@ final class APIClient {
         let tags: [String]
         let appliedConstraints: [String]
         let actions: [BackendAction]?
+        /// AI-generated dish photo (data:image/png;base64,… or CDN URL).
+        let dishImageUrl: String?
     }
 
     /// Tagged-union card from the backend `cards[]` array.

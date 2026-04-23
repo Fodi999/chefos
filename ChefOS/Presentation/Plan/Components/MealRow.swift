@@ -30,28 +30,48 @@ struct MealRow: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 0) {
             mealHeader
+                .padding(.bottom, 12)
+            
             if let recipe = meal.recipe {
-                Divider().overlay(AppColors.divider)
                 recipeRow(recipe)
+                
                 if isExpanded {
                     expandedDetail(recipe: recipe)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 16)
                 }
             } else {
                 addMealButton
+                    .padding(.top, 4)
             }
         }
-        .padding(meal.type == .lunch ? Spacing.md : 14)
-        .surface(.card, cornerRadius: Radius.md)
-        .opacity(meal.type == .dinner ? 0.85 : 1.0)
-        .overlay { mealBorder }
+        .padding(16)
+        .background {
+            ZStack {
+                AppColors.surface
+                
+                if isExpanded {
+                    LinearGradient(
+                        colors: [mealIconColor.opacity(0.05), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(isExpanded ? mealIconColor.opacity(0.2) : Color.white.opacity(0.05), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(isExpanded ? 0.1 : 0.05), radius: isExpanded ? 15 : 5, x: 0, y: isExpanded ? 8 : 2)
         .contentShape(Rectangle())
         .onTapGesture { if meal.recipe != nil { onTap() } }
         .redacted(reason: isLoading ? .placeholder : [])
         .opacity(isLoading ? 0.45 : 1)
-        .animation(.easeInOut(duration: 0.4), value: isLoading)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isExpanded)
         .if(isLoading) { $0.shimmering() }
         .transition(.asymmetric(
             insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -62,35 +82,54 @@ struct MealRow: View {
     // MARK: - Meal Header
 
     private var mealHeader: some View {
-        HStack {
-            // Meal type icon
-            Image(systemName: mealIconName)
-                .font(meal.type == .lunch ? .title2 : .title3)
-                .foregroundStyle(mealIconColor)
-                .frame(width: meal.type == .lunch ? 40 : 36,
-                       height: meal.type == .lunch ? 40 : 36)
-                .surface(.tag(mealTagStyle),
-                         cornerRadius: meal.type == .lunch ? Radius.sm : Radius.xs)
+        HStack(spacing: 12) {
+            // Modern Floating Icon
+            ZStack {
+                Circle()
+                    .fill(mealIconColor.opacity(0.12))
+                    .frame(width: 44, height: 44)
+                
+                Image(systemName: mealIconName)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(mealIconColor)
+            }
 
-            // Meal type label
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(localizedMealType)
-                    .font(meal.type == .lunch ? .headline.weight(.bold) : .subheadline.weight(.semibold))
-                if meal.type == .lunch && meal.recipe != nil {
-                    Text(l10n.t("plan.mainMeal"))
-                        .appStyle(.tag)
-                        .foregroundStyle(SemanticColors.meal(.breakfast).opacity(0.8))
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                
+                if let recipe = meal.recipe {
+                    HStack(spacing: 8) {
+                        Label("\(recipe.calories) kcal", systemImage: "flame.fill")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(SemanticColors.nutrient(.calories))
+                        
+                        if recipe.estimatedCost > 0 {
+                            Label(String(format: "%.2f %@", recipe.estimatedCost, currency), systemImage: "dollarsign.circle.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(SemanticColors.state(.budget))
+                        }
+                    }
+                } else {
+                    Text(l10n.t("plan.notPlanned"))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
             }
 
             Spacer()
 
-            // Recipe badges
             if let recipe = meal.recipe {
-                if let dish = recipe.sourceDish {
-                    favoriteButton(dish: dish)
+                HStack(spacing: 12) {
+                    if let dish = recipe.sourceDish {
+                        favoriteButton(dish: dish)
+                    }
+                    
+                    Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(.secondary.opacity(0.3))
+                        .symbolEffect(.bounce, value: isExpanded)
                 }
-                recipeBadges(recipe)
             }
         }
     }
@@ -103,100 +142,71 @@ struct MealRow: View {
                 favVM.toggle(dish)
             }
         } label: {
-            Image(systemName: favVM.isFavorite(dish.dishName) ? "heart.fill" : "heart")
-                .font(.body)
-                .foregroundStyle(favVM.isFavorite(dish.dishName) ? SemanticColors.state(.danger) : AppColors.textSecondary.opacity(0.5))
-                .symbolEffect(.bounce, value: favVM.isFavorite(dish.dishName))
+            ZStack {
+                Circle()
+                    .fill(favVM.isFavorite(dish.dishName) ? SemanticColors.state(.danger).opacity(0.1) : Color.black.opacity(0.03))
+                    .frame(width: 36, height: 36)
+                
+                Image(systemName: favVM.isFavorite(dish.dishName) ? "heart.fill" : "heart")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(favVM.isFavorite(dish.dishName) ? SemanticColors.state(.danger) : .secondary.opacity(0.5))
+            }
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - Recipe badges (kcal / cost / missing)
-
-    private func recipeBadges(_ recipe: Recipe) -> some View {
-        HStack(spacing: 6) {
-            Text("\(recipe.calories) kcal")
-                .appStyle(.tag)
-                .foregroundStyle(SemanticColors.nutrient(.calories))
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .surface(.tag(.calories), cornerRadius: Radius.full)
-
-            if recipe.estimatedCost > 0 {
-                Text(String(format: "%.2f %@", recipe.estimatedCost, currency))
-                    .appStyle(.tag)
-                    .foregroundStyle(SemanticColors.state(.budget))
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .surface(.tag(.budget), cornerRadius: Radius.full)
-            }
-            if !recipe.recipeIngredients.filter({ !$0.available }).isEmpty {
-                Image(systemName: "cart.badge.plus")
-                    .font(.caption2)
-                    .foregroundStyle(SemanticColors.state(.danger))
-                    .padding(4)
-                    .surface(.tag(.danger), cornerRadius: Radius.full)
-            }
-        }
     }
 
     // MARK: - Recipe collapsed row
 
     @ViewBuilder
     private func recipeRow(_ recipe: Recipe) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
                 Text(recipe.title)
-                    .appStyle(.bodyMedium)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Spacer()
+                
+                // Action row for quick swap
+                Button { onAdd() } label: {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(mealIconColor)
+                        .padding(10)
+                        .background(mealIconColor.opacity(0.1), in: Circle())
+                }
+                .buttonStyle(PressButtonStyle())
+            }
 
-                if !recipe.dishType.isEmpty {
-                    HStack(spacing: 6) {
-                        Text(recipe.dishType)
-                            .appStyle(.tag)
-                            .foregroundStyle(SemanticColors.tag(.category))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .surface(.tag(.category), cornerRadius: Radius.full)
-
+            if !recipe.dishType.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        tagChip(recipe.dishType, color: SemanticColors.tag(.category))
                         if !recipe.complexity.isEmpty {
-                            Text(recipe.complexity)
-                                .appStyle(.caption)
-                                .foregroundStyle(AppColors.textSecondary)
+                            tagChip(recipe.complexity, color: .secondary)
+                        }
+                        if !recipe.recipeIngredients.filter({ !$0.available }).isEmpty {
+                            tagChip(l10n.t("plan.missingItems"), color: SemanticColors.state(.danger), icon: "cart.fill")
                         }
                     }
-                } else {
-                    Text(recipe.ingredients.prefix(3).joined(separator: " · "))
-                        .appStyle(.caption)
-                        .foregroundStyle(AppColors.textSecondary)
-                        .lineLimit(1)
                 }
-            }
-            Spacer()
-            HStack(spacing: 8) {
-                Button { onAdd() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.triangle.2.circlepath").font(.caption2.weight(.bold))
-                        Text(l10n.t("plan.replace")).appStyle(.tag)
-                    }
-                }
-                .buttonStyle(.bordered)
-                .tint(SemanticColors.meal(.breakfast))
-                .controlSize(.small)
-
-                Button { onClear() } label: {
-                    Image(systemName: "xmark").font(.caption2.weight(.medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(AppColors.textSecondary.opacity(0.35))
             }
         }
+    }
 
-        if !isExpanded {
-            HStack(spacing: 4) {
-                Image(systemName: "chevron.down").font(.caption2)
-                Text(l10n.t("plan.tapToExpand")).appStyle(.micro)
+    private func tagChip(_ text: String, color: Color, icon: String? = nil) -> some View {
+        HStack(spacing: 4) {
+            if let icon = icon {
+                Image(systemName: icon).font(.system(size: 10, weight: .bold))
             }
-            .foregroundStyle(AppColors.textSecondary.opacity(0.5))
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.top, 2)
+            Text(text)
+                .font(.system(size: 11, weight: .bold))
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(color.opacity(0.1), in: Capsule())
+        .foregroundStyle(color)
     }
 
     // MARK: - Add meal button

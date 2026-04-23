@@ -272,10 +272,10 @@ final class ChatViewModel: ObservableObject {
             suggestions = []
         }
 
-        // Pass user's preferred language in context
-        if chatContext.lastLang == nil || chatContext.lastLang?.isEmpty == true {
-            chatContext.lastLang = l10n.language
-        }
+        // Always sync the current app language into context before sending.
+        // This ensures the backend uses the right language even if the user
+        // changed the language in Settings mid-session.
+        chatContext.lastLang = l10n.language
 
         // Step 4: telemetry — record user query before we send it.
         api.sendChatEvent(

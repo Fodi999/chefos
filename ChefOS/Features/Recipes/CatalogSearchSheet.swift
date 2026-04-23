@@ -158,6 +158,7 @@ struct CatalogSearchSheet: View {
                     .padding(.horizontal)
                     .padding(.vertical, 8)
                 }
+                .scrollIndicators(.hidden)
             }
         }
     }

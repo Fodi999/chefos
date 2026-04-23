@@ -12,7 +12,8 @@ import SwiftUI
 // MARK: - Shimmer Modifier
 
 public struct ShimmerModifier: ViewModifier {
-    @State private var phase: CGFloat = 0
+    @State private var phase: CGFloat = -200
+    @State private var isAnimating = false
 
     public func body(content: Content) -> some View {
         content
@@ -24,11 +25,17 @@ public struct ShimmerModifier: ViewModifier {
                 )
                 .offset(x: phase)
                 .mask(content)
+                .drawingGroup()
             )
             .onAppear {
+                guard !isAnimating else { return }
+                isAnimating = true
                 withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
                     phase = 400
                 }
+            }
+            .onDisappear {
+                isAnimating = false
             }
     }
 }

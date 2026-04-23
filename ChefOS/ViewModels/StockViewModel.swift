@@ -258,6 +258,8 @@ final class StockViewModel: ObservableObject {
         do {
             let response = try await api.listInventory()
             items = response.items.map { StockItem(from: $0) }
+            // Keep local push reminders in sync with the server state.
+            await NotificationService.shared.rescheduleInventoryNotifications(items: items)
         } catch {
             self.error = error.localizedDescription
         }

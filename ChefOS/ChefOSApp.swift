@@ -59,6 +59,9 @@ struct ChefOSApp: App {
                     authService?.logout()
                     showSessionExpiredAlert = true
                 }
+                // Ask for notification permission once — iOS itself
+                // deduplicates the prompt if the user already answered.
+                Task { await NotificationService.shared.requestAuthorization() }
             }
         }
     }
