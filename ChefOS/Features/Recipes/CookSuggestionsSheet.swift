@@ -88,6 +88,10 @@ struct CookSuggestionsSheet: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 24) {
+                            // 🔥 Daily savings hero — psychological hook at the top
+                            if totalDailySavingsCents > 0 {
+                                todaySavingsBanner
+                            }
                             if let p = vm.personalization, p.personalized {
                                 personalizationBanner(p)
                             }
@@ -135,6 +139,51 @@ struct CookSuggestionsSheet: View {
                 .environmentObject(l10n)
                 .environmentObject(favVM)
         }
+    }
+
+    // MARK: - Today's Savings Hero
+
+    /// MAX single-dish saving among all cookable dishes (avoids double-counting
+    /// the same expiring product used across multiple recipes).
+    private var totalDailySavingsCents: Int {
+        let allDishes = vm.canCook + vm.almost + vm.strategic
+        return allDishes
+            .compactMap { $0.insight.economics?.wasteSavedCents }
+            .max() ?? 0
+    }
+
+    private var totalDailySavingsFormatted: String {
+        String(format: "%.2f zł", Double(totalDailySavingsCents) / 100.0)
+    }
+
+    private var todaySavingsBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "leaf.arrow.circlepath")
+                .font(.title2)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(format: l10n.t("cook.econ.todaySavings"), totalDailySavingsFormatted))
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                Text(l10n.t("cook.econ.bestToday"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(
+            LinearGradient(
+                colors: [Color.green.opacity(0.18), Color.green.opacity(0.06)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.green.opacity(0.3), lineWidth: 0.5)
+        )
     }
 
     // MARK: - Sort Picker
@@ -428,19 +477,30 @@ struct CookSuggestionsSheet: View {
                 }
             }
 
-            // CTA
+            // CTA — when there's real savings, emphasize money not recipe
+            let wasteSaved = dish.insight.economics?.wasteSavedCents ?? 0
+            let wasteFormatted = dish.insight.economics?.wasteFormatted ?? ""
+            let canCookNow = dish.missingCount == 0
+            let ctaColor: Color = wasteSaved > 0 ? .green : (canCookNow ? .green : .orange)
             HStack(spacing: 8) {
-                Image(systemName: dish.missingCount == 0 ? "play.fill" : "book.fill").font(.caption.weight(.semibold))
-                Text(l10n.t("cook.openRecipe")).font(.caption.weight(.semibold))
+                Image(systemName: wasteSaved > 0 ? "banknote.fill" : (canCookNow ? "play.fill" : "book.fill"))
+                    .font(.caption.weight(.semibold))
+                if wasteSaved > 0 {
+                    Text(String(format: l10n.t("cook.econ.cookAndSave"), wasteFormatted))
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                } else {
+                    Text(l10n.t("cook.openRecipe")).font(.caption.weight(.semibold))
+                }
                 Spacer()
                 if dish.missingCount > 0 {
                     Text("\(dish.missingCount) \(l10n.t("cook.missing"))").font(.caption2.weight(.medium))
                 }
                 Image(systemName: "chevron.right").font(.caption2.weight(.bold)).foregroundStyle(.tertiary)
             }
-            .foregroundStyle(dish.missingCount == 0 ? .green : .orange)
+            .foregroundStyle(ctaColor)
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .background((dish.missingCount == 0 ? Color.green : Color.orange).opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(ctaColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .padding(16)
         .background(AppColors.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -462,17 +522,43 @@ struct CookSuggestionsSheet: View {
         }()
         let isSaved = favVM.isFavorite(dish.dishName)
 
+        // 🔗 The key link: stock → recipe → money
+        // Which specific expiring products does THIS dish rescue?
+        let rescuedNames: [String] = dish.ingredients
+            .filter { $0.expiringSoon }
+            .map { $0.name }
+        let rescuedText = rescuedNames.prefix(3).joined(separator: ", ")
+        let hasRescue = e.wasteSavedCents > 0 && !rescuedNames.isEmpty
+
         VStack(alignment: .leading, spacing: 8) {
-            // Headline savings — biggest visual weight when it matters
+            // 🔥 "Best decision today" — only for strong picks that rescue products
+            if e.confidence == .strong && hasRescue {
+                Text(l10n.t("cook.econ.bestToday"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(tint)
+            }
+
+            // Headline savings with SPECIFIC product names
             if e.wasteSavedCents > 0 {
-                HStack(spacing: 6) {
+                HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "leaf.arrow.circlepath")
                         .font(.caption.weight(.bold))
-                    Text(String(
-                        format: l10n.t("cook.econ.saves"),
-                        e.wasteFormatted
-                    ))
-                    .font(.subheadline.weight(.bold))
+                        .padding(.top, 2)
+                    if hasRescue {
+                        Text(String(
+                            format: l10n.t("cook.econ.savesWith"),
+                            e.wasteFormatted,
+                            rescuedText
+                        ))
+                        .font(.subheadline.weight(.bold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text(String(
+                            format: l10n.t("cook.econ.saves"),
+                            e.wasteFormatted
+                        ))
+                        .font(.subheadline.weight(.bold))
+                    }
                 }
                 .foregroundStyle(tint)
             }
@@ -493,6 +579,13 @@ struct CookSuggestionsSheet: View {
 
             if let note {
                 Text(note)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            // ⚠️ Loss framing — psychological pressure (small, non-aggressive)
+            if e.wasteSavedCents > 0 {
+                Text(String(format: l10n.t("cook.econ.loseWarning"), e.wasteFormatted))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -609,6 +702,9 @@ struct RecipeDetailSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         headerSection
+                        if let econ = dish.insight.economics {
+                            economicsHeroSection(econ)
+                        }
                         actionButtons
                         if !dish.insight.reasons.isEmpty { reasonsSection }
                         nutritionSection
@@ -726,6 +822,77 @@ struct RecipeDetailSheet: View {
         }
     }
 
+    // MARK: - Economics Hero (THE main value prop)
+
+    @ViewBuilder
+    private func economicsHeroSection(_ e: APIClient.DishEconomics) -> some View {
+        let tint: Color = {
+            switch e.confidence {
+            case .strong: return .green
+            case .medium: return .orange
+            case .weak:   return .gray
+            }
+        }()
+        let wasteFormatted = String(format: "%.2f zł", Double(e.wasteSavedCents) / 100.0)
+        let costFormatted = String(format: "%.2f zł", Double(e.costCents) / 100.0)
+        let rescuedNames = dish.ingredients.filter { $0.expiringSoon }.map { $0.name }
+        let rescuedText = rescuedNames.prefix(3).joined(separator: ", ")
+
+        VStack(alignment: .leading, spacing: 10) {
+            // Main savings line (if any)
+            if e.wasteSavedCents > 0 {
+                HStack(spacing: 8) {
+                    Image(systemName: "banknote.fill")
+                        .font(.title3)
+                        .foregroundStyle(tint)
+                    Text("\(l10n.t("cook.econ.savings")) \(wasteFormatted)")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(tint)
+                }
+                if !rescuedNames.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "leaf.fill").font(.caption).foregroundStyle(.orange)
+                        Text("\(l10n.t("cook.econ.rescuesLabel")): \(rescuedText)")
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                // Loss framing — psychological pressure
+                Text(String(format: l10n.t("cook.econ.loseWarning"), wasteFormatted))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider().padding(.vertical, 2)
+
+            // Cost + margin row (smaller)
+            HStack(spacing: 16) {
+                Label(costFormatted, systemImage: "cart")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Label(String(format: "%.0f%% \(l10n.t("cook.econ.margin"))", e.marginPercent),
+                      systemImage: "chart.line.uptrend.xyaxis")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(tint)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            LinearGradient(
+                colors: [tint.opacity(0.18), tint.opacity(0.06)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            ),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(tint.opacity(0.35), lineWidth: 0.5)
+        )
+    }
+
     // MARK: - Reasons
 
     private var reasonsSection: some View {
@@ -744,16 +911,32 @@ struct RecipeDetailSheet: View {
     // MARK: - Nutrition
 
     private var nutritionSection: some View {
-        sectionCard(title: l10n.t("cook.nutrition"), icon: "chart.bar.fill", color: .blue) {
-            VStack(spacing: 10) {
-                Text(l10n.t("cook.perServing")).font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 0) {
-                    nutritionBlock(icon: "flame.fill", value: "\(dish.perServingKcal)", label: l10n.t("cook.kcal"), color: .orange)
-                    nutritionBlock(icon: "p.circle.fill", value: String(format: "%.1f", dish.perServingProteinG), label: l10n.t("cook.protein"), color: .blue)
-                    nutritionBlock(icon: "f.circle.fill", value: String(format: "%.1f", dish.perServingFatG), label: l10n.t("cook.fat"), color: .yellow)
-                    nutritionBlock(icon: "c.circle.fill", value: String(format: "%.1f", dish.perServingCarbsG), label: l10n.t("cook.carbs"), color: .green)
-                }
+        // Deliberately compact — this is a money/anti-waste product, not fitness.
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "chart.bar").font(.caption2).foregroundStyle(.secondary)
+                Text("\(l10n.t("cook.nutrition")) · \(l10n.t("cook.perServing"))")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
+            HStack(spacing: 14) {
+                nutritionInline(value: "\(dish.perServingKcal)", unit: l10n.t("cook.kcal"))
+                Text("·").foregroundStyle(.tertiary)
+                nutritionInline(value: String(format: "%.0f", dish.perServingProteinG), unit: "P")
+                nutritionInline(value: String(format: "%.0f", dish.perServingFatG), unit: "F")
+                nutritionInline(value: String(format: "%.0f", dish.perServingCarbsG), unit: "C")
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(AppColors.surface.opacity(0.5), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func nutritionInline(value: String, unit: String) -> some View {
+        HStack(spacing: 3) {
+            Text(value).font(.footnote.weight(.semibold)).monospacedDigit()
+            Text(unit).font(.caption2).foregroundStyle(.secondary)
         }
     }
 
